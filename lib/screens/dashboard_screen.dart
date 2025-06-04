@@ -129,7 +129,7 @@ class DashboardScreenState extends State<DashboardScreen> {
         currencyFormat.format(product.precioVenta),
         style: const TextStyle(
           fontWeight: FontWeight.bold,
-          color: Colors.green,
+          color: Color.fromARGB(255, 72, 168, 75),
         ),
       ),
     );
