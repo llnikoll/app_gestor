@@ -12,7 +12,7 @@ class DatabaseService {
 
   // Database configuration
   static const String _databaseName = 'gestor_ventas.db';
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 5;  // Incremented to add cliente column to ventas table
 
   // Table names
   static const String tableClientes = 'clientes';
@@ -97,6 +97,7 @@ class DatabaseService {
       CREATE TABLE $tableVentas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         cliente_id INTEGER,
+        cliente TEXT,
         total REAL NOT NULL,
         fecha TEXT NOT NULL,
         metodo_pago TEXT NOT NULL,
@@ -133,10 +134,10 @@ class DatabaseService {
     });
   }
 
-  // Upgrade database
+  // Handle database upgrades
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 4) {
-      // Drop all tables if they exist
+    if (oldVersion < 5) {
+      // For versions before 5, we need to recreate the tables with the new schema
       await db.execute('DROP TABLE IF EXISTS $tableVentaDetalles');
       await db.execute('DROP TABLE IF EXISTS $tableVentas');
       await db.execute('DROP TABLE IF EXISTS $tableProductos');
@@ -145,10 +146,149 @@ class DatabaseService {
       
       // Recreate all tables with the new schema
       await _onCreate(db, newVersion);
+    } else if (oldVersion == 4) {
+      // For version 4 to 5, just add the cliente column
+      try {
+        await db.execute('''
+          ALTER TABLE $tableVentas
+          ADD COLUMN cliente TEXT
+        ''');
+      } catch (e) {
+        // Column might already exist, ignore
+      }
     }
   }
 
-  // Client CRUD operations
+  // ========== VENTA METHODS ==========
+
+  // Obtener ventas por rango de fechas
+  Future<List<Venta>> getVentasPorRangoFechas(DateTime fechaInicio, DateTime fechaFin) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tableVentas,
+      where: 'fecha BETWEEN ? AND ?',
+      whereArgs: [fechaInicio.toIso8601String(), fechaFin.toIso8601String()],
+      orderBy: 'fecha DESC',
+    );
+
+    final List<Venta> ventas = [];
+    for (var map in maps) {
+      final venta = Venta.fromMap(map);
+      venta.id = map['id'];
+      
+      // Cargar detalles de la venta
+      final detalles = await getDetallesVenta(venta.id!);
+      for (var detalle in detalles) {
+        venta.agregarItem(detalle);
+      }
+      
+      ventas.add(venta);
+    }
+    
+    return ventas;
+  }
+
+  // Obtener detalles de una venta
+  Future<List<Map<String, dynamic>>> getDetallesVenta(int ventaId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT vd.*, p.nombre as nombre_producto 
+      FROM $tableVentaDetalles vd
+      JOIN $tableProductos p ON vd.producto_id = p.id
+      WHERE vd.venta_id = ?
+    ''', [ventaId]);
+    
+    return maps;
+  }
+
+  // Obtener todos los clientes
+  Future<List<Cliente>> getClientes() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tableClientes,
+      orderBy: 'nombre ASC',
+    );
+    
+    return List.generate(maps.length, (i) => Cliente.fromMap(maps[i]));
+  }
+  
+  // Insertar una nueva venta
+  Future<int> insertVenta(Venta venta) async {
+    final db = await database;
+    int ventaId = 0; // Initialize with default value
+    
+    await db.transaction((txn) async {
+      // Insert sale
+      ventaId = await txn.insert(
+        tableVentas,
+        {
+          'cliente_id': venta.clienteId,
+          'cliente': venta.clienteNombre,
+          'total': venta.total,
+          'fecha': venta.fecha.toIso8601String(),
+          'metodo_pago': venta.metodoPago,
+          'estado': venta.estado,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      
+      // Insert sale details
+      for (var item in venta.items) {
+        await txn.insert(
+          tableVentaDetalles,
+          {
+            'venta_id': ventaId,
+            'producto_id': item['producto_id'],
+            'cantidad': item['cantidad'],
+            'precio_unitario': item['precio_unitario'],
+            'subtotal': item['subtotal'],
+          },
+        );
+        
+        // Update product stock
+        await txn.rawUpdate(
+          'UPDATE $tableProductos SET stock = stock - ? WHERE id = ?',
+          [item['cantidad'], item['producto_id']],
+        );
+      }
+    });
+    
+    return ventaId;
+  }
+
+  // Insertar detalle de venta
+  Future<void> insertVentaDetalle({
+    required int ventaId,
+    required int productoId,
+    required int cantidad,
+    required double precioUnitario,
+    required double subtotal,
+  }) async {
+    final db = await database;
+    await db.insert(
+      tableVentaDetalles,
+      {
+        'venta_id': ventaId,
+        'producto_id': productoId,
+        'cantidad': cantidad,
+        'precio_unitario': precioUnitario,
+        'subtotal': subtotal,
+      },
+    );
+  }
+
+  // Actualizar stock de un producto
+  Future<void> actualizarStockProducto(int productoId, int cantidad) async {
+    final db = await database;
+    await db.rawUpdate('''
+      UPDATE $tableProductos 
+      SET stock = stock + ? 
+      WHERE id = ?
+    ''', [cantidad, productoId]);
+  }
+
+  // ========== CLIENT METHODS ==========
+  
   Future<int> insertCliente(Cliente cliente) async {
     final db = await database;
     return await db.insert(tableClientes, cliente.toMap());
@@ -271,12 +411,14 @@ class DatabaseService {
         nombre: map['nombre'] ?? '',
         descripcion: map['descripcion'] ?? '',
         categoria: map['categoria_nombre'] ?? 'General',
-        precioCompra: (map['precio_compra'] as num).toDouble(),
-        precioVenta: (map['precio_venta'] as num).toDouble(),
+        precioCompra: (map['precio_compra'] as num?)?.toDouble() ?? 0.0,
+        precioVenta: (map['precio_venta'] as num?)?.toDouble() ?? 0.0,
         stock: map['stock'] ?? 0,
-        fechaCreacion: DateTime.parse(map['fecha_creacion']),
+        fechaCreacion: map['fecha_creacion'] != null 
+            ? DateTime.parse(map['fecha_creacion'])
+            : DateTime.now(),
         fechaActualizacion: map['fecha_actualizacion'] != null 
-            ? DateTime.parse(map['fecha_actualizacion']) 
+            ? DateTime.parse(map['fecha_actualizacion'])
             : null,
         imagenUrl: map['imagen_url'],
         activo: map['activo'] == 1,
@@ -287,14 +429,33 @@ class DatabaseService {
 
   Future<Producto?> getProductoPorCodigo(String codigoBarras) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      tableProductos,
-      where: 'codigo_barras = ?',
-      whereArgs: [codigoBarras],
-    );
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT p.*, c.nombre as categoria_nombre 
+      FROM $tableProductos p
+      LEFT JOIN $tableCategorias c ON p.categoria_id = c.id
+      WHERE p.codigo_barras = ?
+    ''', [codigoBarras]);
     
     if (maps.isNotEmpty) {
-      return Producto.fromMap(maps.first);
+      final map = maps.first;
+      return Producto(
+        id: map['id'],
+        codigoBarras: map['codigo_barras'] ?? '',
+        nombre: map['nombre'] ?? '',
+        descripcion: map['descripcion'] ?? '',
+        categoria: map['categoria_nombre'] ?? 'General',
+        precioCompra: (map['precio_compra'] as num?)?.toDouble() ?? 0.0,
+        precioVenta: (map['precio_venta'] as num?)?.toDouble() ?? 0.0,
+        stock: map['stock'] ?? 0,
+        fechaCreacion: map['fecha_creacion'] != null 
+            ? DateTime.parse(map['fecha_creacion'])
+            : DateTime.now(),
+        fechaActualizacion: map['fecha_actualizacion'] != null 
+            ? DateTime.parse(map['fecha_actualizacion'])
+            : null,
+        imagenUrl: map['imagen_url'],
+        activo: map['activo'] == 1,
+      );
     }
     return null;
   }
@@ -305,21 +466,41 @@ class DatabaseService {
     List<Map<String, dynamic>> maps;
     if (categoria != null && categoria.isNotEmpty) {
       maps = await db.rawQuery('''
-        SELECT p.*, c.nombre as categoria 
+        SELECT p.*, c.nombre as categoria_nombre 
         FROM $tableProductos p
         INNER JOIN $tableCategorias c ON p.categoria_id = c.id
-        WHERE p.categoria_id = ? AND p.activo = 1
+        WHERE c.nombre = ? AND p.activo = 1
       ''', [categoria]);
     } else {
       maps = await db.rawQuery('''
-        SELECT p.*, c.nombre as categoria 
+        SELECT p.*, c.nombre as categoria_nombre 
         FROM $tableProductos p
         INNER JOIN $tableCategorias c ON p.categoria_id = c.id
         WHERE p.activo = 1
       ''');
     }
     
-    return List.generate(maps.length, (i) => Producto.fromMap(maps[i]));
+    return List.generate(maps.length, (i) {
+      final map = maps[i];
+      return Producto(
+        id: map['id'],
+        codigoBarras: map['codigo_barras'] ?? '',
+        nombre: map['nombre'] ?? '',
+        descripcion: map['descripcion'] ?? '',
+        categoria: map['categoria_nombre'] ?? 'General',
+        precioCompra: (map['precio_compra'] as num?)?.toDouble() ?? 0.0,
+        precioVenta: (map['precio_venta'] as num?)?.toDouble() ?? 0.0,
+        stock: map['stock'] ?? 0,
+        fechaCreacion: map['fecha_creacion'] != null 
+            ? DateTime.parse(map['fecha_creacion'])
+            : DateTime.now(),
+        fechaActualizacion: map['fecha_actualizacion'] != null 
+            ? DateTime.parse(map['fecha_actualizacion'])
+            : null,
+        imagenUrl: map['imagen_url'],
+        activo: map['activo'] == 1,
+      );
+    });
   }
 
   Future<int> updateProducto(Producto producto) async {
@@ -448,38 +629,7 @@ class DatabaseService {
     );
   }
 
-  // Sale operations
-  Future<int> insertVenta(Venta venta) async {
-    final db = await database;
-    int ventaId = 0; // Initialize with default value
-    
-    await db.transaction((txn) async {
-      // Insert sale
-      ventaId = await txn.insert(tableVentas, venta.toMap());
-      
-      // Insert sale details
-      for (var item in venta.items) {
-        await txn.insert(
-          tableVentaDetalles,
-          {
-            'venta_id': ventaId,
-            'producto_id': item['producto_id'],
-            'cantidad': item['cantidad'],
-            'precio_unitario': item['precio_unitario'],
-            'subtotal': item['subtotal'],
-          },
-        );
-        
-        // Update product stock
-        await txn.rawUpdate(
-          'UPDATE $tableProductos SET stock = stock - ? WHERE id = ?',
-          [item['cantidad'], item['producto_id']],
-        );
-      }
-    });
-    
-    return ventaId;
-  }
+
 
   Future<List<Venta>> getVentas() async {
     final db = await database;

@@ -35,13 +35,27 @@ class SalesScreenState extends State<SalesScreen>
   // Filtros de productos
   final TextEditingController _filtroBusquedaController = TextEditingController();
   String _filtroCategoria = 'Todas';
+  String _filtroOrden = 'Nombre (A-Z)';
   final double _filtroPrecioMin = 0;
   final double _filtroPrecioMax = 1000000;
   
-  // Actualizar filtro de categoría
-  void _actualizarFiltroCategoria(String? value) {
+  // Controladores para los filtros
+  void _actualizarFiltroCategoria(String? value) => _actualizarFiltro(
+        value,
+        (v) => _filtroCategoria = v,
+      );
+
+  void _actualizarFiltroOrden(String? value) => _actualizarFiltro(
+        value,
+        (v) => _filtroOrden = v,
+      );
+
+  void _actualizarFiltro<T>(
+    T? value,
+    void Function(T) actualizarFiltro,
+  ) {
     if (value != null) {
-      setState(() => _filtroCategoria = value);
+      setState(() => actualizarFiltro(value));
       _aplicarFiltros();
     }
   }
@@ -197,8 +211,23 @@ class SalesScreenState extends State<SalesScreen>
 
   // Método para aplicar el ordenamiento
   void _aplicarOrden() {
-    // Ordenar por nombre por defecto
-    _productosFiltrados.sort((a, b) => a.nombre.compareTo(b.nombre));
+    switch (_filtroOrden) {
+      case 'Nombre (A-Z)':
+        _productosFiltrados.sort((a, b) => a.nombre.compareTo(b.nombre));
+        break;
+      case 'Nombre (Z-A)':
+        _productosFiltrados.sort((a, b) => b.nombre.compareTo(a.nombre));
+        break;
+      case 'Precio (menor a mayor)':
+        _productosFiltrados.sort((a, b) => a.precioVenta.compareTo(b.precioVenta));
+        break;
+      case 'Precio (mayor a menor)':
+        _productosFiltrados.sort((a, b) => b.precioVenta.compareTo(a.precioVenta));
+        break;
+      case 'Stock (mayor a menor)':
+        _productosFiltrados.sort((a, b) => b.stock.compareTo(a.stock));
+        break;
+    }
   }
 
   // Método para manejar cambios en la búsqueda
@@ -522,6 +551,14 @@ class SalesScreenState extends State<SalesScreen>
     // Obtener categorías únicas para el filtro
     final categorias = _productos.map((p) => p.categoria).toSet().toList()..sort();
     categorias.insert(0, 'Todas');
+    
+    final opcionesOrden = [
+      'Nombre (A-Z)',
+      'Nombre (Z-A)',
+      'Precio (menor a mayor)',
+      'Precio (mayor a menor)',
+      'Stock (mayor a menor)',
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -556,21 +593,44 @@ class SalesScreenState extends State<SalesScreen>
                 const SizedBox(height: 8),
                 
                 // Filtros adicionales
-                DropdownButtonFormField<String>(
-                  value: _filtroCategoria,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Categoría',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                  ),
-                  items: categorias.map((categoria) {
-                    return DropdownMenuItem(
-                      value: categoria,
-                      child: Text(categoria),
-                    );
-                  }).toList(),
-                  onChanged: _actualizarFiltroCategoria,
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _filtroCategoria,
+                        decoration: const InputDecoration(
+                          labelText: 'Categoría',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                        ),
+                        items: categorias.map((categoria) {
+                          return DropdownMenuItem(
+                            value: categoria,
+                            child: Text(categoria),
+                          );
+                        }).toList(),
+                        onChanged: _actualizarFiltroCategoria,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _filtroOrden,
+                        decoration: const InputDecoration(
+                          labelText: 'Ordenar por',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                        ),
+                        items: opcionesOrden.map((opcion) {
+                          return DropdownMenuItem(
+                            value: opcion,
+                            child: Text(opcion),
+                          );
+                        }).toList(),
+                        onChanged: _actualizarFiltroOrden,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

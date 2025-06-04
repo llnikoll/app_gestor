@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/producto_model.dart';
 import '../services/database_service.dart';
 import '../widgets/primary_button.dart';
@@ -31,13 +32,62 @@ class ProductsScreenState extends State<ProductsScreen> {
     });
   }
 
+  // Obtiene la ruta absoluta de una imagen, manejando tanto rutas absolutas como relativas
+  Future<String> _getAbsoluteImagePath(String imagePath) async {
+    if (imagePath.isEmpty) {
+      debugPrint('_getAbsoluteImagePath: Ruta de imagen vacía');
+      return '';
+    }
+    
+    try {
+      // Verificar si la ruta ya es absoluta
+      final file = File(imagePath);
+      
+      // Verificar si el archivo existe en la ruta absoluta
+      if (await file.exists()) {
+        debugPrint('_getAbsoluteImagePath: Imagen encontrada en ruta absoluta: $imagePath');
+        return imagePath;
+      }
+      
+      // Si no existe, intentar con la ruta relativa al directorio de documentos
+      final appDir = await getApplicationDocumentsDirectory();
+      final absolutePath = '${appDir.path}/$imagePath';
+      final absoluteFile = File(absolutePath);
+      
+      if (await absoluteFile.exists()) {
+        debugPrint('_getAbsoluteImagePath: Imagen encontrada en ruta relativa: $absolutePath');
+        return absolutePath;
+      }
+      
+      // Si no se encuentra en ninguna de las ubicaciones, devolver la ruta original
+      debugPrint('_getAbsoluteImagePath: No se pudo encontrar la imagen en ninguna ruta: $imagePath');
+      return imagePath;
+    } catch (e) {
+      debugPrint('Error en _getAbsoluteImagePath: $e');
+      return imagePath;
+    }
+  }
+
   // Verifica si un archivo existe en la ruta especificada
   Future<bool> _checkIfFileExists(String filePath) async {
     if (filePath.isEmpty) return false;
+    
     try {
       final file = File(filePath);
-      return await file.exists();
+      final exists = await file.exists();
+      
+      // Si el archivo no existe, verificar si es una ruta relativa
+      if (!exists) {
+        // Intentar con la ruta absoluta
+        final appDir = await getApplicationDocumentsDirectory();
+        final absolutePath = '${appDir.path}/$filePath';
+        final absoluteFile = File(absolutePath);
+        return await absoluteFile.exists();
+      }
+      
+      return exists;
     } catch (e) {
+      debugPrint('Error en _checkIfFileExists: $e');
       return false;
     }
   }
@@ -235,31 +285,54 @@ class ProductsScreenState extends State<ProductsScreen> {
                               );
                             }
 
-                            // Cargar y mostrar la imagen
-                            return Image.file(
-                              File(product.imagenUrl!),
-                              fit: BoxFit.cover,
-                              width: 80,
-                              height: 80,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
+                            // Cargar y mostrar la imagen usando la ruta absoluta
+                            return FutureBuilder<String>(
+                              future: _getAbsoluteImagePath(product.imagenUrl!),
+                              builder: (context, pathSnapshot) {
+                                if (pathSnapshot.connectionState == ConnectionState.waiting) {
+                                  return Container(
+                                    width: 80,
+                                    height: 80,
+                                    color: Colors.grey[200],
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                
+                                if (pathSnapshot.hasError || !pathSnapshot.hasData) {
+                                  return Container(
+                                    width: 80,
+                                    height: 80,
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.broken_image,
+                                      size: 40,
+                                      color: Colors.grey,
+                                    ),
+                                  );
+                                }
+                                
+                                return Image.file(
+                                  File(pathSnapshot.data!),
+                                  fit: BoxFit.cover,
                                   width: 80,
                                   height: 80,
-                                  color: Colors.grey[200],
-                                  child: const Icon(
-                                    Icons.broken_image,
-                                    size: 40,
-                                    color: Colors.grey,
-                                  ),
-                                );
-                              },
-                              frameBuilder:
-                                  (
-                                    context,
-                                    child,
-                                    frame,
-                                    wasSynchronouslyLoaded,
-                                  ) {
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      width: 80,
+                                      height: 80,
+                                      color: Colors.grey[200],
+                                      child: const Icon(
+                                        Icons.broken_image,
+                                        size: 40,
+                                        color: Colors.grey,
+                                      ),
+                                    );
+                                  },
+                                  frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
                                     if (frame == null) {
                                       return Container(
                                         width: 80,
@@ -274,6 +347,8 @@ class ProductsScreenState extends State<ProductsScreen> {
                                     }
                                     return child;
                                   },
+                                );
+                              },
                             );
                           },
                         ),

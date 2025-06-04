@@ -2,7 +2,8 @@ import 'package:intl/intl.dart';
 
 class Venta {
   int? id;
-  final String cliente;
+  int? clienteId;
+  String? clienteNombre;
   final double total;
   final DateTime fecha;
   final String metodoPago;
@@ -11,7 +12,8 @@ class Venta {
 
   Venta({
     this.id,
-    required this.cliente,
+    this.clienteId,
+    this.clienteNombre,
     required this.total,
     DateTime? fecha,
     required this.metodoPago,
@@ -34,10 +36,11 @@ class Venta {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'cliente': cliente,
+      'cliente_id': clienteId,
+      'cliente': clienteNombre,
       'total': total,
       'fecha': fecha.toIso8601String(),
-      'metodoPago': metodoPago,
+      'metodo_pago': metodoPago,
       'estado': estado,
     };
   }
@@ -46,12 +49,13 @@ class Venta {
   factory Venta.fromMap(Map<String, dynamic> map) {
     return Venta(
       id: map['id'],
-      cliente: map['cliente'],
+      clienteId: map['cliente_id'],
+      clienteNombre: map['cliente'],
       total: map['total'] is int 
           ? (map['total'] as int).toDouble() 
           : map['total'],
       fecha: DateTime.parse(map['fecha']),
-      metodoPago: map['metodoPago'],
+      metodoPago: map['metodo_pago'] ?? map['metodoPago'] ?? 'Efectivo',
       items: [], // Los ítems se cargarán por separado
       estado: map['estado'] ?? 'Completada',
     );
@@ -65,5 +69,13 @@ class Venta {
   // Formatear total como moneda
   String get totalFormateado {
     return NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(total);
+  }
+  
+  // Getter para compatibilidad con código existente
+  String get cliente => clienteNombre ?? 'Cliente no especificado';
+  
+  // Setter para compatibilidad
+  set cliente(String value) {
+    clienteNombre = value;
   }
 }
