@@ -207,19 +207,80 @@ class DatabaseService {
   // Product CRUD operations
   Future<int> insertProducto(Producto producto) async {
     final db = await database;
-    return await db.insert(tableProductos, producto.toMap());
+    final map = producto.toMap();
+    
+    // Obtener o crear la categoría
+    final categoriaId = await _getCategoriaId(map['categoria']);
+    
+    // Mapear los nombres de las columnas al esquema de la base de datos
+    final mappedMap = {
+      'codigo_barras': map['codigoBarras'],
+      'nombre': map['nombre'],
+      'descripcion': map['descripcion'],
+      'categoria_id': categoriaId,
+      'precio_compra': map['precioCompra'],
+      'precio_venta': map['precioVenta'],
+      'stock': map['stock'],
+      'fecha_creacion': map['fechaCreacion'] is String ? map['fechaCreacion'] : (map['fechaCreacion'] as DateTime).toIso8601String(),
+      'imagen_url': map['imagenUrl'],
+      'activo': 1,
+    };
+    
+    return await db.insert(tableProductos, mappedMap);
+  }
+  
+  // Método auxiliar para obtener el ID de la categoría por nombre
+  Future<int> _getCategoriaId(String nombreCategoria) async {
+    final db = await database;
+    final result = await db.query(
+      tableCategorias,
+      where: 'nombre = ?',
+      whereArgs: [nombreCategoria],
+      columns: ['id'],
+    );
+    
+    if (result.isNotEmpty) {
+      return result.first['id'] as int;
+    }
+    
+    // Si no existe la categoría, crearla
+    final id = await db.insert(
+      tableCategorias,
+      {
+        'nombre': nombreCategoria,
+        'fecha_creacion': DateTime.now().toIso8601String(),
+      },
+    );
+    return id;
   }
 
   Future<Producto?> getProducto(int id) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      tableProductos,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT p.*, c.nombre as categoria_nombre 
+      FROM $tableProductos p
+      LEFT JOIN $tableCategorias c ON p.categoria_id = c.id
+      WHERE p.id = ?
+    ''', [id]);
     
     if (maps.isNotEmpty) {
-      return Producto.fromMap(maps.first);
+      final map = maps.first;
+      return Producto(
+        id: map['id'],
+        codigoBarras: map['codigo_barras'] ?? '',
+        nombre: map['nombre'] ?? '',
+        descripcion: map['descripcion'] ?? '',
+        categoria: map['categoria_nombre'] ?? 'General',
+        precioCompra: (map['precio_compra'] as num).toDouble(),
+        precioVenta: (map['precio_venta'] as num).toDouble(),
+        stock: map['stock'] ?? 0,
+        fechaCreacion: DateTime.parse(map['fecha_creacion']),
+        fechaActualizacion: map['fecha_actualizacion'] != null 
+            ? DateTime.parse(map['fecha_actualizacion']) 
+            : null,
+        imagenUrl: map['imagen_url'],
+        activo: map['activo'] == 1,
+      );
     }
     return null;
   }
@@ -244,14 +305,14 @@ class DatabaseService {
     List<Map<String, dynamic>> maps;
     if (categoria != null && categoria.isNotEmpty) {
       maps = await db.rawQuery('''
-        SELECT p.*, c.nombre as categoria_nombre 
+        SELECT p.*, c.nombre as categoria 
         FROM $tableProductos p
         INNER JOIN $tableCategorias c ON p.categoria_id = c.id
         WHERE p.categoria_id = ? AND p.activo = 1
       ''', [categoria]);
     } else {
       maps = await db.rawQuery('''
-        SELECT p.*, c.nombre as categoria_nombre 
+        SELECT p.*, c.nombre as categoria 
         FROM $tableProductos p
         INNER JOIN $tableCategorias c ON p.categoria_id = c.id
         WHERE p.activo = 1
@@ -263,9 +324,35 @@ class DatabaseService {
 
   Future<int> updateProducto(Producto producto) async {
     final db = await database;
+    final map = producto.toMap();
+    
+    // Obtener o crear la categoría
+    final categoriaId = await _getCategoriaId(map['categoria']);
+    
+    // Mapear los nombres de las columnas al esquema de la base de datos
+    final mappedMap = {
+      'codigo_barras': map['codigoBarras'],
+      'nombre': map['nombre'],
+      'descripcion': map['descripcion'],
+      'categoria_id': categoriaId,
+      'precio_compra': map['precioCompra'],
+      'precio_venta': map['precioVenta'],
+      'stock': map['stock'],
+      'fecha_actualizacion': DateTime.now().toIso8601String(),
+      'imagen_url': map['imagenUrl'],
+      'activo': map['activo'] == true ? 1 : 0,
+    };
+    
+    // Si hay una fecha de creación, asegurarse de que esté en el formato correcto
+    if (map['fechaCreacion'] != null) {
+      mappedMap['fecha_creacion'] = map['fechaCreacion'] is String 
+          ? map['fechaCreacion'] 
+          : (map['fechaCreacion'] as DateTime).toIso8601String();
+    }
+    
     return await db.update(
       tableProductos,
-      producto.toMap(),
+      mappedMap,
       where: 'id = ?',
       whereArgs: [producto.id],
     );
@@ -284,9 +371,13 @@ class DatabaseService {
   // Category CRUD operations
   Future<int> insertCategoria(Categoria categoria) async {
     final db = await database;
+    final map = categoria.toMap();
+    // Asegurarse de que el nombre de la columna coincida con la base de datos
+    map['fecha_creacion'] = map.remove('fechaCreacion');
+    
     return await db.insert(
       tableCategorias,
-      categoria.toMap(),
+      map,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -294,7 +385,15 @@ class DatabaseService {
   Future<List<Categoria>> getCategorias() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(tableCategorias);
-    return List.generate(maps.length, (i) => Categoria.fromMap(maps[i]));
+    
+    return maps.map((map) {
+      // Mapear los nombres de las columnas de la base de datos al modelo
+      return Categoria(
+        id: map['id'],
+        nombre: map['nombre'],
+        fechaCreacion: DateTime.parse(map['fecha_creacion']),
+      );
+    }).toList();
   }
 
   Future<Categoria?> getCategoriaById(int id) async {
@@ -306,16 +405,25 @@ class DatabaseService {
     );
     
     if (maps.isNotEmpty) {
-      return Categoria.fromMap(maps.first);
+      final map = maps.first;
+      return Categoria(
+        id: map['id'],
+        nombre: map['nombre'],
+        fechaCreacion: DateTime.parse(map['fecha_creacion']),
+      );
     }
     return null;
   }
 
   Future<int> updateCategoria(Categoria categoria) async {
     final db = await database;
+    final map = categoria.toMap();
+    // Asegurarse de que el nombre de la columna coincida con la base de datos
+    map['fecha_creacion'] = map.remove('fechaCreacion');
+    
     return await db.update(
       tableCategorias,
-      categoria.toMap(),
+      map,
       where: 'id = ?',
       whereArgs: [categoria.id],
     );

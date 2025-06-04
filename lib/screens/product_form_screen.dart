@@ -73,7 +73,18 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       setState(() {
         _categorias.clear();
         _categorias.addAll(categorias);
-        if (_categorias.isNotEmpty && _selectedCategoria == null) {
+        
+        // If no categories exist, create a default one
+        if (_categorias.isEmpty) {
+          _databaseService.insertCategoria(Categoria(
+            nombre: 'General',
+            fechaCreacion: DateTime.now(),
+          )).then((_) => _cargarCategorias()); // Reload categories after creating default
+          return;
+        }
+        
+        // Set selected category if not already set
+        if (_selectedCategoria == null || _selectedCategoria!.isEmpty) {
           _selectedCategoria = _categorias.first.nombre;
         }
       });
@@ -152,12 +163,84 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     _stockController.dispose();
     super.dispose();
   }
+  
+  // Método auxiliar para mostrar mensajes de error
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
+  // Método para guardar una imagen en el directorio de la aplicación
+  Future<String> _saveImageToAppDir(String imagePath) async {
+    try {
+      if (imagePath.isEmpty) return '';
+      
+      // Obtener el directorio de documentos de la aplicación
+      final appDir = await getApplicationDocumentsDirectory();
+      final imagesDir = Directory('${appDir.path}/product_images');
+      
+      // Crear el directorio si no existe
+      if (!await imagesDir.exists()) {
+        await imagesDir.create(recursive: true);
+      }
+      
+      // Generar un nombre de archivo único
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final extension = path.extension(imagePath).toLowerCase();
+      final fileName = 'product_$timestamp$extension';
+      
+      // Obtener el archivo de origen
+      final File imageFile = File(imagePath);
+      if (!await imageFile.exists()) {
+        throw Exception('El archivo de imagen no existe: $imagePath');
+      }
+      
+      // Crear el archivo de destino
+      final File savedImage = File('${imagesDir.path}/$fileName');
+      
+      // Copiar la imagen al directorio de la aplicación
+      await imageFile.copy(savedImage.path);
+      
+      debugPrint('Imagen guardada en: ${savedImage.path}');
+      return savedImage.path;
+    } catch (e) {
+      debugPrint('Error en _saveImageToAppDir: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar la imagen: ${e.toString()}')),
+        );
+      }
+      // Si hay un error, devolver la ruta original como último recurso
+      return imagePath;
+    }
+  }
+  
   Future<bool> _checkIfFileExists(String filePath) async {
+    if (filePath.isEmpty) return false;
+    
     try {
       final file = File(filePath);
-      return await file.exists();
+      final exists = await file.exists();
+      
+      // Si el archivo no existe, verificar si es una ruta relativa
+      if (!exists) {
+        // Intentar con la ruta absoluta
+        final appDir = await getApplicationDocumentsDirectory();
+        final absolutePath = '${appDir.path}/$filePath';
+        final absoluteFile = File(absolutePath);
+        return await absoluteFile.exists();
+      }
+      
+      return exists;
     } catch (e) {
+      debugPrint('Error en _checkIfFileExists: $e');
       return false;
     }
   }
@@ -166,12 +249,10 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        final appDir = await getApplicationDocumentsDirectory();
-        final fileName = path.basename(image.path);
-        final savedImage = await File(image.path).copy('${appDir.path}/$fileName');
+        final savedImagePath = await _saveImageToAppDir(image.path);
         
         setState(() {
-          _imagenPath = savedImage.path;
+          _imagenPath = savedImagePath;
         });
       }
     } catch (e) {
@@ -187,18 +268,16 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     try {
       final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
       if (photo != null) {
-        final appDir = await getApplicationDocumentsDirectory();
-        final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final savedImage = await File(photo.path).copy('${appDir.path}/$fileName');
+        final savedImagePath = await _saveImageToAppDir(photo.path);
         
         setState(() {
-          _imagenPath = savedImage.path;
+          _imagenPath = savedImagePath;
         });
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al tomar la foto: $e')),
+          SnackBar(content: Text('Error al tomar foto: $e')),
         );
       }
     }
@@ -215,16 +294,32 @@ class ProductFormScreenState extends State<ProductFormScreen> {
 
     try {
       final db = DatabaseService();
+      final codigoBarras = _codigoBarrasController.text.trim();
+      
+      // Verificar si ya existe un producto con el mismo código de barras
+      if (!_isEditing) {
+        final productoExistente = await db.getProductoPorCodigo(codigoBarras);
+        if (productoExistente != null) {
+          throw Exception('Ya existe un producto con el código de barras: $codigoBarras');
+        }
+      }
+      
+      // Si hay una nueva imagen, asegurarse de que se guarde en el directorio de la app
+      String? imagenUrl = _imagenPath;
+      if (imagenUrl != null && !imagenUrl.contains('product_images')) {
+        imagenUrl = await _saveImageToAppDir(imagenUrl);
+      }
+      
       final producto = Producto(
         id: widget.product?.id,
-        codigoBarras: _codigoBarrasController.text.trim(),
+        codigoBarras: codigoBarras,
         nombre: _nombreController.text.trim(),
         descripcion: _descripcionController.text.trim(),
-        categoria: _selectedCategoria ?? '',
+        categoria: _selectedCategoria ?? 'General',
         precioCompra: double.parse(_precioCompraController.text),
         precioVenta: double.parse(_precioVentaController.text),
         stock: int.parse(_stockController.text),
-        imagenUrl: _imagenPath,
+        imagenUrl: imagenUrl,
       );
 
       if (_isEditing) {
@@ -238,23 +333,31 @@ class ProductFormScreenState extends State<ProductFormScreen> {
           SnackBar(
             content: Text(
               _isEditing 
-                  ? 'Producto actualizado correctamente' 
-                  : 'Producto agregado correctamente',
+                  ? '✅ Producto actualizado correctamente' 
+                  : '✅ Producto agregado correctamente',
             ),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
           ),
         );
         Navigator.pop(context, true);
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al guardar el producto: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+    } on FormatException catch (e) {
+      _showErrorSnackBar('Error de formato: ${e.message}');
+    } on Exception catch (e) {
+      String mensajeError = 'Error al guardar el producto';
+      
+      // Manejar errores específicos de la base de datos
+      if (e.toString().contains('UNIQUE constraint failed') ||
+          e.toString().contains('SQLITE_CONSTRAINT_UNIQUE')) {
+        mensajeError = 'Error: Ya existe un producto con ese código de barras';
+      } else if (e.toString().contains('no such table')) {
+        mensajeError = 'Error: La tabla de productos no existe';
+      } else {
+        mensajeError = 'Error: ${e.toString()}';
       }
+      
+      _showErrorSnackBar(mensajeError);
     } finally {
       if (mounted) {
         setState(() {

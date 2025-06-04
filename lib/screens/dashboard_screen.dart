@@ -43,7 +43,17 @@ class DashboardScreenState extends State<DashboardScreen> {
       // Calcular valor total del inventario
       double totalInventoryValue = 0;
       for (var product in products) {
-        totalInventoryValue += product.precioVenta * product.stock;
+        try {
+          debugPrint(
+            'Procesando producto: ${product.id} - ${product.nombre} - Precio: ${product.precioVenta} - Stock: ${product.stock}',
+          );
+          totalInventoryValue += product.precioVenta * product.stock;
+        } catch (e) {
+          debugPrint(
+            'Error procesando producto ${product.id} - ${product.nombre}: $e',
+          );
+          rethrow;
+        }
       }
 
       // Obtener productos más vendidos (vacío por ahora hasta tener datos reales)
@@ -61,7 +71,8 @@ class DashboardScreenState extends State<DashboardScreen> {
         'recentSales': recentSales,
       };
     } catch (e) {
-      throw Exception('Error al cargar los datos del dashboard: $e');
+      debugPrint('Error al cargar los datos del dashboard: $e');
+      rethrow;
     }
   }
 

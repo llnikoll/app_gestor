@@ -48,24 +48,38 @@ class Producto {
 
   // Crear un Producto a partir de un Map
   factory Producto.fromMap(Map<String, dynamic> map) {
+    // Función auxiliar para convertir a double de forma segura
+    double safeToDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      return double.tryParse(value.toString()) ?? 0.0;
+    }
+
+    // Función auxiliar para convertir a int de forma segura
+    int safeToInt(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      return int.tryParse(value.toString()) ?? 0;
+    }
+
     return Producto(
       id: map['id'],
-      codigoBarras: map['codigoBarras'],
-      nombre: map['nombre'],
-      descripcion: map['descripcion'],
-      categoria: map['categoria'],
-      precioCompra: map['precioCompra'] is int 
-          ? (map['precioCompra'] as int).toDouble() 
-          : map['precioCompra'],
-      precioVenta: map['precioVenta'] is int 
-          ? (map['precioVenta'] as int).toDouble() 
-          : map['precioVenta'],
-      stock: map['stock'] is int ? map['stock'] : int.parse(map['stock'].toString()),
-      fechaCreacion: DateTime.parse(map['fechaCreacion']),
+      codigoBarras: map['codigoBarras']?.toString() ?? '',
+      nombre: map['nombre']?.toString() ?? '',
+      descripcion: map['descripcion']?.toString() ?? '',
+      categoria: map['categoria']?.toString() ?? 'General',
+      precioCompra: safeToDouble(map['precioCompra']),
+      precioVenta: safeToDouble(map['precioVenta']),
+      stock: safeToInt(map['stock']),
+      fechaCreacion: map['fechaCreacion'] != null 
+          ? DateTime.tryParse(map['fechaCreacion'].toString()) ?? DateTime.now()
+          : DateTime.now(),
       fechaActualizacion: map['fechaActualizacion'] != null 
-          ? DateTime.parse(map['fechaActualizacion']) 
+          ? DateTime.tryParse(map['fechaActualizacion'].toString())
           : null,
-      imagenUrl: map['imagenUrl'],
+      imagenUrl: map['imagenUrl']?.toString(),
       activo: map['activo'] == 1 || map['activo'] == true,
     );
   }
