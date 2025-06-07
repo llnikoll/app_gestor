@@ -167,70 +167,220 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
     );
   }
 
+  // Método para abrir la imagen en pantalla completa
+  void _showFullScreenImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                panEnabled: true,
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProductImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _showFullScreenImage(imageUrl),
+      child: Hero(
+        tag: 'product-image-$imageUrl',
+        child: Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(child: CircularProgressIndicator());
+            },
+            errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showEntryDetails(EntradaInventario entrada) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detalles de Entrada'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow('Producto', entrada.productoNombre),
-              _buildDetailRow('Cantidad', entrada.cantidad.toString()),
-              _buildDetailRow(
-                'Precio Unitario',
-                _currencyFormat.format(entrada.precioUnitario),
-              ),
-              _buildDetailRow(
-                'Total',
-                _currencyFormat.format(entrada.total),
-                isBold: true,
-              ),
-              if (entrada.proveedorNombre != null)
-                _buildDetailRow('Proveedor', entrada.proveedorNombre!),
-              if (entrada.notas != null && entrada.notas!.isNotEmpty)
-                _buildDetailRow('Notas', entrada.notas!),
-              _buildDetailRow(
-                'Fecha',
-                DateFormat('dd/MM/yyyy HH:mm').format(entrada.fecha),
-              ),
-            ],
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _buildProductImage(entrada.productoImagenUrl),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entrada.productoNombre,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (entrada.productoDescripcion?.isNotEmpty ?? false)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                entrada.productoDescripcion!,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                _buildDetailRow('Cantidad', '${entrada.cantidad} unidades'),
+                _buildDetailRow(
+                  'Precio Unitario',
+                  _currencyFormat.format(entrada.precioUnitario),
+                ),
+                _buildDetailRow(
+                  'Total',
+                  _currencyFormat.format(entrada.total),
+                  isBold: true,
+                ),
+                if (entrada.productoPrecioVenta != null)
+                  _buildDetailRow(
+                    'Precio de Venta',
+                    _currencyFormat.format(entrada.productoPrecioVenta!),
+                  ),
+                _buildDetailRow(
+                  'Stock Actual',
+                  '${entrada.productoStock} unidades',
+                ),
+                if (entrada.proveedorNombre != null)
+                  _buildDetailRow('Proveedor', entrada.proveedorNombre!),
+                _buildDetailRow(
+                  'Fecha',
+                  DateFormat('dd/MM/yyyy HH:mm').format(entrada.fecha),
+                ),
+                if (entrada.notas != null && entrada.notas!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Notas:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      entrada.notas!,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cerrar'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
       ),
     );
   }
 
   Widget _buildDetailRow(String label, String value, {bool isBold = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
-              ),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(width: 8),
-          Expanded(
+          Flexible(
             child: Text(
               value,
+              textAlign: TextAlign.right,
               style: TextStyle(
                 fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                fontSize: 14,
+                color: isBold ? Theme.of(context).primaryColor : Colors.black87,
               ),
             ),
           ),

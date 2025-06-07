@@ -9,6 +9,10 @@ class EntradaInventario {
   final String? notas;
   final int? proveedorId;
   final String? proveedorNombre;
+  final String? productoImagenUrl;
+  final String? productoDescripcion;
+  final double? productoPrecioVenta;
+  final int productoStock;
 
   EntradaInventario({
     this.id,
@@ -21,6 +25,10 @@ class EntradaInventario {
     this.notas,
     this.proveedorId,
     this.proveedorNombre,
+    this.productoImagenUrl,
+    this.productoDescripcion = '',
+    this.productoPrecioVenta,
+    this.productoStock = 0,
   }) : fecha = fecha ?? DateTime.now();
 
   // Convertir un Map a un objeto EntradaInventario
@@ -36,6 +44,10 @@ class EntradaInventario {
       notas: map['notas'],
       proveedorId: map['proveedor_id'],
       proveedorNombre: map['proveedor_nombre'],
+      productoImagenUrl: map['producto_imagen_url'],
+      productoDescripcion: map['producto_descripcion'],
+      productoPrecioVenta: (map['producto_precio_venta'] as num?)?.toDouble(),
+      productoStock: (map['producto_stock'] as int?) ?? 0,
     );
   }
 
@@ -52,6 +64,10 @@ class EntradaInventario {
       'notas': notas,
       'proveedor_id': proveedorId,
       'proveedor_nombre': proveedorNombre,
+      'producto_imagen_url': productoImagenUrl,
+      'producto_descripcion': productoDescripcion,
+      'producto_precio_venta': productoPrecioVenta,
+      'producto_stock': productoStock,
     };
   }
 }

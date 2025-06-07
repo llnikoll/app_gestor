@@ -39,7 +39,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final clientes = await _databaseService.getAllClientes(
+      final clientes = await _databaseService.getClientes(
         searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
       );
 
@@ -80,7 +80,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
       final query = _searchQuery.toLowerCase();
       return cliente.nombre.toLowerCase().contains(query) ||
           (cliente.email?.toLowerCase().contains(query) ?? false) ||
-          (cliente.telefono?.contains(_searchQuery) ?? false);
+          (cliente.telefono?.contains(_searchQuery) ?? false) ||
+          (cliente.ruc?.contains(_searchQuery) ?? false);
     }).toList();
   }
 

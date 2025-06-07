@@ -152,7 +152,6 @@ class _HomeScreenContent extends StatelessWidget {
                 Navigator.pop(context);
               },
             ),
-          const Spacer(),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout),
@@ -233,63 +232,84 @@ class HomeScreenState extends State<HomeScreen> {
       key: _scaffoldKey,
       body: Row(
         children: [
-          _buildDesktopNavigationRail(),
+          // Navigation Rail Container with custom logout
+          Container(
+            width: 100,
+            decoration: BoxDecoration(
+              border: Border(
+                right: BorderSide(
+                  color: Theme.of(context).dividerColor,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Theme.of(context).primaryColor,
+                    child: const Icon(Icons.store, color: Colors.white),
+                  ),
+                ),
+                // Navigation Rail
+                Expanded(
+                  child: NavigationRail(
+                    selectedIndex: _selectedIndex,
+                    onDestinationSelected: onItemTapped,
+                    labelType: NavigationRailLabelType.all,
+                    destinations: NavigationItem.items.map((item) {
+                      return NavigationRailDestination(
+                        icon: Icon(item.icon),
+                        label: Text(item.title),
+                        selectedIcon: Icon(item.selectedIcon),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                // Logout button at bottom
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Divider(),
+                      InkWell(
+                        onTap: () {
+                          // Cerrar sesión
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 8,
+                          ),
+                          child: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.logout, size: 20),
+                              SizedBox(height: 4),
+                              Text('Salir', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           // Contenido principal con ancho restringido
           Expanded(
             child: SafeConstraints(
-              maxWidth:
-                  screenSize.width -
-                  100, // Dejamos espacio para el rail de navegación
+              maxWidth: screenSize.width - 100,
               child: IndexedStack(index: _selectedIndex, children: _screens),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  // Drawer is now part of _HomeScreenContent
-
-  Widget _buildDesktopNavigationRail() {
-    return NavigationRail(
-      selectedIndex: _selectedIndex,
-      onDestinationSelected: onItemTapped,
-      labelType: NavigationRailLabelType.all,
-      leading: Column(
-        children: [
-          const SizedBox(height: 20),
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: Theme.of(context).primaryColor,
-            child: const Icon(Icons.store, color: Colors.white),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-      trailing: Expanded(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Salir'),
-              horizontalTitleGap: 0,
-              minLeadingWidth: 0,
-              onTap: () {
-                // Cerrar sesión
-              },
-            ),
-          ],
-        ),
-      ),
-      destinations: NavigationItem.items.map((item) {
-        return NavigationRailDestination(
-          icon: Icon(item.icon),
-          label: Text(item.title),
-          selectedIcon: Icon(item.selectedIcon),
-        );
-      }).toList(),
     );
   }
 

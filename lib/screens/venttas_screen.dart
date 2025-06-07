@@ -33,7 +33,8 @@ class SalesScreenState extends State<SalesScreen>
   List<Producto> _productosFiltrados = [];
   Cliente? _clienteSeleccionado;
   String _metodoPagoSeleccionado = 'Efectivo';
-  final TextEditingController _numeroTransaccionController = TextEditingController();
+  final TextEditingController _numeroTransaccionController =
+      TextEditingController();
 
   // Filtros de productos
   final TextEditingController _filtroBusquedaController =
@@ -78,12 +79,12 @@ class SalesScreenState extends State<SalesScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _productosFiltrados = [];
-    
+
     // Establecer las fechas para mostrar el día actual por defecto
     final ahora = DateTime.now();
     _fechaInicio = DateTime(ahora.year, ahora.month, ahora.day);
     _fechaFin = DateTime(ahora.year, ahora.month, ahora.day, 23, 59, 59);
-    
+
     // Programar la carga de datos para el siguiente frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -100,7 +101,8 @@ class SalesScreenState extends State<SalesScreen>
     _searchController.dispose();
     _cantidadController.dispose();
     _filtroBusquedaController.dispose();
-    _numeroTransaccionController.dispose(); // Limpiar el controlador de número de transacción
+    _numeroTransaccionController
+        .dispose(); // Limpiar el controlador de número de transacción
     super.dispose();
   }
 
@@ -108,20 +110,22 @@ class SalesScreenState extends State<SalesScreen>
 
   Future<void> _cargarProductos() async {
     if (!mounted) return;
-    
+
     try {
       if (mounted) {
         setState(() => _isLoading = true);
       }
-      
+
       // Usar una variable local para los datos cargados
       final productos = await _databaseService.getProductos();
-      
+
       if (mounted) {
         setState(() {
           _productos = productos;
-          _productosFiltrados = List.from(_productos); // Inicializar _productosFiltrados con todos los productos
-          
+          _productosFiltrados = List.from(
+            _productos,
+          ); // Inicializar _productosFiltrados con todos los productos
+
           // Aplicar filtros después de cargar los productos
           _aplicarFiltros();
         });
@@ -147,21 +151,36 @@ class SalesScreenState extends State<SalesScreen>
       }
 
       // Asegurarse de que las fechas tengan la hora correcta
-      final fechaInicio = DateTime(_fechaInicio.year, _fechaInicio.month, _fechaInicio.day);
-      final fechaFin = DateTime(_fechaFin.year, _fechaFin.month, _fechaFin.day, 23, 59, 59);
-      
-      debugPrint('Cargando ventas desde ${fechaInicio.toString()} hasta ${fechaFin.toString()}');
-      
+      final fechaInicio = DateTime(
+        _fechaInicio.year,
+        _fechaInicio.month,
+        _fechaInicio.day,
+      );
+      final fechaFin = DateTime(
+        _fechaFin.year,
+        _fechaFin.month,
+        _fechaFin.day,
+        23,
+        59,
+        59,
+      );
+
+      debugPrint(
+        'Cargando ventas desde ${fechaInicio.toString()} hasta ${fechaFin.toString()}',
+      );
+
       // Usar una variable local para los datos cargados
       List<Venta> ventasCargadas = [];
-      
+
       // Cargar todas las ventas en el rango de fechas
       try {
         ventasCargadas = await _databaseService.getVentasPorRangoFechas(
           fechaInicio,
           fechaFin,
         );
-        debugPrint('Se encontraron ${ventasCargadas.length} ventas en el rango');
+        debugPrint(
+          'Se encontraron ${ventasCargadas.length} ventas en el rango',
+        );
       } catch (e) {
         debugPrint('Error al cargar ventas: $e');
         rethrow;
@@ -197,7 +216,10 @@ class SalesScreenState extends State<SalesScreen>
 
   // ========== MÉTODOS DEL CARRITO ==========
 
-  Future<void> _agregarProductoAlCarrito(Producto producto, int cantidad) async {
+  Future<void> _agregarProductoAlCarrito(
+    Producto producto,
+    int cantidad,
+  ) async {
     if (producto.id == null) return;
 
     setState(() {
@@ -224,7 +246,7 @@ class SalesScreenState extends State<SalesScreen>
         _carrito.add(CarritoItem(producto: producto, cantidad: cantidad));
       }
     });
-    
+
     // Recargar la lista de productos para asegurar que los stocks estén actualizados
     if (mounted) {
       await _cargarProductos();
@@ -386,13 +408,13 @@ class SalesScreenState extends State<SalesScreen>
     if (confirmado == true && mounted) {
       // Agregar productos al carrito
       final productosParaAgregar = <MapEntry<int, int>>[];
-      
+
       // Primero, recolectar todos los IDs de productos a agregar
       _productosSeleccionados.forEach((productoId, cantidad) {
         // Solo necesitamos el ID y la cantidad para agregar al carrito
         productosParaAgregar.add(MapEntry(productoId, cantidad));
       });
-      
+
       // Luego, agregar cada producto al carrito y esperar a que se complete
       for (final entry in productosParaAgregar) {
         final productoId = entry.key;
@@ -639,7 +661,8 @@ class SalesScreenState extends State<SalesScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Ingrese el número de transacción para continuar')),
+          content: Text('Ingrese el número de transacción para continuar'),
+        ),
       );
       return;
     }
@@ -672,7 +695,8 @@ class SalesScreenState extends State<SalesScreen>
       total: total,
       metodoPago: _metodoPagoSeleccionado,
       // Incluir número de transacción si corresponde
-      referenciaPago: (_metodoPagoSeleccionado == 'Transferencia' ||
+      referenciaPago:
+          (_metodoPagoSeleccionado == 'Transferencia' ||
               _metodoPagoSeleccionado == 'Tarjeta de Crédito' ||
               _metodoPagoSeleccionado == 'Tarjeta de Débito')
           ? _numeroTransaccionController.text.trim()
@@ -696,8 +720,10 @@ class SalesScreenState extends State<SalesScreen>
 
     try {
       // Debug: Imprimir información de la venta antes de guardar
-      debugPrint('Guardando venta - Método de pago: ${venta.metodoPago}, Referencia: ${venta.referenciaPago}');
-    
+      debugPrint(
+        'Guardando venta - Método de pago: ${venta.metodoPago}, Referencia: ${venta.referenciaPago}',
+      );
+
       // Procesar la venta
       await DatabaseService().insertVenta(venta);
 
@@ -881,11 +907,11 @@ class SalesScreenState extends State<SalesScreen>
 
     if (metodo != null && mounted) {
       // Si el método de pago requiere número de transacción, mostramos un diálogo
-      if (metodo == 'Transferencia' || 
-          metodo == 'Tarjeta de Crédito' || 
+      if (metodo == 'Transferencia' ||
+          metodo == 'Tarjeta de Crédito' ||
           metodo == 'Tarjeta de Débito') {
         _numeroTransaccionController.clear();
-        
+
         final numeroTransaccion = await showDialog<String>(
           context: context,
           builder: (context) => AlertDialog(
@@ -908,7 +934,10 @@ class SalesScreenState extends State<SalesScreen>
               TextButton(
                 onPressed: () {
                   if (_numeroTransaccionController.text.trim().isNotEmpty) {
-                    Navigator.pop(context, _numeroTransaccionController.text.trim());
+                    Navigator.pop(
+                      context,
+                      _numeroTransaccionController.text.trim(),
+                    );
                   }
                 },
                 child: const Text('Aceptar'),
@@ -921,14 +950,14 @@ class SalesScreenState extends State<SalesScreen>
           // Si el usuario cancela o no ingresa un número, no cambiamos el método de pago
           return;
         }
-        
+
         // Guardamos el número de transacción en el controlador
         _numeroTransaccionController.text = numeroTransaccion;
       } else {
         // Para otros métodos de pago, limpiamos el número de transacción
         _numeroTransaccionController.clear();
       }
-      
+
       setState(() => _metodoPagoSeleccionado = metodo);
     }
   }
@@ -939,209 +968,337 @@ class SalesScreenState extends State<SalesScreen>
       ..sort();
     categorias.insert(0, 'Todas');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
+      // <--- Agregue Stack aquí
       children: [
-        // Filtros de búsqueda
-        Card(
-          margin: const EdgeInsets.all(8.0),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                // Barra de búsqueda
-                TextField(
-                  controller: _filtroBusquedaController,
-                  decoration: InputDecoration(
-                    labelText: 'Buscar producto',
-                    hintText: 'Nombre o código de barras',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _filtroBusquedaController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _filtroBusquedaController.clear();
-                              _filtrarProductos('');
-                            },
-                          )
-                        : null,
-                    border: const OutlineInputBorder(),
-                  ),
-                  onChanged: (value) => _filtrarProductos(value),
-                ),
-                const SizedBox(height: 8),
-
-                // Filtros adicionales
-                DropdownButtonFormField<String>(
-                  value: _filtroCategoria,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Categoría',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 0,
-                    ),
-                  ),
-                  items: categorias.map((categoria) {
-                    return DropdownMenuItem(
-                      value: categoria,
-                      child: Text(categoria),
-                    );
-                  }).toList(),
-                  onChanged: _actualizarFiltroCategoria,
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // Lista de productos
-        Expanded(
-          child: _productosFiltrados.isEmpty
-              ? const Center(child: Text('No se encontraron productos'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  itemCount: _productosFiltrados.length,
-                  itemBuilder: (context, index) {
-                    final producto = _productosFiltrados[index];
-                    final cantidad = _productosSeleccionados[producto.id!] ?? 0;
-                    final estaSeleccionado = cantidad > 0;
-
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        vertical: 4.0,
-                        horizontal: 8.0,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Filtros de búsqueda
+            Card(
+              margin: const EdgeInsets.all(8.0),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Barra de búsqueda
+                    TextField(
+                      controller: _filtroBusquedaController,
+                      decoration: InputDecoration(
+                        labelText: 'Buscar producto',
+                        hintText: 'Nombre o código de barras',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _filtroBusquedaController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _filtroBusquedaController.clear();
+                                  _filtrarProductos('');
+                                },
+                              )
+                            : null,
+                        border: const OutlineInputBorder(),
                       ),
-                      elevation: 2,
-                      child: Container(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
-                          children: [
-                            // Columna de información del producto
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    producto.nombre,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Precio: \$${producto.precioVenta.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      color: Colors.green,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Stock: ${producto.stock}',
-                                    style: TextStyle(
-                                      color: producto.stock > 0
-                                          ? Colors.grey[600]
-                                          : Colors.red,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  if (estaSeleccionado) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Total: \$${(producto.precioVenta * cantidad).toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            // Controles de cantidad
-                            if (producto.stock > 0)
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.grey[300]!),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Botón -
-                                    IconButton(
-                                      icon: const Icon(Icons.remove, size: 18),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      onPressed: cantidad > 0
-                                          ? () {
-                                              setState(() {
-                                                if (cantidad > 1) {
-                                                  _productosSeleccionados[producto
-                                                          .id!] =
-                                                      cantidad - 1;
-                                                } else {
-                                                  _productosSeleccionados
-                                                      .remove(producto.id!);
-                                                }
-                                              });
-                                            }
-                                          : null,
-                                    ),
-                                    // Cantidad
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                      child: Text(
-                                        cantidad > 0
-                                            ? cantidad.toString()
-                                            : '0',
+                      onChanged: (value) => _filtrarProductos(value),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Filtros adicionales
+                    DropdownButtonFormField<String>(
+                      value: _filtroCategoria,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Categoría',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 0,
+                        ),
+                      ),
+                      items: categorias.map((categoria) {
+                        return DropdownMenuItem(
+                          value: categoria,
+                          child: Text(categoria),
+                        );
+                      }).toList(),
+                      onChanged: _actualizarFiltroCategoria,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Lista de productos
+            Expanded(
+              child: _productosFiltrados.isEmpty
+                  ? const Center(child: Text('No se encontraron productos'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(8.0),
+                      itemCount: _productosFiltrados.length,
+                      itemBuilder: (context, index) {
+                        final producto = _productosFiltrados[index];
+                        final cantidad =
+                            _productosSeleccionados[producto.id!] ?? 0;
+                        final estaSeleccionado = cantidad > 0;
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                            vertical: 4.0,
+                            horizontal: 8.0,
+                          ),
+                          elevation: 2,
+                          child: Container(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Row(
+                              children: [
+                                // Columna de información del producto
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        producto.nombre,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Precio: \$${producto.precioVenta.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Stock: ${producto.stock}',
+                                        style: TextStyle(
+                                          color: producto.stock > 0
+                                              ? Colors.grey[600]
+                                              : Colors.red,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      if (estaSeleccionado) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Total: \$${(producto.precioVenta * cantidad).toStringAsFixed(2)}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                // Controles de cantidad
+                                if (producto.stock > 0)
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.grey[300]!,
                                       ),
                                     ),
-                                    // Botón +
-                                    IconButton(
-                                      icon: const Icon(Icons.add, size: 18),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      onPressed: cantidad < producto.stock
-                                          ? () {
-                                              setState(() {
-                                                _productosSeleccionados[producto
-                                                        .id!] =
-                                                    (cantidad + 1);
-                                              });
-                                            }
-                                          : null,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // Botón -
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.remove,
+                                            size: 18,
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: cantidad > 0
+                                              ? () {
+                                                  setState(() {
+                                                    if (cantidad > 1) {
+                                                      _productosSeleccionados[producto
+                                                              .id!] =
+                                                          cantidad - 1;
+                                                    } else {
+                                                      _productosSeleccionados
+                                                          .remove(producto.id!);
+                                                    }
+                                                  });
+                                                }
+                                              : null,
+                                        ),
+                                        // Cantidad
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                          ),
+                                          child: Text(
+                                            cantidad > 0
+                                                ? cantidad.toString()
+                                                : '0',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ),
+                                        // Botón +
+                                        IconButton(
+                                          icon: const Icon(Icons.add, size: 18),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: cantidad < producto.stock
+                                              ? () {
+                                                  setState(() {
+                                                    _productosSeleccionados[producto
+                                                            .id!] =
+                                                        (cantidad + 1);
+                                                  });
+                                                }
+                                              : null,
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              )
-                            else
-                              const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: Text(
-                                  'Sin stock',
-                                  style: TextStyle(color: Colors.red),
-                                ),
+                                  )
+                                else
+                                  const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'Sin stock',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+
+            // Contenido del carrito (moved inside the Column)
+            if (_carrito.isNotEmpty) ...[
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Resumen de la Venta',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._carrito.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final item = entry.value;
+                      return ListTile(
+                        title: Text(
+                          '${item.producto.nombre} x${item.cantidad}',
+                        ),
+                        subtitle: Text('\$${item.subtotal.toStringAsFixed(2)}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline),
+                              onPressed: () {
+                                _actualizarCantidadProducto(
+                                  index,
+                                  item.cantidad - 1,
+                                );
+                              },
+                            ),
+                            Text(item.cantidad.toString()),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline),
+                              onPressed: () => _actualizarCantidadProducto(
+                                index,
+                                item.cantidad + 1,
                               ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                              ),
+                              onPressed: () =>
+                                  _eliminarProductoDelCarrito(index),
+                            ),
                           ],
                         ),
+                      );
+                    }),
+                    const Divider(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 8.0,
                       ),
-                    );
-                  },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total:',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '\$${_calcularTotal().toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Selección de cliente
+                    ListTile(
+                      leading: const Icon(Icons.person_outline),
+                      title: Text(
+                        _clienteSeleccionado?.nombre ?? 'Seleccionar Cliente',
+                      ),
+                      subtitle: Text(
+                        _clienteSeleccionado?.telefono ?? 'Cliente ocasional',
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios),
+                      onTap: _seleccionarCliente,
+                    ),
+                    // Selección de método de pago
+                    ListTile(
+                      leading: const Icon(Icons.payment),
+                      title: const Text('Método de pago'),
+                      subtitle: Text(_metodoPagoSeleccionado),
+                      trailing: const Icon(Icons.arrow_forward_ios),
+                      onTap: _seleccionarMetodoPago,
+                    ),
+                    // Botón de procesar venta
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: PrimaryButton(
+                        onPressed: _procesarVenta,
+                        text: 'PROCESAR VENTA',
+                        isLoading: _isLoading,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+            ],
+          ],
         ),
-
-        // Botón flotante para confirmar la selección
+        // Botón flotante para confirmar la selección (remains outside the Column, as a child of Stack)
         if (_productosSeleccionados.isNotEmpty)
           Positioned(
             bottom: 16,
@@ -1157,114 +1314,6 @@ class SalesScreenState extends State<SalesScreen>
               elevation: 4,
             ),
           ),
-        if (_carrito.isNotEmpty) ...[
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                const Text(
-                  'Resumen de la Venta',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                ..._carrito.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final item = entry.value;
-                  return ListTile(
-                    title: Text('${item.producto.nombre} x${item.cantidad}'),
-                    subtitle: Text('\$${item.subtotal.toStringAsFixed(2)}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () {
-                            _actualizarCantidadProducto(
-                              index,
-                              item.cantidad - 1,
-                            );
-                          },
-                        ),
-                        Text(item.cantidad.toString()),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle_outline),
-                          onPressed: () => _actualizarCantidadProducto(
-                            index,
-                            item.cantidad + 1,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.red,
-                          ),
-                          onPressed: () => _eliminarProductoDelCarrito(index),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const Divider(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total:',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '\$${_calcularTotal().toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Selección de cliente
-                ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: Text(
-                    _clienteSeleccionado?.nombre ?? 'Seleccionar Cliente',
-                  ),
-                  subtitle: Text(
-                    _clienteSeleccionado?.telefono ?? 'Cliente ocasional',
-                  ),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: _seleccionarCliente,
-                ),
-                // Selección de método de pago
-                ListTile(
-                  leading: const Icon(Icons.payment),
-                  title: const Text('Método de pago'),
-                  subtitle: Text(_metodoPagoSeleccionado),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: _seleccionarMetodoPago,
-                ),
-                // Botón de procesar venta
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: PrimaryButton(
-                    onPressed: _procesarVenta,
-                    text: 'PROCESAR VENTA',
-                    isLoading: _isLoading,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -1285,13 +1334,17 @@ class SalesScreenState extends State<SalesScreen>
                     Expanded(
                       child: ListTile(
                         title: const Text('Desde'),
-                        subtitle: Text(DateFormat('dd/MM/yyyy').format(_fechaInicio)),
+                        subtitle: Text(
+                          DateFormat('dd/MM/yyyy').format(_fechaInicio),
+                        ),
                         onTap: () async {
                           final fecha = await showDatePicker(
                             context: context,
                             initialDate: _fechaInicio,
                             firstDate: DateTime(2020),
-                            lastDate: DateTime.now().add(const Duration(days: 1)),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 1),
+                            ),
                           );
                           if (fecha != null) {
                             setState(() => _fechaInicio = fecha);
@@ -1303,13 +1356,17 @@ class SalesScreenState extends State<SalesScreen>
                     Expanded(
                       child: ListTile(
                         title: const Text('Hasta'),
-                        subtitle: Text(DateFormat('dd/MM/yyyy').format(_fechaFin)),
+                        subtitle: Text(
+                          DateFormat('dd/MM/yyyy').format(_fechaFin),
+                        ),
                         onTap: () async {
                           final fecha = await showDatePicker(
                             context: context,
                             initialDate: _fechaFin,
                             firstDate: DateTime(2020),
-                            lastDate: DateTime.now().add(const Duration(days: 1)),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 1),
+                            ),
                           );
                           if (fecha != null) {
                             setState(() => _fechaFin = fecha);
@@ -1330,17 +1387,20 @@ class SalesScreenState extends State<SalesScreen>
                   decoration: const InputDecoration(
                     labelText: 'Método de pago',
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                   ),
                   items: [
                     const DropdownMenuItem(
                       value: null,
                       child: Text('Todos los métodos'),
                     ),
-                    ..._metodosPagoDisponibles.map((metodo) => DropdownMenuItem(
-                          value: metodo,
-                          child: Text(metodo),
-                        )),
+                    ..._metodosPagoDisponibles.map(
+                      (metodo) =>
+                          DropdownMenuItem(value: metodo, child: Text(metodo)),
+                    ),
                   ],
                   onChanged: (String? value) {
                     setState(() {
@@ -1383,8 +1443,10 @@ class SalesScreenState extends State<SalesScreen>
 
   Widget _buildVentaItem(Venta venta) {
     // Mensaje de depuración
-    debugPrint('Venta ID: ${venta.id} - Referencia: ${venta.referenciaPago} - Método: ${venta.metodoPago}');
-    
+    debugPrint(
+      'Venta ID: ${venta.id} - Referencia: ${venta.referenciaPago} - Método: ${venta.metodoPago}',
+    );
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: ListTile(
@@ -1399,7 +1461,8 @@ class SalesScreenState extends State<SalesScreen>
               'Fecha: ${DateFormat('dd/MM/yyyy HH:mm').format(venta.fecha)}',
             ),
             Text('Método: ${venta.metodoPago}'),
-            if (venta.referenciaPago != null && venta.referenciaPago!.isNotEmpty)
+            if (venta.referenciaPago != null &&
+                venta.referenciaPago!.isNotEmpty)
               Text(
                 'Transacción: ${venta.referenciaPago}',
                 style: TextStyle(
@@ -1445,11 +1508,17 @@ class SalesScreenState extends State<SalesScreen>
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (venta.metodoPago.toLowerCase().contains('tarjeta') && venta.referenciaPago != null && venta.referenciaPago!.isNotEmpty)
-                  Text('${venta.metodoPago} (Transacción: ${venta.referenciaPago})')
+                if (venta.metodoPago.toLowerCase().contains('tarjeta') &&
+                    venta.referenciaPago != null &&
+                    venta.referenciaPago!.isNotEmpty)
+                  Text(
+                    '${venta.metodoPago} (Transacción: ${venta.referenciaPago})',
+                  )
                 else
                   Text(venta.metodoPago),
-                if (venta.referenciaPago != null && venta.referenciaPago!.isNotEmpty && !venta.metodoPago.toLowerCase().contains('tarjeta'))
+                if (venta.referenciaPago != null &&
+                    venta.referenciaPago!.isNotEmpty &&
+                    !venta.metodoPago.toLowerCase().contains('tarjeta'))
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(

@@ -15,7 +15,8 @@ class DatabaseService {
 
   // Database configuration
   static const String _databaseName = 'gestor_ventas.db';
-  static const int _databaseVersion = 9; // Added referencia_pago to ventas table
+  static const int _databaseVersion =
+      15; // Forzar recreación de tabla ventas
 
   // Table names
   static const String tableClientes = 'clientes';
@@ -70,6 +71,15 @@ class DatabaseService {
       )
     ''');
 
+    // Create categorias table
+    await db.execute('''
+      CREATE TABLE $tableCategorias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        fecha_creacion TEXT NOT NULL
+      )
+    ''');
+
     // Create productos table
     await db.execute('''
       CREATE TABLE $tableProductos (
@@ -100,6 +110,7 @@ class DatabaseService {
         metodo_pago TEXT NOT NULL,
         estado TEXT NOT NULL DEFAULT 'Completada',
         notas TEXT,
+        referencia_pago TEXT,
         FOREIGN KEY (cliente_id) REFERENCES $tableClientes(id)
       )
     ''');
@@ -176,11 +187,15 @@ class DatabaseService {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       // Migrate to version 2: Add stock_minimo to productos table
-      await db.execute('ALTER TABLE $tableProductos ADD COLUMN stock_minimo INTEGER DEFAULT 0');
+      await db.execute(
+        'ALTER TABLE $tableProductos ADD COLUMN stock_minimo INTEGER DEFAULT 0',
+      );
     }
     if (oldVersion < 3) {
       // Migrate to version 3: Add activo column to productos table
-      await db.execute('ALTER TABLE $tableProductos ADD COLUMN activo INTEGER NOT NULL DEFAULT 1');
+      await db.execute(
+        'ALTER TABLE $tableProductos ADD COLUMN activo INTEGER NOT NULL DEFAULT 1',
+      );
     }
     if (oldVersion < 4) {
       // Migrate to version 4: Add entradas_inventario table
@@ -225,8 +240,12 @@ class DatabaseService {
     }
     if (oldVersion < 7) {
       // Migrate to version 7: Add producto_id to gastos table (nullable)
-      await db.execute('ALTER TABLE $tableGastos ADD COLUMN producto_id INTEGER');
-      await db.execute('ALTER TABLE $tableGastos ADD COLUMN es_gasto_operativo INTEGER NOT NULL DEFAULT 0');
+      await db.execute(
+        'ALTER TABLE $tableGastos ADD COLUMN producto_id INTEGER',
+      );
+      await db.execute(
+        'ALTER TABLE $tableGastos ADD COLUMN es_gasto_operativo INTEGER NOT NULL DEFAULT 0',
+      );
     }
     if (oldVersion < 8) {
       // Migrate to version 8: Make producto_id in gastos table NOT NULL with default -1
@@ -243,7 +262,7 @@ class DatabaseService {
           es_gasto_operativo INTEGER NOT NULL DEFAULT 0
         )
       ''');
-      
+
       // Copy data from old table to new table
       await db.execute('''
         INSERT INTO ${tableGastos}_new 
@@ -253,14 +272,74 @@ class DatabaseService {
                COALESCE(es_gasto_operativo, 0) as es_gasto_operativo
         FROM $tableGastos
       ''');
-      
+
       // Drop old table and rename new one
       await db.execute('DROP TABLE $tableGastos');
       await db.execute('ALTER TABLE ${tableGastos}_new RENAME TO $tableGastos');
     }
     if (oldVersion < 9) {
-      // Migrate to version 9: Add referencia_pago to ventas table
-      await db.execute('ALTER TABLE $tableVentas ADD COLUMN referencia_pago TEXT');
+      // Migrate to version 9: Recreate ventas table with correct schema
+      try {
+        // 1. Crear nueva tabla con la estructura correcta
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS ${tableVentas}_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cliente_id INTEGER,
+            cliente TEXT,
+            total REAL NOT NULL,
+            fecha TEXT NOT NULL,
+            metodo_pago TEXT NOT NULL,
+            estado TEXT NOT NULL DEFAULT 'Completada',
+            notas TEXT,
+            referencia_pago TEXT,
+            FOREIGN KEY (cliente_id) REFERENCES $tableClientes(id)
+          )
+        ''');
+
+        // 2. Copiar datos de la tabla antigua a la nueva si existe
+        try {
+          await db.execute('''
+            INSERT INTO ${tableVentas}_new 
+            (id, cliente_id, cliente, total, fecha, metodo_pago, estado, notas, referencia_pago)
+            SELECT id, cliente_id, cliente, total, fecha, metodo_pago, estado, COALESCE(notas, ''), COALESCE(referencia_pago, '')
+            FROM $tableVentas
+          ''');
+        } catch (e) {
+          debugPrint('No se pudieron migrar los datos: $e');
+          // Continuar de todos modos, la tabla se creará vacía
+        }
+
+        // 3. Eliminar tabla antigua si existe
+        try {
+          await db.execute('DROP TABLE IF EXISTS $tableVentas');
+        } catch (e) {
+          debugPrint('No se pudo eliminar la tabla antigua: $e');
+        }
+
+        // 4. Renombrar nueva tabla
+        await db.execute('ALTER TABLE ${tableVentas}_new RENAME TO $tableVentas');
+        debugPrint('Tabla ventas recreada exitosamente con la columna referencia_pago');
+      } catch (e) {
+        debugPrint('Error crítico al recrear tabla ventas: $e');
+        rethrow;
+      }
+    }
+
+    if (oldVersion < 10) {
+      // Migrate to version 10: Add categorias table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $tableCategorias (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nombre TEXT NOT NULL,
+          fecha_creacion TEXT NOT NULL
+        )
+      ''');
+
+      // Insert default category if table was just created
+      await db.insert(tableCategorias, {
+        'nombre': 'General',
+        'fecha_creacion': DateTime.now().toIso8601String(),
+      });
     }
   }
 
@@ -282,15 +361,32 @@ class DatabaseService {
     return maps;
   }
 
-  // Obtener todos los clientes
-  Future<List<Cliente>> getClientes() async {
+  // Obtener todos los clientes con opción de búsqueda
+  Future<List<Cliente>> getClientes({String? searchQuery}) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      tableClientes,
-      orderBy: 'nombre ASC',
-    );
 
-    return List.generate(maps.length, (i) => Cliente.fromMap(maps[i]));
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      // Búsqueda por nombre, email, teléfono o RUC
+      final List<Map<String, dynamic>> maps = await db.query(
+        tableClientes,
+        where: 'nombre LIKE ? OR email LIKE ? OR telefono LIKE ? OR ruc LIKE ?',
+        whereArgs: [
+          '%$searchQuery%',
+          '%$searchQuery%',
+          '%$searchQuery%',
+          '%$searchQuery%',
+        ],
+        orderBy: 'nombre ASC',
+      );
+      return List.generate(maps.length, (i) => Cliente.fromMap(maps[i]));
+    } else {
+      // Si no hay término de búsqueda, devolver todos los clientes
+      final List<Map<String, dynamic>> maps = await db.query(
+        tableClientes,
+        orderBy: 'nombre ASC',
+      );
+      return List.generate(maps.length, (i) => Cliente.fromMap(maps[i]));
+    }
   }
 
   // Insertar una nueva venta
@@ -385,7 +481,7 @@ class DatabaseService {
       final total = cantidad * precioUnitario;
       final fechaActual = DateTime.now();
       final fechaStr = fechaActual.toIso8601String();
-      
+
       await txn.insert(tableEntradasInventario, {
         'producto_id': productoId,
         'producto_nombre': productoNombre,
@@ -399,18 +495,14 @@ class DatabaseService {
       });
 
       // Registrar el gasto asociado a la compra
-      await txn.insert(
-        tableGastos,
-        {
-          'descripcion': 'Compra de $productoNombre (x$cantidad)',
-          'monto': total,
-          'categoria': 'Insumos',
-          'fecha': fechaStr,
-          'notas': notas,
-          'producto_id': productoId,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await txn.insert(tableGastos, {
+        'descripcion': 'Compra de $productoNombre (x$cantidad)',
+        'monto': total,
+        'categoria': 'Insumos',
+        'fecha': fechaStr,
+        'notas': notas,
+        'producto_id': productoId,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     });
   }
 
@@ -652,7 +744,6 @@ class DatabaseService {
       'precio_compra': map['precioCompra'],
       'precio_venta': map['precioVenta'],
       'stock': map['stock'],
-      'fecha_actualizacion': DateTime.now().toIso8601String(),
       'imagen_url': map['imagenUrl'],
       'activo': map['activo'] == true ? 1 : 0,
     };
@@ -764,31 +855,57 @@ class DatabaseService {
 
   Future<List<Venta>> getVentas() async {
     final db = await database;
+
+    // Verificar si la columna referencia_pago existe
+    final hasReferenciaPago = await _columnExists(
+      tableVentas,
+      'referencia_pago',
+    );
+
+    // Definir las columnas a seleccionar
+    final columns = [
+      'id',
+      'fecha',
+      'cliente_id',
+      'cliente',
+      'total',
+      'metodo_pago',
+      if (hasReferenciaPago) 'referencia_pago',
+    ];
+
+    // Realizar la consulta
     final List<Map<String, dynamic>> maps = await db.query(
       tableVentas,
-      columns: ['id', 'fecha', 'cliente_id', 'cliente', 'total', 'metodo_pago', 'referencia_pago'],
+      columns: columns,
       orderBy: 'fecha DESC',
     );
 
     final ventas = <Venta>[];
     for (var ventaMap in maps) {
-      final detalles = await getVentaDetalles(ventaMap['id']);
-      final venta = Venta.fromMap(ventaMap);
-      venta.items.addAll(detalles);
-      ventas.add(venta);
+      try {
+        final detalles = await getVentaDetalles(ventaMap['id']);
+        final venta = Venta.fromMap(ventaMap);
+        venta.items.addAll(detalles);
+        ventas.add(venta);
+      } catch (e) {
+        debugPrint('Error al procesar venta ${ventaMap['id']}: $e');
+      }
     }
     return ventas;
   }
 
   Future<List<Map<String, dynamic>>> getVentaDetalles(int ventaId) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+      '''
       SELECT vd.*, p.nombre as nombre_producto 
       FROM $tableVentaDetalles vd
       LEFT JOIN $tableProductos p ON vd.producto_id = p.id
       WHERE vd.venta_id = ?
-    ''', [ventaId]);
-    
+    ''',
+      [ventaId],
+    );
+
     return maps;
   }
 
@@ -832,7 +949,7 @@ class DatabaseService {
     });
   }
 
-  // Obtener todas las entradas de inventario
+  // Obtener todas las entradas de inventario con información del producto
   Future<List<EntradaInventario>> getEntradasInventario({
     DateTime? fechaInicio,
     DateTime? fechaFin,
@@ -844,31 +961,51 @@ class DatabaseService {
     List<dynamic> whereArgs = [];
 
     if (fechaInicio != null) {
-      where += ' AND fecha >= ?';
+      where += ' AND e.fecha >= ?';
       whereArgs.add(fechaInicio.toIso8601String());
     }
 
     if (fechaFin != null) {
-      where += ' AND fecha <= ?';
+      where += ' AND e.fecha <= ?';
       whereArgs.add(fechaFin.toIso8601String());
     }
 
     if (productoId != null) {
-      where += ' AND producto_id = ?';
+      where += ' AND e.producto_id = ?';
       whereArgs.add(productoId);
     }
 
-    final List<Map<String, dynamic>> maps = await db.query(
-      tableEntradasInventario,
-      where: where,
-      whereArgs: whereArgs,
-      orderBy: 'fecha DESC',
-    );
+    // Realizar una consulta que una la tabla de entradas con la de productos
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT e.*, p.imagen_url as producto_imagen_url, p.descripcion as producto_descripcion,
+             p.precio_venta as producto_precio_venta, p.stock as producto_stock
+      FROM $tableEntradasInventario e
+      LEFT JOIN $tableProductos p ON e.producto_id = p.id
+      WHERE $where
+      ORDER BY e.fecha DESC
+    ''', whereArgs);
 
-    return List.generate(
-      maps.length,
-      (i) => EntradaInventario.fromMap(maps[i]),
-    );
+    // Mapear los resultados a objetos EntradaInventario
+    return List.generate(maps.length, (i) {
+      final map = maps[i];
+      // Crear el objeto EntradaInventario con los datos adicionales del producto
+      return EntradaInventario(
+        id: map['id'],
+        productoId: map['producto_id'],
+        productoNombre: map['producto_nombre'],
+        cantidad: map['cantidad'],
+        precioUnitario: (map['precio_unitario'] as num).toDouble(),
+        total: (map['total'] as num).toDouble(),
+        fecha: DateTime.parse(map['fecha']),
+        notas: map['notas'],
+        proveedorId: map['proveedor_id'],
+        proveedorNombre: map['proveedor_nombre'],
+        productoImagenUrl: map['producto_imagen_url'],
+        productoDescripcion: map['producto_descripcion'],
+        productoPrecioVenta: (map['producto_precio_venta'] as num?)?.toDouble(),
+        productoStock: map['producto_stock'] ?? 0,
+      );
+    });
   }
 
   // Obtener el total gastado en inventario
@@ -906,21 +1043,21 @@ class DatabaseService {
   Future<int> insertGasto(Gasto gasto) async {
     final db = await database;
     final map = gasto.toMap()..remove('id');
-    
+
     if (kDebugMode) {
       debugPrint('Insertando gasto: $map');
     }
-    
+
     final id = await db.insert(
       tableGastos,
       map,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    
+
     if (kDebugMode) {
       debugPrint('Gasto insertado con ID: $id');
     }
-    
+
     return id;
   }
 
@@ -959,53 +1096,69 @@ class DatabaseService {
     DateTime fechaFin,
   ) async {
     final db = await database;
-    
+
     // Asegurarse de que las fechas estén en el rango correcto del día
-    final fechaInicioAjustada = DateTime(fechaInicio.year, fechaInicio.month, fechaInicio.day);
-    final fechaFinAjustada = DateTime(fechaFin.year, fechaFin.month, fechaFin.day, 23, 59, 59, 999);
-    
+    final fechaInicioAjustada = DateTime(
+      fechaInicio.year,
+      fechaInicio.month,
+      fechaInicio.day,
+    );
+    final fechaFinAjustada = DateTime(
+      fechaFin.year,
+      fechaFin.month,
+      fechaFin.day,
+      23,
+      59,
+      59,
+      999,
+    );
+
     // Convertir a ISO 8601 para la consulta
     final fechaInicioStr = fechaInicioAjustada.toIso8601String();
     final fechaFinStr = fechaFinAjustada.toIso8601String();
-    
+
     if (kDebugMode) {
       debugPrint('Buscando gastos entre $fechaInicioStr y $fechaFinStr');
       debugPrint('Fecha inicio (DateTime): $fechaInicioAjustada');
       debugPrint('Fecha fin (DateTime): $fechaFinAjustada');
     }
-    
+
     try {
       // Primero, obtener todos los gastos para depuración
       if (kDebugMode) {
         final allGastos = await db.query(tableGastos);
         debugPrint('Total de gastos en la base de datos: ${allGastos.length}');
         for (var i = 0; i < allGastos.length && i < 5; i++) {
-          debugPrint('Gasto ${i+1}: ${allGastos[i]}');
+          debugPrint('Gasto ${i + 1}: ${allGastos[i]}');
         }
       }
-      
+
       // Usar una consulta raw con comparación directa de fechas ISO 8601
-      final query = '''
+      final query =
+          '''
         SELECT * FROM $tableGastos 
         WHERE fecha >= ? AND fecha <= ?
         ORDER BY fecha DESC
       ''';
-      
+
       if (kDebugMode) {
         debugPrint('Ejecutando consulta SQL:');
         debugPrint('  $query');
         debugPrint('  Parámetros: [$fechaInicioStr, $fechaFinStr]');
       }
-      
-      final List<Map<String, dynamic>> maps = await db.rawQuery(query, [fechaInicioStr, fechaFinStr]);
-      
+
+      final List<Map<String, dynamic>> maps = await db.rawQuery(query, [
+        fechaInicioStr,
+        fechaFinStr,
+      ]);
+
       if (kDebugMode) {
         debugPrint('Consulta SQL ejecutada. Resultados: ${maps.length}');
         for (var i = 0; i < maps.length && i < 5; i++) {
-          debugPrint('  Gasto ${i+1}: ${maps[i]}');
+          debugPrint('  Gasto ${i + 1}: ${maps[i]}');
         }
       }
-      
+
       final gastos = List.generate(maps.length, (i) {
         try {
           return Gasto.fromMap(maps[i]);
@@ -1017,7 +1170,7 @@ class DatabaseService {
           rethrow;
         }
       });
-      
+
       return gastos;
     } catch (e) {
       if (kDebugMode) {
@@ -1066,12 +1219,46 @@ class DatabaseService {
     );
   }
 
+  // Verificar si una columna existe en una tabla
+  Future<bool> _columnExists(String tableName, String columnName) async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery("PRAGMA table_info($tableName)");
+      return result.any((column) => column['name'] == columnName);
+    } catch (e) {
+      debugPrint('Error al verificar columna $columnName: $e');
+      return false;
+    }
+  }
+
   // Obtener ventas por rango de fechas
-  Future<List<Venta>> getVentasPorRangoFechas(DateTime fechaInicio, DateTime fechaFin) async {
+  Future<List<Venta>> getVentasPorRangoFechas(
+    DateTime fechaInicio,
+    DateTime fechaFin,
+  ) async {
     final db = await database;
+
+    // Verificar si la columna referencia_pago existe
+    final hasReferenciaPago = await _columnExists(
+      tableVentas,
+      'referencia_pago',
+    );
+
+    // Definir las columnas a seleccionar
+    final columns = [
+      'id',
+      'fecha',
+      'cliente_id',
+      'cliente',
+      'total',
+      'metodo_pago',
+      if (hasReferenciaPago) 'referencia_pago',
+    ];
+
+    // Realizar la consulta
     final List<Map<String, dynamic>> maps = await db.query(
       tableVentas,
-      columns: ['id', 'fecha', 'cliente_id', 'cliente', 'total', 'metodo_pago', 'referencia_pago'],
+      columns: columns,
       where: 'fecha BETWEEN ? AND ?',
       whereArgs: [fechaInicio.toIso8601String(), fechaFin.toIso8601String()],
       orderBy: 'fecha DESC',
@@ -1079,10 +1266,14 @@ class DatabaseService {
 
     final ventas = <Venta>[];
     for (var ventaMap in maps) {
-      final detalles = await getVentaDetalles(ventaMap['id']);
-      final venta = Venta.fromMap(ventaMap);
-      venta.items.addAll(detalles);
-      ventas.add(venta);
+      try {
+        final detalles = await getVentaDetalles(ventaMap['id']);
+        final venta = Venta.fromMap(ventaMap);
+        venta.items.addAll(detalles);
+        ventas.add(venta);
+      } catch (e) {
+        debugPrint('Error al procesar venta ${ventaMap['id']}: $e');
+      }
     }
     return ventas;
   }

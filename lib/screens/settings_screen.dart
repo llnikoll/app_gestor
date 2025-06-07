@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../widgets/primary_button.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../main.dart';
+import '../services/settings_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,81 +13,52 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class SettingsScreenState extends State<SettingsScreen> {
-  bool _isDarkMode = false;
-  bool _notificationsEnabled = true;
-  bool _biometricAuth = false;
-  String _selectedLanguage = 'es';
-  String _selectedCurrency = 'MXN';
-  String _printerName = 'Predeterminada';
-  final String _appVersion = '1.0.0';
-
-  final List<Map<String, dynamic>> _languages = [
-    {'code': 'es', 'name': 'Español'},
-    {'code': 'en', 'name': 'English'},
-    {'code': 'pt', 'name': 'Português'},
-  ];
-
-  final List<Map<String, dynamic>> _currencies = [
-    {'code': 'MXN', 'name': 'Peso Mexicano (\$)'},
-    {'code': 'USD', 'name': 'Dólar Americano (\$)'},
-    {'code': 'EUR', 'name': 'Euro (€)'},
-    {'code': 'GTQ', 'name': 'Quetzal (Q)'},
-    {'code': 'PEN', 'name': 'Sol (S/.)'},
-  ];
+  late final SettingsService _settings;
+  String _appVersion = '1.0.0';
+  PackageInfo? _packageInfo;
 
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    _settings = SettingsService();
+    _initPackageInfo();
+    _appVersion = 'Cargando...';
   }
 
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _initPackageInfo() async {
+    final packageInfo = await PackageInfo.fromPlatform();
     setState(() {
-      _isDarkMode = prefs.getBool('darkMode') ?? false;
-      _notificationsEnabled = prefs.getBool('notifications') ?? true;
-      _biometricAuth = prefs.getBool('biometricAuth') ?? false;
-      _selectedLanguage = prefs.getString('language') ?? 'es';
-      _selectedCurrency = prefs.getString('currency') ?? 'MXN';
-      _printerName = prefs.getString('printer') ?? 'Predeterminada';
+      _packageInfo = packageInfo;
+      _appVersion = '${packageInfo.version} (${packageInfo.buildNumber})';
     });
   }
 
-  Future<void> _saveSetting(String key, dynamic value) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (value is bool) {
-      await prefs.setBool(key, value);
-    } else if (value is String) {
-      await prefs.setString(key, value);
-    } else if (value is int) {
-      await prefs.setInt(key, value);
-    } else if (value is double) {
-      await prefs.setDouble(key, value);
-    }
-  }
-
   void _showLanguageDialog() {
+    final BuildContext dialogContext = context;
+    final navigator = Navigator.of(dialogContext);
+
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: dialogContext,
+      builder: (BuildContext context) => AlertDialog(
         title: const Text('Seleccionar idioma'),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
             shrinkWrap: true,
-            itemCount: _languages.length,
-            itemBuilder: (context, index) {
-              final lang = _languages[index];
+            itemCount: SettingsService.availableLanguages.length,
+            itemBuilder: (BuildContext context, int index) {
+              final lang = SettingsService.availableLanguages[index];
               return RadioListTile<String>(
                 title: Text(lang['name']),
                 value: lang['code'],
-                groupValue: _selectedLanguage,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedLanguage = value!;
-                    _saveSetting('language', value);
-                  });
-                  Navigator.pop(context);
+                groupValue: _settings.language,
+                onChanged: (String? value) async {
+                  if (value != null) {
+                    await _settings.setLanguage(value);
+                    if (!mounted) return;
+                    setState(() {});
+                    navigator.pop();
+                  }
                 },
               );
             },
@@ -96,27 +69,31 @@ class SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showCurrencyDialog() {
+    final BuildContext dialogContext = context;
+    final navigator = Navigator.of(dialogContext);
+
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: dialogContext,
+      builder: (BuildContext context) => AlertDialog(
         title: const Text('Seleccionar moneda'),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
             shrinkWrap: true,
-            itemCount: _currencies.length,
-            itemBuilder: (context, index) {
-              final currency = _currencies[index];
+            itemCount: SettingsService.availableCurrencies.length,
+            itemBuilder: (BuildContext context, int index) {
+              final currency = SettingsService.availableCurrencies[index];
               return RadioListTile<String>(
                 title: Text(currency['name']),
                 value: currency['code'],
-                groupValue: _selectedCurrency,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCurrency = value!;
-                    _saveSetting('currency', value);
-                  });
-                  Navigator.pop(context);
+                groupValue: _settings.currency,
+                onChanged: (String? value) async {
+                  if (value != null) {
+                    await _settings.setCurrency(value);
+                    if (!mounted) return;
+                    setState(() {});
+                    navigator.pop();
+                  }
                 },
               );
             },
@@ -127,29 +104,31 @@ class SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showPrinterDialog() {
-    final printers = ['Predeterminada', 'Impresora 1', 'Impresora 2', 'Impresora Bluetooth'];
-    
+    final BuildContext dialogContext = context;
+    final navigator = Navigator.of(dialogContext);
+
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: dialogContext,
+      builder: (BuildContext context) => AlertDialog(
         title: const Text('Seleccionar impresora'),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
             shrinkWrap: true,
-            itemCount: printers.length,
-            itemBuilder: (context, index) {
-              final printer = printers[index];
+            itemCount: SettingsService.availablePrinters.length,
+            itemBuilder: (BuildContext context, int index) {
+              final printer = SettingsService.availablePrinters[index];
               return RadioListTile<String>(
                 title: Text(printer),
                 value: printer,
-                groupValue: _printerName,
-                onChanged: (value) {
-                  setState(() {
-                    _printerName = value!;
-                    _saveSetting('printer', value);
-                  });
-                  Navigator.pop(context);
+                groupValue: _settings.printer,
+                onChanged: (String? value) async {
+                  if (value != null) {
+                    await _settings.setPrinter(value);
+                    if (!mounted) return;
+                    setState(() {});
+                    navigator.pop();
+                  }
                 },
               );
             },
@@ -165,25 +144,49 @@ class SettingsScreenState extends State<SettingsScreen> {
     String? subtitle,
     Widget? trailing,
     VoidCallback? onTap,
+    bool isLoading = false,
   }) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor.withAlpha(26), // 0.1 * 255 ≈ 26
-          borderRadius: BorderRadius.circular(8),
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      elevation: 1,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Theme.of(context).primaryColor.withAlpha(26),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: Theme.of(context).primaryColor),
         ),
-        child: Icon(icon, color: Theme.of(context).primaryColor),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
+        ),
+        subtitle: subtitle != null
+            ? Text(subtitle, style: const TextStyle(fontSize: 13))
+            : null,
+        trailing: trailing,
+        onTap: onTap,
       ),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w500),
-      ),
-      subtitle: subtitle != null ? Text(subtitle) : null,
-      trailing: trailing,
-      onTap: onTap,
     );
+  }
+
+  Future<bool> _isBiometricAvailable() async {
+    try {
+      final bool isMobile =
+          Theme.of(context).platform == TargetPlatform.android ||
+          Theme.of(context).platform == TargetPlatform.iOS;
+      if (!isMobile) return false;
+      return true;
+    } catch (e) {
+      debugPrint('Error checking biometric availability: $e');
+      return false;
+    }
   }
 
   Widget _buildSectionTitle(String title) {
@@ -191,7 +194,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
       child: Text(
         title,
-        style: TextStyle(
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
           color: Theme.of(context).primaryColor,
           fontWeight: FontWeight.bold,
           fontSize: 16,
@@ -202,154 +205,195 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configuración'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: () {
-              // Guardar configuración
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Configuración guardada')),
-              );
-            },
+    return Consumer<ThemeNotifier>(
+      builder: (context, themeNotifier, _) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Configuración'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () {
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  final navigator = Navigator.of(context);
+
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext dialogContext) => AlertDialog(
+                      title: const Text('Restaurar configuración'),
+                      content: const Text(
+                        '¿Estás seguro de que deseas restaurar la configuración predeterminada?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('Cancelar'),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await _settings.resetToDefault();
+                            if (!mounted) return;
+                            setState(() {});
+                            themeNotifier.toggleTheme();
+                            if (!mounted) return;
+                            navigator.pop();
+                            if (!mounted) return;
+                            scaffoldMessenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Configuración restaurada'),
+                              ),
+                            );
+                          },
+                          child: const Text('Restaurar'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                tooltip: 'Restaurar valores por defecto',
+              ),
+            ],
           ),
-        ],
-      ),
-      body: ListView(
-        children: [
-          _buildSectionTitle('APARIENCIA'),
-          _buildSettingItem(
-            icon: Icons.brightness_6,
-            title: 'Tema oscuro',
-            trailing: Switch(
-              value: _isDarkMode,
-              onChanged: (value) {
-                setState(() {
-                  _isDarkMode = value;
-                  _saveSetting('darkMode', value);
-                });
-              },
-              activeColor: Theme.of(context).primaryColor,
-            ),
-          ),
-          _buildSettingItem(
-            icon: Icons.language,
-            title: 'Idioma',
-            subtitle: _languages.firstWhere(
-              (lang) => lang['code'] == _selectedLanguage,
-              orElse: () => {'name': 'Español'},
-            )['name'],
-            onTap: _showLanguageDialog,
-          ),
-          _buildSectionTitle('PREFERENCIAS'),
-          _buildSettingItem(
-            icon: Icons.attach_money,
-            title: 'Moneda',
-            subtitle: _currencies.firstWhere(
-              (curr) => curr['code'] == _selectedCurrency,
-              orElse: () => {'name': 'MXN - Peso Mexicano'},
-            )['name'],
-            onTap: _showCurrencyDialog,
-          ),
-          _buildSettingItem(
-            icon: Icons.print,
-            title: 'Impresora',
-            subtitle: _printerName,
-            onTap: _showPrinterDialog,
-          ),
-          _buildSettingItem(
-            icon: Icons.notifications,
-            title: 'Notificaciones',
-            trailing: Switch(
-              value: _notificationsEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _notificationsEnabled = value;
-                  _saveSetting('notifications', value);
-                });
-              },
-              activeColor: Theme.of(context).primaryColor,
-            ),
-          ),
-          _buildSettingItem(
-            icon: Icons.fingerprint,
-            title: 'Autenticación biométrica',
-            trailing: Switch(
-              value: _biometricAuth,
-              onChanged: (value) {
-                setState(() {
-                  _biometricAuth = value;
-                  _saveSetting('biometricAuth', value);
-                });
-              },
-              activeColor: Theme.of(context).primaryColor,
-            ),
-          ),
-          _buildSectionTitle('INFORMACIÓN'),
-          _buildSettingItem(
-            icon: Icons.info_outline,
-            title: 'Versión de la aplicación',
-            subtitle: 'Versión $_appVersion',
-            onTap: () {
-              // Verificar actualizaciones
-            },
-          ),
-          _buildSettingItem(
-            icon: Icons.help_outline,
-            title: 'Ayuda y soporte',
-            onTap: () {
-              // Navegar a la pantalla de ayuda
-            },
-          ),
-          _buildSettingItem(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Política de privacidad',
-            onTap: () async {
-              final url = Uri.parse('https://tudominio.com/privacidad');
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url);
-              }
-            },
-          ),
-          _buildSettingItem(
-            icon: Icons.description_outlined,
-            title: 'Términos y condiciones',
-            onTap: () async {
-              final url = Uri.parse('https://tudominio.com/terminos');
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url);
-              }
-            },
-          ),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
-            child: PrimaryButton(
-              text: 'Cerrar sesión',
-              icon: Icons.logout,
-              onPressed: () {
-                // Cerrar sesión
-              },
-              isOutlined: true,
-              color: Colors.red,
-            ),
-          ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 24.0, top: 8.0),
-              child: Text(
-                '© 2023 Tu Empresa. Todos los derechos reservados.',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
+          body: ListView(
+            children: [
+              _buildSectionTitle('APARIENCIA'),
+              _buildSettingItem(
+                icon: Icons.brightness_6,
+                title: 'Tema oscuro',
+                trailing: Switch(
+                  value: themeNotifier.isDarkMode,
+                  onChanged: (value) {
+                    themeNotifier.toggleTheme();
+                  },
+                  activeColor: Theme.of(context).primaryColor,
                 ),
               ),
-            ),
+              _buildSettingItem(
+                icon: Icons.language,
+                title: 'Idioma',
+                subtitle: SettingsService.availableLanguages.firstWhere(
+                  (lang) => lang['code'] == _settings.language,
+                  orElse: () => {'name': 'Español'},
+                )['name'],
+                onTap: _showLanguageDialog,
+              ),
+              _buildSectionTitle('PREFERENCIAS'),
+              _buildSettingItem(
+                icon: Icons.attach_money,
+                title: 'Moneda',
+                subtitle: SettingsService.availableCurrencies.firstWhere(
+                  (curr) => curr['code'] == _settings.currency,
+                  orElse: () => {'name': 'Guaraní (₲)'},
+                )['name'],
+                onTap: _showCurrencyDialog,
+              ),
+              _buildSettingItem(
+                icon: Icons.print,
+                title: 'Impresora',
+                subtitle: _settings.printer,
+                onTap: _showPrinterDialog,
+              ),
+              _buildSettingItem(
+                icon: Icons.notifications,
+                title: 'Notificaciones',
+                trailing: Switch(
+                  value: _settings.notificationsEnabled,
+                  onChanged: (value) async {
+                    await _settings.setNotificationsEnabled(value);
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  },
+                  activeColor: Theme.of(context).primaryColor,
+                ),
+              ),
+              _buildSettingItem(
+                icon: Icons.fingerprint,
+                title: 'Autenticación biométrica',
+                trailing: FutureBuilder<bool>(
+                  future: _isBiometricAvailable(),
+                  builder: (context, snapshot) {
+                    final isAvailable = snapshot.data ?? false;
+                    return Switch(
+                      value: _settings.biometricAuthEnabled && isAvailable,
+                      onChanged: isAvailable
+                          ? (bool value) async {
+                              await _settings.setBiometricAuthEnabled(value);
+                              if (mounted) {
+                                setState(() {});
+                              }
+                            }
+                          : null,
+                      activeColor: isAvailable
+                          ? Theme.of(context).primaryColor
+                          : Colors.grey,
+                    );
+                  },
+                ),
+                subtitle: _settings.biometricAuthEnabled
+                    ? 'Activado'
+                    : 'Desactivado',
+              ),
+              _buildSectionTitle('INFORMACIÓN'),
+              _buildSettingItem(
+                icon: Icons.info_outline,
+                title: 'Versión de la aplicación',
+                subtitle: _packageInfo != null 
+                    ? 'Versión $_appVersion\n${_packageInfo!.packageName}'
+                    : 'Cargando...',
+                isLoading: _packageInfo == null,
+                onTap: _packageInfo != null ? () {
+                  // Verificar actualizaciones
+                } : null,
+              ),
+              _buildSettingItem(
+                icon: Icons.help_outline,
+                title: 'Ayuda y soporte',
+                onTap: () {
+                  // Navegar a la pantalla de ayuda
+                },
+              ),
+              _buildSettingItem(
+                icon: Icons.privacy_tip_outlined,
+                title: 'Política de privacidad',
+                onTap: () async {
+                  final url = Uri.parse('https://tudominio.com/privacidad');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url);
+                  }
+                },
+              ),
+              _buildSettingItem(
+                icon: Icons.description_outlined,
+                title: 'Términos y condiciones',
+                onTap: () async {
+                  final url = Uri.parse('https://tudominio.com/terminos');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url);
+                  }
+                },
+              ),
+              _buildSectionTitle('CUENTA'),
+              _buildSettingItem(
+                icon: Icons.logout,
+                title: 'Cerrar sesión',
+                onTap: () {
+                  // Cerrar sesión
+                },
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Text(
+                  '© 2023 Tu Empresa. Todos los derechos reservados.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -182,11 +182,20 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     try {
       if (imagePath.isEmpty) return '';
       
-      // Obtener el directorio de documentos de la aplicación
-      final appDir = await getApplicationDocumentsDirectory();
-      final imagesDir = Directory('${appDir.path}/product_images');
+      // Verificar si la imagen ya está en el directorio de la aplicación
+      if (imagePath.contains('product_images/')) {
+        // Si ya está en el directorio de imágenes, devolver solo el nombre del archivo
+        final fileName = imagePath.split('/').last;
+        debugPrint('La imagen ya está en el directorio de la aplicación: $fileName');
+        return fileName;
+      }
       
-      // Crear el directorio si no existe
+      // Obtener el directorio de almacenamiento externo o interno
+      final Directory? externalDir = await getExternalStorageDirectory();
+      final Directory appDir = externalDir ?? await getApplicationDocumentsDirectory();
+      
+      // Crear directorio para las imágenes si no existe
+      final Directory imagesDir = Directory('${appDir.path}/product_images');
       if (!await imagesDir.exists()) {
         await imagesDir.create(recursive: true);
       }
@@ -199,6 +208,12 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       // Obtener el archivo de origen
       final File imageFile = File(imagePath);
       if (!await imageFile.exists()) {
+        // Si el archivo no existe, verificar si es un nombre de archivo sin ruta
+        final possiblePath = '${imagesDir.path}/$imagePath';
+        if (await File(possiblePath).exists()) {
+          debugPrint('Imagen encontrada en: $possiblePath');
+          return imagePath; // Ya está en el directorio correcto
+        }
         throw Exception('El archivo de imagen no existe: $imagePath');
       }
       
@@ -209,7 +224,9 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       await imageFile.copy(savedImage.path);
       
       debugPrint('Imagen guardada en: ${savedImage.path}');
-      return savedImage.path;
+      
+      // Devolver solo el nombre del archivo para almacenamiento en la base de datos
+      return fileName;
     } catch (e) {
       debugPrint('Error en _saveImageToAppDir: $e');
       if (mounted) {
@@ -222,25 +239,47 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     }
   }
   
-  Future<bool> _checkIfFileExists(String filePath) async {
-    if (filePath.isEmpty) return false;
+  // Obtiene la ruta completa de una imagen a partir de su nombre de archivo
+  Future<String> _getFullImagePath(String fileName) async {
+    if (fileName.isEmpty) return '';
+    
+    // Si ya es una ruta completa, devolverla tal cual
+    if (fileName.startsWith('/') || fileName.startsWith('file:') || fileName.contains('/')) {
+      return fileName;
+    }
     
     try {
-      final file = File(filePath);
-      final exists = await file.exists();
+      // Obtener el directorio de almacenamiento
+      final Directory? externalDir = await getExternalStorageDirectory();
+      final Directory appDir = externalDir ?? await getApplicationDocumentsDirectory();
       
-      // Si el archivo no existe, verificar si es una ruta relativa
-      if (!exists) {
-        // Intentar con la ruta absoluta
-        final appDir = await getApplicationDocumentsDirectory();
-        final absolutePath = '${appDir.path}/$filePath';
-        final absoluteFile = File(absolutePath);
-        return await absoluteFile.exists();
+      // Construir la ruta completa
+      final fullPath = '${appDir.path}/product_images/$fileName';
+      debugPrint('Resolviendo ruta de imagen: $fileName -> $fullPath');
+      return fullPath;
+    } catch (e) {
+      debugPrint('Error en _getFullImagePath: $e');
+      return fileName; // Devolver el nombre original si hay un error
+    }
+  }
+
+  // Verifica si un archivo de imagen existe en el directorio de la aplicación
+  Future<bool> _checkIfFileExists(String fileName) async {
+    if (fileName.isEmpty) return false;
+    
+    try {
+      final fullPath = await _getFullImagePath(fileName);
+      if (fullPath.isEmpty) {
+        debugPrint('_checkIfFileExists: Ruta vacía para el archivo: $fileName');
+        return false;
       }
       
+      final imageFile = File(fullPath);
+      final exists = await imageFile.exists();
+      debugPrint('_checkIfFileExists: Verificando $fullPath - Existe: $exists');
       return exists;
     } catch (e) {
-      debugPrint('Error en _checkIfFileExists: $e');
+      debugPrint('Error en _checkIfFileExists para $fileName: $e');
       return false;
     }
   }
@@ -249,10 +288,10 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        final savedImagePath = await _saveImageToAppDir(image.path);
+        final savedImageName = await _saveImageToAppDir(image.path);
         
         setState(() {
-          _imagenPath = savedImagePath;
+          _imagenPath = savedImageName;
         });
       }
     } catch (e) {
@@ -268,10 +307,10 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     try {
       final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
       if (photo != null) {
-        final savedImagePath = await _saveImageToAppDir(photo.path);
+        final savedImageName = await _saveImageToAppDir(photo.path);
         
         setState(() {
-          _imagenPath = savedImagePath;
+          _imagenPath = savedImageName;
         });
       }
     } catch (e) {
@@ -565,14 +604,30 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                                       );
                                     }
                                     
-                                    return Image.file(
-                                      File(_imagenPath!),
-                                      width: 150,
-                                      height: 150,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return const Center(
-                                          child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                    return FutureBuilder<String>(
+                                      future: _getFullImagePath(_imagenPath!),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState != ConnectionState.done) {
+                                          return const Center(child: CircularProgressIndicator());
+                                        }
+                                        
+                                        final fullPath = snapshot.data ?? '';
+                                        if (fullPath.isEmpty) {
+                                          return const Center(
+                                            child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                          );
+                                        }
+                                        
+                                        return Image.file(
+                                          File(fullPath),
+                                          width: 150,
+                                          height: 150,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return const Center(
+                                              child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                            );
+                                          },
                                         );
                                       },
                                     );

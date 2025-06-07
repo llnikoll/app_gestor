@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'inventory_entries_screen.dart';
 import 'product_form_screen.dart';
 import '../models/producto_model.dart';
@@ -19,7 +22,10 @@ class InventoryScreenState extends State<InventoryScreen>
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
       GlobalKey<RefreshIndicatorState>();
   List<Producto> _productos = [];
+  List<Producto> _filteredProducts = [];
   bool _isLoading = true;
+  String? _selectedCategory;
+  List<String> _categories = ['Todas las categorías'];
 
   Future<void> _loadProducts() async {
     if (!mounted) return;
@@ -35,8 +41,12 @@ class InventoryScreenState extends State<InventoryScreen>
       if (mounted) {
         setState(() {
           _productos = productos;
+          _filteredProducts = List.from(productos);
           _isLoading = false;
         });
+        
+        // Recargar las categorías después de cargar los productos
+        _loadCategories();
       }
     } catch (e) {
       if (mounted) {
@@ -57,7 +67,82 @@ class InventoryScreenState extends State<InventoryScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabSelection);
-    _loadProducts();
+    _selectedCategory = 'Todas las categorías';
+    _loadCategories().then((_) => _loadProducts());
+  }
+
+  // Método para cargar las categorías
+  Future<void> _loadCategories() async {
+    try {
+      final db = DatabaseService();
+      final productos = await db.getProductos();
+
+      final categorias = productos
+          .map((p) => p.categoria)
+          .where((c) => c.isNotEmpty)
+          .toSet()
+          .toList()
+          .cast<String>();
+
+      categorias.sort();
+
+      if (mounted) {
+        setState(() {
+          _categories = ['Todas las categorías'];
+          _categories.addAll(categorias);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar categorías: $e')),
+        );
+      }
+    }
+  }
+
+  // Método para aplicar el filtro de categoría
+  void _applyFilter(String? category) {
+    setState(() {
+      _selectedCategory = category;
+      if (category == null || category == 'Todas las categorías') {
+        _filteredProducts = List.from(_productos);
+      } else {
+        _filteredProducts = _productos
+            .where((producto) => producto.categoria == category)
+            .toList();
+      }
+    });
+  }
+
+  // Widget para construir el selector de categorías
+  Widget _buildCategoryFilter() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: DropdownButtonFormField<String>(
+        value: _selectedCategory,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: 'Categoría',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+        ),
+        items: _categories.map((String category) {
+          return DropdownMenuItem<String>(
+            value: category,
+            child: Text(category),
+          );
+        }).toList(),
+        onChanged: (String? newValue) {
+          if (newValue != null) {
+            _applyFilter(newValue);
+          }
+        },
+      ),
+    );
   }
 
   void _handleTabSelection() {
@@ -75,8 +160,157 @@ class InventoryScreenState extends State<InventoryScreen>
     super.dispose();
   }
 
+  // Widget para mostrar la imagen del producto
+  Widget _buildProductImage(String? imageName) {
+    if (imageName == null || imageName.isEmpty) {
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(
+          Icons.image_not_supported,
+          size: 40,
+          color: Colors.grey,
+        ),
+      );
+    }
+
+    // Si es una URL de red, mostrarla directamente
+    if (imageName.startsWith('http') || imageName.startsWith('https')) {
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageName,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(child: CircularProgressIndicator());
+            },
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.error),
+          ),
+        ),
+      );
+    }
+
+    // Para imágenes locales, usar un FutureBuilder para cargarlas de forma asíncrona
+    return FutureBuilder<String>(
+      future: _getImagePath(imageName),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return _buildErrorImage();
+        }
+
+        final imagePath = snapshot.data!;
+
+        return Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              File(imagePath),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _buildErrorImage(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Método auxiliar para construir una imagen de error
+  Widget _buildErrorImage() {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+    );
+  }
+
+  // Método para obtener la ruta completa de una imagen
+  Future<String> _getImagePath(String imageName) async {
+    try {
+      // Primero intentamos con el almacenamiento externo
+      final externalDir = '/storage/emulated/0/Android/data/com.example.app_gestor_ventas/files/product_images';
+      final externalPath = '$externalDir/$imageName';
+      
+      // Verificamos si el archivo existe en el almacenamiento externo
+      final externalFile = File(externalPath);
+      if (await externalFile.exists()) {
+        debugPrint('Imagen encontrada en almacenamiento externo: $externalPath');
+        return externalPath;
+      }
+      
+      // Si no está en almacenamiento externo, buscamos en el directorio de documentos de la app
+      final Directory appDir = await getApplicationDocumentsDirectory();
+      final localPath = '${appDir.path}/product_images/$imageName';
+      debugPrint('Buscando imagen en: $localPath');
+      
+      final localFile = File(localPath);
+      if (await localFile.exists()) {
+        debugPrint('Imagen encontrada en almacenamiento local: $localPath');
+        return localPath;
+      }
+      
+      debugPrint('No se encontró la imagen en ninguna ubicación: $imageName');
+      return '';
+    } catch (e) {
+      debugPrint('Error al obtener ruta de imagen: $e');
+      return '';
+    }
+  }
+
+  // Widget para mostrar información en un chip
+  Widget _buildInfoChip(String text, Color color, {double fontSize = 12.0}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1.0),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final currencyFormat = NumberFormat.currency(
+      symbol: '₲ ',
+      decimalDigits: 0,
+      locale: 'es_PY',
+    );
+
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 0,
@@ -92,42 +326,115 @@ class InventoryScreenState extends State<InventoryScreen>
         child: TabBarView(
           controller: _tabController,
           children: [
-            RefreshIndicator(
-              key: _refreshIndicatorKey,
-              onRefresh: _loadProducts,
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _productos.isEmpty
-                  ? const Center(child: Text('No hay productos'))
-                  : ListView.builder(
-                      itemCount: _productos.length,
-                      itemBuilder: (context, index) {
-                        final producto = _productos[index];
-                        return ListTile(
-                          title: Text(producto.nombre),
-                          subtitle: Text('Stock: ${producto.stock}'),
-                          trailing: Text(
-                            '\$${producto.precioVenta.toStringAsFixed(2)}',
+            // Pestaña de Productos
+            Column(
+              children: [
+                // Selector de categorías
+                _buildCategoryFilter(),
+                // Lista de productos con RefreshIndicator
+                Expanded(
+                  child: RefreshIndicator(
+                    key: _refreshIndicatorKey,
+                    onRefresh: _loadProducts,
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _filteredProducts.isEmpty
+                        ? const Center(
+                            child: Text('No hay productos disponibles'),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                              vertical: 4.0,
+                            ),
+                            itemCount: _filteredProducts.length,
+                            itemBuilder: (context, index) {
+                              final producto = _filteredProducts[index];
+                              return Card(
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 4.0,
+                                  horizontal: 8.0,
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                                  minLeadingWidth: 40,  
+                                  leading: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 40,  
+                                      maxHeight: 60,
+                                    ),
+                                    child: _buildProductImage(
+                                      producto.imagenUrl,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    producto.nombre,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Precio: ${currencyFormat.format(producto.precioVenta)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      if (producto.categoria.isNotEmpty)
+                                        Text('Categoría: ${producto.categoria}'),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          _buildInfoChip(
+                                            'Stock: ${producto.stock}',
+                                            producto.stock > 0
+                                                ? Colors.green
+                                                : Colors.red,
+                                            fontSize: 12,
+                                          ),
+                                          if (producto.codigoBarras.isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(left: 8.0),
+                                              child: _buildInfoChip(
+                                                'Código: ${producto.codigoBarras}',
+                                                Colors.blueGrey,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            ProductFormScreen(
+                                          product: producto,
+                                        ),
+                                      ),
+                                    );
+
+                                    if (result == true) {
+                                      _loadProducts();
+                                    }
+                                  },
+                                ),
+                              );
+                            },
                           ),
-                          onTap: () async {
-                            // Navegar a la pantalla de edición de producto
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    ProductFormScreen(product: producto),
-                              ),
-                            );
-                            
-                            // Si se editó el producto exitosamente, actualizar la lista
-                            if (result == true && mounted) {
-                              _loadProducts();
-                            }
-                          },
-                        );
-                      },
-                    ),
+                  ),
+                ),
+              ],
             ),
+            // Pestaña de Entradas
             const InventoryEntriesScreen(),
           ],
         ),
@@ -135,16 +442,13 @@ class InventoryScreenState extends State<InventoryScreen>
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton(
               onPressed: () async {
-                // Navegar a la pantalla de agregar producto y esperar el resultado
-                final result = await Navigator.push<bool>(
+                final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const ProductFormScreen(),
                   ),
                 );
-
-                // Si se agregó un producto exitosamente, actualizar la lista
-                if (result == true && mounted) {
+                if (result == true) {
                   _loadProducts();
                 }
               },
