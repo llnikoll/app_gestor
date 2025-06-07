@@ -7,6 +7,7 @@ class Venta {
   final double total;
   final DateTime fecha;
   final String metodoPago;
+  final String? referenciaPago; // Número de transacción para transferencia, crédito o débito
   final List<Map<String, dynamic>> items;
   final String estado;
 
@@ -17,6 +18,7 @@ class Venta {
     required this.total,
     DateTime? fecha,
     required this.metodoPago,
+    this.referenciaPago,
     List<Map<String, dynamic>>? items,
     this.estado = 'Completada',
   })  : fecha = fecha ?? DateTime.now(),
@@ -41,6 +43,7 @@ class Venta {
       'total': total,
       'fecha': fecha.toIso8601String(),
       'metodo_pago': metodoPago,
+      'referencia_pago': referenciaPago,
       'estado': estado,
     };
   }
@@ -56,6 +59,7 @@ class Venta {
           : map['total'],
       fecha: DateTime.parse(map['fecha']),
       metodoPago: map['metodo_pago'] ?? map['metodoPago'] ?? 'Efectivo',
+      referenciaPago: map['referencia_pago'] ?? map['referenciaPago'],
       items: [], // Los ítems se cargarán por separado
       estado: map['estado'] ?? 'Completada',
     );

@@ -38,6 +38,16 @@ class AppTheme {
       iconTheme: IconThemeData(color: AppColors.textOnPrimary),
     ),
 
+    // TabBar
+    tabBarTheme: const TabBarThemeData(
+      labelColor: Colors.white,
+      unselectedLabelColor: Colors.white70,
+      indicatorColor: Colors.white,
+      indicatorSize: TabBarIndicatorSize.tab,
+      labelStyle: TextStyle(fontWeight: FontWeight.w500),
+      unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal),
+    ),
+
     // Textos
     textTheme: const TextTheme(
       displayLarge: TextStyle(

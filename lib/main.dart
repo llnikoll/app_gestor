@@ -17,6 +17,16 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
+      // Asegurarse de que el Navigator esté disponible
+      navigatorKey: GlobalKey<NavigatorState>(),
+      // Usar un builder para asegurar que el contexto tenga acceso al Navigator
+      builder: (context, child) {
+        return Navigator(
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            builder: (context) => child!,
+          ),
+        );
+      },
       home: const HomeScreen(),
     );
   }

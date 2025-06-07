@@ -283,21 +283,21 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     }
   }
 
-  Future<void> _saveProduct() async {
+  Future<bool> _saveProduct() async {
     if (!_formKey.currentState!.validate()) {
-      return;
+      return false;
     }
 
     setState(() {
       _isLoading = true;
     });
-
+    
     try {
       final db = DatabaseService();
       final codigoBarras = _codigoBarrasController.text.trim();
       
-      // Verificar si ya existe un producto con el mismo código de barras
-      if (!_isEditing) {
+      // Si es una edición, verificar si el código de barras cambió
+      if (_isEditing && widget.product?.codigoBarras != codigoBarras) {
         final productoExistente = await db.getProductoPorCodigo(codigoBarras);
         if (productoExistente != null) {
           throw Exception('Ya existe un producto con el código de barras: $codigoBarras');
@@ -340,10 +340,10 @@ class ProductFormScreenState extends State<ProductFormScreen> {
             duration: const Duration(seconds: 2),
           ),
         );
-        Navigator.pop(context, true);
+        Navigator.of(context).pop(true);
+        return true;
       }
-    } on FormatException catch (e) {
-      _showErrorSnackBar('Error de formato: ${e.message}');
+      return false;
     } on Exception catch (e) {
       String mensajeError = 'Error al guardar el producto';
       
@@ -358,6 +358,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       }
       
       _showErrorSnackBar(mensajeError);
+      return false;
     } finally {
       if (mounted) {
         setState(() {

@@ -2,74 +2,106 @@ import 'package:flutter/material.dart';
 import '../models/navigation_item.dart';
 import '../theme/app_colors.dart';
 import 'dashboard_screen.dart';
-import 'products_screen.dart';
-import 'sales_screen.dart';
+import 'venttas_screen.dart';
 import 'inventory_screen.dart';
-import 'customers_screen.dart';
+import 'clientes_screen.dart';
 import 'reports_screen.dart';
+import 'gastos_screen.dart';
 import 'settings_screen.dart';
+
+/// Widget que asegura que sus hijos tengan restricciones de ancho finitas
+class SafeConstraints extends StatelessWidget {
+  final Widget child;
+  final double? maxWidth;
+  final double? minWidth;
+
+  const SafeConstraints({
+    super.key,
+    required this.child,
+    this.maxWidth,
+    this.minWidth = 0.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenSize = MediaQuery.of(context).size;
+
+        // Calcular restricciones seguras para el ancho
+        final safeMaxWidth = maxWidth ?? screenSize.width;
+        final safeMinWidth = minWidth ?? 0.0;
+
+        // Crear restricciones seguras
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: safeMinWidth,
+            maxWidth: safeMaxWidth,
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+// Versión simplificada del HomeScreen
+// para resolver el error debugFrameWasSentToEngine
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
   HomeScreenState createState() => HomeScreenState();
+
+  // Método estático para acceder al estado desde cualquier lugar
+  static HomeScreenState? of(BuildContext context) {
+    return context.findAncestorStateOfType<HomeScreenState>();
+  }
 }
 
-class HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+class _HomeScreenContent extends StatelessWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onItemTapped;
+  final List<Widget> screens;
+  final GlobalKey<ScaffoldState> scaffoldKey;
 
-  // Controladores para cada pantalla
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const ProductsScreen(),
-    const SalesScreen(),
-    const InventoryScreen(),
-    const CustomersScreen(),
-    const ReportsScreen(),
-    const SettingsScreen(),
-  ];
+  const _HomeScreenContent({
+    required this.selectedIndex,
+    required this.onItemTapped,
+    required this.screens,
+    required this.scaffoldKey,
+  });
 
-  void _onItemTapped(int index) {
-    // Asegurarse de que el índice esté dentro del rango de pantallas disponibles
-    if (index >= 0 && index < _screens.length) {
-      setState(() {
-        _selectedIndex = index;
-      });
-    }
-  }
+  @override
+  Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
 
-  Widget _buildMobileLayout() {
     return Scaffold(
-      key: _scaffoldKey,
+      key: scaffoldKey,
       appBar: AppBar(
-        title: Text(NavigationItem.fromIndex(_selectedIndex).title),
+        title: Text(NavigationItem.fromIndex(selectedIndex).title),
         leading: IconButton(
           icon: const Icon(Icons.menu),
-          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          onPressed: () => scaffoldKey.currentState?.openDrawer(),
         ),
       ),
-      drawer: _buildDrawer(),
-      body: _screens[_selectedIndex],
-    );
-  }
-
-  Widget _buildDesktopLayout() {
-    return Scaffold(
-      key: _scaffoldKey,
-      body: Row(
-        children: [
-          // Menú lateral
-          _buildDesktopNavigationRail(),
-          // Contenido principal
-          Expanded(child: _screens[_selectedIndex]),
-        ],
+      drawer: _buildDrawer(context, selectedIndex, onItemTapped),
+      body: SafeConstraints(
+        maxWidth: screenSize.width,
+        child: IndexedStack(
+          index: selectedIndex.clamp(0, screens.length - 1),
+          children: screens,
+        ),
       ),
     );
   }
 
-  Widget _buildDrawer() {
+  Widget _buildDrawer(
+    BuildContext context,
+    int selectedIndex,
+    ValueChanged<int> onItemTapped,
+  ) {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -102,25 +134,24 @@ class HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          ...NavigationItem.items.map((item) {
-            return ListTile(
+          for (final item in NavigationItem.items)
+            ListTile(
               leading: Icon(
-                _selectedIndex == item.index ? item.selectedIcon : item.icon,
-                color: _selectedIndex == item.index
+                selectedIndex == item.index ? item.selectedIcon : item.icon,
+                color: selectedIndex == item.index
                     ? Theme.of(context).primaryColor
                     : null,
               ),
               title: Text(item.title),
-              selected: _selectedIndex == item.index,
+              selected: selectedIndex == item.index,
               selectedTileColor: Theme.of(
                 context,
               ).primaryColor.withValues(alpha: 0.1),
               onTap: () {
-                _onItemTapped(item.index);
+                onItemTapped(item.index);
                 Navigator.pop(context);
               },
-            );
-          }),
+            ),
           const Spacer(),
           const Divider(),
           ListTile(
@@ -134,13 +165,95 @@ class HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
 
+class HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  late final List<Widget> _screens;
+  bool _isInitialized = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeScreens();
+      }
+    });
+  }
+
+  void _initializeScreens() {
+    if (_isInitialized) return;
+
+    _screens = [
+      const DashboardScreen(),
+      const SalesScreen(),
+      const InventoryScreen(),
+      const CustomersScreen(),
+      const ReportsScreen(),
+      const GastosScreen(),
+      const SettingsScreen(),
+    ];
+
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+    }
+  }
+
+  void onItemTapped(int index) {
+    if (index >= 0 && index < _screens.length && mounted) {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
+  }
+
+  Widget _buildMobileLayout() {
+    return Container(
+      constraints: const BoxConstraints(
+        minWidth: 0.0,
+        maxWidth: double.infinity,
+      ),
+      child: _HomeScreenContent(
+        selectedIndex: _selectedIndex.clamp(0, _screens.length - 1),
+        onItemTapped: onItemTapped,
+        screens: _screens,
+        scaffoldKey: _scaffoldKey,
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    final screenSize = MediaQuery.of(context).size;
+
+    return Scaffold(
+      key: _scaffoldKey,
+      body: Row(
+        children: [
+          _buildDesktopNavigationRail(),
+          // Contenido principal con ancho restringido
+          Expanded(
+            child: SafeConstraints(
+              maxWidth:
+                  screenSize.width -
+                  100, // Dejamos espacio para el rail de navegación
+              child: IndexedStack(index: _selectedIndex, children: _screens),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Drawer is now part of _HomeScreenContent
 
   Widget _buildDesktopNavigationRail() {
     return NavigationRail(
       selectedIndex: _selectedIndex,
-      onDestinationSelected: _onItemTapped,
+      onDestinationSelected: onItemTapped,
       labelType: NavigationRailLabelType.all,
       leading: Column(
         children: [
@@ -182,9 +295,32 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Determinar si estamos en un dispositivo móvil o escritorio
-    final isMobile = MediaQuery.of(context).size.width < 600;
+    // Verificación simple de inicialización
+    if (!_isInitialized || _screens.isEmpty) {
+      return const Material(child: Center(child: CircularProgressIndicator()));
+    }
 
-    return isMobile ? _buildMobileLayout() : _buildDesktopLayout();
+    // Asegurarse de que el índice esté dentro de los límites
+    final safeIndex = _selectedIndex.clamp(0, _screens.length - 1);
+    if (_selectedIndex != safeIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _selectedIndex = safeIndex);
+        }
+      });
+      return const Material(child: Center(child: CircularProgressIndicator()));
+    }
+
+    // Layout simple sin widgets complejos
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return constraints.maxWidth < 600
+              ? _buildMobileLayout()
+              : _buildDesktopLayout();
+        },
+      ),
+    );
   }
 }

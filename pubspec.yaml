@@ -34,7 +34,7 @@ dependencies:
   
   # Base de de datos local
   sqflite: ^2.3.2
-  path_provider: ^2.1.2
+  path_provider: ^2.1.5
   path: ^1.8.3
   
   # UI y utilidades
@@ -42,8 +42,8 @@ dependencies:
   provider: ^6.1.1
   shared_preferences: ^2.2.2
   file_picker: ^10.1.9
-  pdf: ^3.10.8
-  printing: ^5.11.1
+  pdf: ^3.11.3
+  printing: ^5.14.2
   
   # Validación de formularios
   form_field_validator: 1.1.0
@@ -60,6 +60,7 @@ dependencies:
   # Íconos adicionales
   font_awesome_flutter: ^10.6.1
   mobile_scanner: ^7.0.0
+  share_plus: 11.0.0
 
 dev_dependencies:
   flutter_test:

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:app_gestor_ventas/models/cliente_model.dart';
-import 'package:app_gestor_ventas/screens/customer_form_screen.dart';
+import 'package:app_gestor_ventas/screens/cliente_form_screen.dart';
 import 'package:app_gestor_ventas/services/database_service.dart';
 
 class CustomersScreen extends StatefulWidget {
@@ -35,14 +35,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   Future<void> _loadClientes() async {
     if (!mounted) return;
-    
+
     setState(() => _isLoading = true);
 
     try {
       final clientes = await _databaseService.getAllClientes(
         searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
       );
-      
+
       if (!mounted) return;
       setState(() {
         _clientes.clear();
@@ -53,9 +53,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
       if (!mounted) return;
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar clientes: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al cargar clientes: $e')));
       }
     }
   }
@@ -64,9 +64,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CustomerFormScreen(
-          cliente: cliente,
-        ),
+        builder: (context) => CustomerFormScreen(cliente: cliente),
       ),
     );
 
@@ -77,12 +75,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   List<Cliente> get _filteredClientes {
     if (_searchQuery.isEmpty) return _clientes;
-    
+
     return _clientes.where((cliente) {
       final query = _searchQuery.toLowerCase();
       return cliente.nombre.toLowerCase().contains(query) ||
-             (cliente.email?.toLowerCase().contains(query) ?? false) ||
-             (cliente.telefono?.contains(_searchQuery) ?? false);
+          (cliente.email?.toLowerCase().contains(query) ?? false) ||
+          (cliente.telefono?.contains(_searchQuery) ?? false);
     }).toList();
   }
 
@@ -91,7 +89,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Cliente'),
-        content: Text('¿Estás seguro de que deseas eliminar a ${cliente.nombre}?'),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar a ${cliente.nombre}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -109,11 +109,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
       try {
         await _databaseService.deleteCliente(cliente.id!);
         if (!mounted) return;
-        
+
         setState(() {
           _clientes.removeWhere((c) => c.id == cliente.id);
         });
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Cliente eliminado correctamente')),
@@ -132,7 +132,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Widget _buildCustomerCard(Cliente cliente) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final fechaRegistro = dateFormat.format(cliente.fechaRegistro);
-    
+
     return Dismissible(
       key: ValueKey(cliente.id),
       direction: DismissDirection.endToStart,
@@ -147,7 +147,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Eliminar Cliente'),
-            content: Text('¿Estás seguro de que deseas eliminar a ${cliente.nombre}?'),
+            content: Text(
+              '¿Estás seguro de que deseas eliminar a ${cliente.nombre}?',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -155,7 +157,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                child: const Text(
+                  'Eliminar',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ],
           ),
@@ -182,7 +187,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        cliente.nombre.isNotEmpty ? cliente.nombre[0].toUpperCase() : '?',
+                        cliente.nombre.isNotEmpty
+                            ? cliente.nombre[0].toUpperCase()
+                            : '?',
                         style: const TextStyle(
                           color: Colors.blue,
                           fontWeight: FontWeight.bold,
@@ -199,19 +206,22 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       children: [
                         Text(
                           cliente.nombre,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        if (cliente.email != null && cliente.email!.isNotEmpty)
+                          ..._buildInfoRow(
+                            Icons.email_outlined,
+                            cliente.email!,
                           ),
-                        ),
-                        if (cliente.email != null && cliente.email!.isNotEmpty) ..._buildInfoRow(
-                          Icons.email_outlined,
-                          cliente.email!,
-                        ),
-                        if (cliente.telefono != null && cliente.telefono!.isNotEmpty) ..._buildInfoRow(
-                          Icons.phone_outlined,
-                          cliente.telefono!,
-                        ),
-                        if (cliente.direccion != null && cliente.direccion!.isNotEmpty) ...[
+                        if (cliente.telefono != null &&
+                            cliente.telefono!.isNotEmpty)
+                          ..._buildInfoRow(
+                            Icons.phone_outlined,
+                            cliente.telefono!,
+                          ),
+                        if (cliente.direccion != null &&
+                            cliente.direccion!.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           ..._buildInfoRow(
                             Icons.location_on_outlined,
@@ -276,20 +286,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.people_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             _searchQuery.isNotEmpty
                 ? 'No se encontraron clientes que coincidan con "$_searchQuery"'
                 : 'Aún no hay clientes registrados',
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
-            ),
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
         ],
@@ -301,7 +304,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Clientes'),
+        toolbarHeight: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -325,7 +328,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 ),
                 filled: true,
                 fillColor: Colors.grey[100],
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 0,
+                  horizontal: 16,
+                ),
               ),
               onChanged: (value) {
                 _searchQuery = value;
@@ -340,18 +346,18 @@ class _CustomersScreenState extends State<CustomersScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _clientes.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: _loadClientes,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          itemCount: _filteredClientes.length,
-                          itemBuilder: (context, index) {
-                            final cliente = _filteredClientes[index];
-                            return _buildCustomerCard(cliente);
-                          },
-                        ),
-                      ),
+                ? _buildEmptyState()
+                : RefreshIndicator(
+                    onRefresh: _loadClientes,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      itemCount: _filteredClientes.length,
+                      itemBuilder: (context, index) {
+                        final cliente = _filteredClientes[index];
+                        return _buildCustomerCard(cliente);
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
