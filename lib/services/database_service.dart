@@ -15,8 +15,7 @@ class DatabaseService {
 
   // Database configuration
   static const String _databaseName = 'gestor_ventas.db';
-  static const int _databaseVersion =
-      15; // Forzar recreación de tabla ventas
+  static const int _databaseVersion = 12; // Add fecha_actualizacion to productos schema
 
   // Table names
   static const String tableClientes = 'clientes';
@@ -93,6 +92,7 @@ class DatabaseService {
         stock INTEGER NOT NULL,
         stock_minimo INTEGER DEFAULT 0,
         fecha_creacion TEXT NOT NULL,
+        fecha_actualizacion TEXT,
         imagen_url TEXT,
         activo INTEGER NOT NULL DEFAULT 1,
         FOREIGN KEY (categoria_id) REFERENCES $tableCategorias(id)
@@ -340,6 +340,36 @@ class DatabaseService {
         'nombre': 'General',
         'fecha_creacion': DateTime.now().toIso8601String(),
       });
+    }
+
+    if (oldVersion < 11) {
+      // Migrate to version 11: Add fecha_actualizacion column to productos table
+      try {
+        // Check if the column already exists to avoid errors
+        final result = await db.rawQuery(
+          "PRAGMA table_info($tableProductos)"
+        );
+        
+        final hasFechaActualizacion = result.any((column) => 
+          column['name']?.toString().toLowerCase() == 'fecha_actualizacion');
+          
+        if (!hasFechaActualizacion) {
+          await db.execute(
+            'ALTER TABLE $tableProductos ADD COLUMN fecha_actualizacion TEXT',
+          );
+          
+          // Set initial update date to current time for existing records
+          await db.execute(
+            'UPDATE $tableProductos SET fecha_actualizacion = ?',
+            [DateTime.now().toIso8601String()],
+          );
+          
+          debugPrint('Added fecha_actualizacion column to productos table');
+        }
+      } catch (e) {
+        debugPrint('Error adding fecha_actualizacion column: $e');
+        rethrow;
+      }
     }
   }
 
@@ -730,37 +760,45 @@ class DatabaseService {
 
   Future<int> updateProducto(Producto producto) async {
     final db = await database;
-    final map = producto.toMap();
+    
+    // Obtener el producto actual para preservar los valores que no se están actualizando
+    final productoActual = await getProducto(producto.id!);
+    if (productoActual == null) {
+      throw Exception('Producto no encontrado');
+    }
 
     // Obtener o crear la categoría
-    final categoriaId = await _getCategoriaId(map['categoria']);
+    final categoriaId = await _getCategoriaId(producto.categoria);
 
     // Mapear los nombres de las columnas al esquema de la base de datos
     final mappedMap = {
-      'codigo_barras': map['codigoBarras'],
-      'nombre': map['nombre'],
-      'descripcion': map['descripcion'],
+      'codigo_barras': producto.codigoBarras,
+      'nombre': producto.nombre,
+      'descripcion': producto.descripcion,
       'categoria_id': categoriaId,
-      'precio_compra': map['precioCompra'],
-      'precio_venta': map['precioVenta'],
-      'stock': map['stock'],
-      'imagen_url': map['imagenUrl'],
-      'activo': map['activo'] == true ? 1 : 0,
+      'precio_compra': producto.precioCompra,
+      'precio_venta': producto.precioVenta,
+      'stock': producto.stock,
+      'imagen_url': producto.imagenUrl,
+      'activo': producto.activo ? 1 : 0,
+      'fecha_actualizacion': DateTime.now().toIso8601String(),
     };
 
-    // Si hay una fecha de creación, asegurarse de que esté en el formato correcto
-    if (map['fechaCreacion'] != null) {
-      mappedMap['fecha_creacion'] = map['fechaCreacion'] is String
-          ? map['fechaCreacion']
-          : (map['fechaCreacion'] as DateTime).toIso8601String();
-    }
+    // Preservar la fecha de creación original
+    mappedMap['fecha_creacion'] = productoActual.fechaCreacion.toIso8601String();
 
-    return await db.update(
+    final result = await db.update(
       tableProductos,
       mappedMap,
       where: 'id = ?',
       whereArgs: [producto.id],
     );
+
+    if (result == 0) {
+      throw Exception('No se pudo actualizar el producto');
+    }
+
+    return result;
   }
 
   Future<int> deleteProducto(int id) async {

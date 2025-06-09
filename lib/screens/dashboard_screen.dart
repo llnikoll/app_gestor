@@ -246,13 +246,24 @@ class DashboardScreenState extends State<DashboardScreen> {
                 PrimaryButton(
                   text: 'Agregar Producto',
                   icon: Icons.add_circle_outline,
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProductFormScreen(),
-                      ),
+                  onPressed: () async {
+                    final result = await showDialog<bool>(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return Dialog(
+                          child: Container(
+                            padding: const EdgeInsets.all(16.0),
+                            child: SingleChildScrollView(
+                              child: const ProductFormScreen(),
+                            ),
+                          ),
+                        );
+                      },
                     );
+                    if (result == true) {
+                      // Recargar datos si es necesario
+                      _loadDashboardData();
+                    }
                   },
                   height: 50,
                 ),

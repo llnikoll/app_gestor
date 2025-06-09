@@ -2,14 +2,15 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
-import '../models/producto_model.dart';
 import '../models/categoria_model.dart';
+import '../models/producto_model.dart';
 import '../services/database_service.dart';
-import '../widgets/primary_button.dart';
 import '../widgets/custom_text_field.dart';
 
 class ProductFormScreen extends StatefulWidget {
@@ -30,11 +31,11 @@ class ProductFormScreenState extends State<ProductFormScreen> {
   late TextEditingController _precioCompraController;
   late TextEditingController _precioVentaController;
   late TextEditingController _stockController;
-  
+
   final _nuevaCategoriaController = TextEditingController();
   final List<Categoria> _categorias = [];
   final DatabaseService _databaseService = DatabaseService();
-  
+
   String? _imagenPath;
   bool _isLoading = false;
   bool _isEditing = false;
@@ -45,24 +46,46 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     super.initState();
     _isEditing = widget.product != null;
     
-    _codigoBarrasController = TextEditingController(text: widget.product?.codigoBarras ?? '');
-    _nombreController = TextEditingController(text: widget.product?.nombre ?? '');
-    _descripcionController = TextEditingController(text: widget.product?.descripcion ?? '');
-    _precioCompraController = TextEditingController(
-      text: widget.product?.precioCompra != null
-          ? widget.product!.precioCompra.toStringAsFixed(2)
-          : '',
-    );
-    _precioVentaController = TextEditingController(
-      text: widget.product?.precioVenta != null
-          ? widget.product!.precioVenta.toStringAsFixed(2)
-          : '',
-    );
-    _stockController = TextEditingController(
-      text: widget.product?.stock != null ? widget.product!.stock.toString() : '0',
-    );
-    _selectedCategoria = widget.product?.categoria;
-    _imagenPath = widget.product?.imagenUrl;
+    // Inicializar controladores con datos del producto si existe
+    if (widget.product != null) {
+      final product = widget.product!;
+      _codigoBarrasController = TextEditingController(
+        text: product.codigoBarras,
+      );
+      _nombreController = TextEditingController(
+        text: product.nombre,
+      );
+      _descripcionController = TextEditingController(
+        text: product.descripcion,
+      );
+      
+      // Formatear precios sin decimales y con separadores de miles
+      final priceFormat = NumberFormat('#,##0', 'es-PY');
+      
+      _precioCompraController = TextEditingController(
+        text: priceFormat.format(product.precioCompra.toInt()),
+      );
+      
+      _precioVentaController = TextEditingController(
+        text: priceFormat.format(product.precioVenta.toInt()),
+      );
+      
+      _stockController = TextEditingController(
+        text: product.stock.toString(),
+      );
+      
+      _selectedCategoria = product.categoria;
+      _imagenPath = product.imagenUrl;
+    } else {
+      // Inicializar controladores vacíos para nuevo producto
+      _codigoBarrasController = TextEditingController();
+      _nombreController = TextEditingController();
+      _descripcionController = TextEditingController();
+      _precioCompraController = TextEditingController();
+      _precioVentaController = TextEditingController();
+      _stockController = TextEditingController(text: '0');
+      _selectedCategoria = 'General';
+    }
 
     _cargarCategorias();
   }
@@ -73,16 +96,19 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       setState(() {
         _categorias.clear();
         _categorias.addAll(categorias);
-        
+
         // If no categories exist, create a default one
         if (_categorias.isEmpty) {
-          _databaseService.insertCategoria(Categoria(
-            nombre: 'General',
-            fechaCreacion: DateTime.now(),
-          )).then((_) => _cargarCategorias()); // Reload categories after creating default
+          _databaseService
+              .insertCategoria(
+                Categoria(nombre: 'General', fechaCreacion: DateTime.now()),
+              )
+              .then(
+                (_) => _cargarCategorias(),
+              ); // Reload categories after creating default
           return;
         }
-        
+
         // Set selected category if not already set
         if (_selectedCategoria == null || _selectedCategoria!.isEmpty) {
           _selectedCategoria = _categorias.first.nombre;
@@ -99,7 +125,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
 
   Future<void> _mostrarDialogoNuevaCategoria() async {
     _nuevaCategoriaController.clear();
-    
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -135,10 +161,10 @@ class ProductFormScreenState extends State<ProductFormScreen> {
           nombre: _nuevaCategoriaController.text.trim(),
           fechaCreacion: DateTime.now(),
         );
-        
+
         await _databaseService.insertCategoria(nuevaCategoria);
         await _cargarCategorias();
-        
+
         setState(() {
           _selectedCategoria = _nuevaCategoriaController.text.trim();
         });
@@ -163,7 +189,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     _stockController.dispose();
     super.dispose();
   }
-  
+
   // Método auxiliar para mostrar mensajes de error
   void _showErrorSnackBar(String message) {
     if (mounted) {
@@ -181,102 +207,152 @@ class ProductFormScreenState extends State<ProductFormScreen> {
   Future<String> _saveImageToAppDir(String imagePath) async {
     try {
       if (imagePath.isEmpty) return '';
-      
+
+      // Normalizar los separadores de ruta
+      imagePath = imagePath.replaceAll('/', Platform.pathSeparator).replaceAll('\\', Platform.pathSeparator);
+
       // Verificar si la imagen ya está en el directorio de la aplicación
-      if (imagePath.contains('product_images/')) {
+      if (imagePath.contains('product_images')) {
         // Si ya está en el directorio de imágenes, devolver solo el nombre del archivo
-        final fileName = imagePath.split('/').last;
+        final fileName = path.basename(imagePath);
         debugPrint('La imagen ya está en el directorio de la aplicación: $fileName');
         return fileName;
       }
-      
-      // Obtener el directorio de almacenamiento externo o interno
-      final Directory? externalDir = await getExternalStorageDirectory();
-      final Directory appDir = externalDir ?? await getApplicationDocumentsDirectory();
+
+      // Usar el directorio de documentos de la aplicación
+      final Directory appDir = await getApplicationDocumentsDirectory();
+      final String imagesPath = '${appDir.path}${Platform.pathSeparator}product_images';
+      final Directory imagesDir = Directory(imagesPath);
       
       // Crear directorio para las imágenes si no existe
-      final Directory imagesDir = Directory('${appDir.path}/product_images');
       if (!await imagesDir.exists()) {
         await imagesDir.create(recursive: true);
       }
-      
+
       // Generar un nombre de archivo único
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final extension = path.extension(imagePath).toLowerCase();
       final fileName = 'product_$timestamp$extension';
       
+      // Usar path.join para manejar correctamente los separadores de ruta
+      final String fullPath = path.join(imagesDir.path, fileName);
+
       // Obtener el archivo de origen
       final File imageFile = File(imagePath);
       if (!await imageFile.exists()) {
         // Si el archivo no existe, verificar si es un nombre de archivo sin ruta
-        final possiblePath = '${imagesDir.path}/$imagePath';
+        final possiblePath = path.join(imagesDir.path, imagePath);
         if (await File(possiblePath).exists()) {
           debugPrint('Imagen encontrada en: $possiblePath');
-          return imagePath; // Ya está en el directorio correcto
+          return path.basename(possiblePath);
         }
         throw Exception('El archivo de imagen no existe: $imagePath');
       }
-      
+
       // Crear el archivo de destino
-      final File savedImage = File('${imagesDir.path}/$fileName');
-      
+      final File savedImage = File(fullPath);
+
       // Copiar la imagen al directorio de la aplicación
       await imageFile.copy(savedImage.path);
-      
+
       debugPrint('Imagen guardada en: ${savedImage.path}');
-      
+
       // Devolver solo el nombre del archivo para almacenamiento en la base de datos
       return fileName;
     } catch (e) {
       debugPrint('Error en _saveImageToAppDir: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al guardar la imagen: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error al guardar la imagen: ${e.toString()}'),
+          ),
         );
       }
       // Si hay un error, devolver la ruta original como último recurso
       return imagePath;
     }
   }
-  
+
   // Obtiene la ruta completa de una imagen a partir de su nombre de archivo
   Future<String> _getFullImagePath(String fileName) async {
     if (fileName.isEmpty) return '';
-    
+
+    // Normalizar los separadores de ruta
+    fileName = fileName.replaceAll('\\', Platform.pathSeparator).replaceAll('/', Platform.pathSeparator);
+
     // Si ya es una ruta completa, devolverla tal cual
-    if (fileName.startsWith('/') || fileName.startsWith('file:') || fileName.contains('/')) {
+    if (path.isAbsolute(fileName) || 
+        fileName.startsWith('file:') ||
+        (fileName.contains(':') && Platform.isWindows)) {
       return fileName;
     }
-    
+
     try {
-      // Obtener el directorio de almacenamiento
-      final Directory? externalDir = await getExternalStorageDirectory();
-      final Directory appDir = externalDir ?? await getApplicationDocumentsDirectory();
+      // Usar el directorio de documentos de la aplicación
+      final Directory appDir = await getApplicationDocumentsDirectory();
+      final String imagesPath = path.join(appDir.path, 'product_images');
+      final Directory imagesDir = Directory(imagesPath);
       
-      // Construir la ruta completa
-      final fullPath = '${appDir.path}/product_images/$fileName';
+      // Asegurarse de que el directorio exista
+      if (!await imagesDir.exists()) {
+        await imagesDir.create(recursive: true);
+      }
+
+      // Construir la ruta completa usando path.join
+      final fullPath = path.join(imagesDir.path, path.basename(fileName));
       debugPrint('Resolviendo ruta de imagen: $fileName -> $fullPath');
-      return fullPath;
+      
+      // Verificar si el archivo existe
+      final file = File(fullPath);
+      if (await file.exists()) {
+        return fullPath;
+      } else {
+        debugPrint('El archivo no existe: $fullPath');
+        return '';
+      }
     } catch (e) {
       debugPrint('Error en _getFullImagePath: $e');
-      return fileName; // Devolver el nombre original si hay un error
+      return ''; // Devolver cadena vacía si hay un error
     }
   }
 
   // Verifica si un archivo de imagen existe en el directorio de la aplicación
   Future<bool> _checkIfFileExists(String fileName) async {
     if (fileName.isEmpty) return false;
-    
+
     try {
-      final fullPath = await _getFullImagePath(fileName);
+      // Normalizar los separadores de ruta
+      final normalizedPath = fileName.replaceAll('\\', Platform.pathSeparator).replaceAll('/', Platform.pathSeparator);
+      
+      // Primero verificar si la ruta ya es absoluta
+      final file = File(normalizedPath);
+      if (await file.exists()) {
+        debugPrint('_checkIfFileExists: Archivo encontrado en ruta: $normalizedPath');
+        return true;
+      }
+
+      // Si no es una ruta absoluta, intentar con la ruta completa
+      final fullPath = await _getFullImagePath(normalizedPath);
       if (fullPath.isEmpty) {
-        debugPrint('_checkIfFileExists: Ruta vacía para el archivo: $fileName');
+        debugPrint('_checkIfFileExists: No se pudo obtener ruta para: $normalizedPath');
         return false;
       }
-      
-      final imageFile = File(fullPath);
-      final exists = await imageFile.exists();
+
+      final fullFile = File(fullPath);
+      final exists = await fullFile.exists();
       debugPrint('_checkIfFileExists: Verificando $fullPath - Existe: $exists');
+      
+      if (!exists) {
+        // Si no existe, verificar si el archivo está en el directorio de documentos
+        final appDir = await getApplicationDocumentsDirectory();
+        final possiblePath = path.join(appDir.path, path.basename(normalizedPath));
+        final possibleFile = File(possiblePath);
+        if (await possibleFile.exists()) {
+          debugPrint('_checkIfFileExists: Archivo encontrado en documentos: $possiblePath');
+          return true;
+        }
+      }
+      
       return exists;
     } catch (e) {
       debugPrint('Error en _checkIfFileExists para $fileName: $e');
@@ -289,7 +365,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         final savedImageName = await _saveImageToAppDir(image.path);
-        
+
         setState(() {
           _imagenPath = savedImageName;
         });
@@ -308,16 +384,16 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
       if (photo != null) {
         final savedImageName = await _saveImageToAppDir(photo.path);
-        
+
         setState(() {
           _imagenPath = savedImageName;
         });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al tomar foto: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al tomar foto: $e')));
       }
     }
   }
@@ -330,49 +406,77 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final db = DatabaseService();
       final codigoBarras = _codigoBarrasController.text.trim();
-      
-      // Si es una edición, verificar si el código de barras cambió
-      if (_isEditing && widget.product?.codigoBarras != codigoBarras) {
+      final nombre = _nombreController.text.trim();
+      final descripcion = _descripcionController.text.trim();
+      final categoria = _selectedCategoria ?? 'General';
+      final stock = int.parse(_stockController.text);
+
+      // Verificar si el código de barras ya existe (solo para nuevos productos o si cambió el código)
+      if (!_isEditing || (widget.product?.codigoBarras != codigoBarras)) {
         final productoExistente = await db.getProductoPorCodigo(codigoBarras);
         if (productoExistente != null) {
-          throw Exception('Ya existe un producto con el código de barras: $codigoBarras');
+          throw Exception(
+            'Ya existe un producto con el código de barras: $codigoBarras',
+          );
         }
       }
-      
-      // Si hay una nueva imagen, asegurarse de que se guarde en el directorio de la app
+
+      // Si hay una imagen, asegurarse de que se guarde en el directorio de la app
       String? imagenUrl = _imagenPath;
-      if (imagenUrl != null && !imagenUrl.contains('product_images')) {
+      if (imagenUrl != null && !imagenUrl.contains('product_images') && File(imagenUrl).existsSync()) {
         imagenUrl = await _saveImageToAppDir(imagenUrl);
       }
-      
-      final producto = Producto(
-        id: widget.product?.id,
-        codigoBarras: codigoBarras,
-        nombre: _nombreController.text.trim(),
-        descripcion: _descripcionController.text.trim(),
-        categoria: _selectedCategoria ?? 'General',
-        precioCompra: double.parse(_precioCompraController.text),
-        precioVenta: double.parse(_precioVentaController.text),
-        stock: int.parse(_stockController.text),
-        imagenUrl: imagenUrl,
-      );
+
+      // Limpiar los puntos de los miles y convertir a double
+      final precioCompra = double.parse(_precioCompraController.text.replaceAll('.', ''));
+      final precioVenta = double.parse(_precioVentaController.text.replaceAll('.', ''));
 
       if (_isEditing) {
-        await db.updateProducto(producto);
+        // Actualizar el producto existente
+        final productoActualizado = Producto(
+          id: widget.product!.id,
+          codigoBarras: codigoBarras,
+          nombre: nombre,
+          descripcion: descripcion,
+          categoria: categoria,
+          precioCompra: precioCompra,
+          precioVenta: precioVenta,
+          stock: stock,
+          imagenUrl: imagenUrl,
+          fechaCreacion: widget.product!.fechaCreacion,
+          fechaActualizacion: DateTime.now(),
+          activo: widget.product?.activo ?? true,
+        );
+        
+        debugPrint('Actualizando producto: ${productoActualizado.toMap()}');
+        final result = await db.updateProducto(productoActualizado);
+        debugPrint('Resultado de la actualización: $result');
       } else {
-        await db.insertProducto(producto);
+        // Crear un nuevo producto
+        final nuevoProducto = Producto(
+          codigoBarras: codigoBarras,
+          nombre: nombre,
+          descripcion: descripcion,
+          categoria: categoria,
+          precioCompra: precioCompra,
+          precioVenta: precioVenta,
+          stock: stock,
+          imagenUrl: imagenUrl,
+        );
+        debugPrint('Insertando nuevo producto: ${nuevoProducto.toMap()}');
+        await db.insertProducto(nuevoProducto);
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _isEditing 
-                  ? '✅ Producto actualizado correctamente' 
+              _isEditing
+                  ? '✅ Producto actualizado correctamente'
                   : '✅ Producto agregado correctamente',
             ),
             backgroundColor: Colors.green,
@@ -385,7 +489,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       return false;
     } on Exception catch (e) {
       String mensajeError = 'Error al guardar el producto';
-      
+
       // Manejar errores específicos de la base de datos
       if (e.toString().contains('UNIQUE constraint failed') ||
           e.toString().contains('SQLITE_CONSTRAINT_UNIQUE')) {
@@ -395,7 +499,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       } else {
         mensajeError = 'Error: ${e.toString()}';
       }
-      
+
       _showErrorSnackBar(mensajeError);
       return false;
     } finally {
@@ -415,10 +519,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
           children: [
             const Text(
               'Categoría',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(width: 4),
             Text(
@@ -447,8 +548,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                     vertical: 12,
                   ),
                 ),
-                items: _categorias
-                    .map<DropdownMenuItem<String>>((categoria) {
+                items: _categorias.map<DropdownMenuItem<String>>((categoria) {
                   return DropdownMenuItem<String>(
                     value: categoria.nombre,
                     child: Text(categoria.nombre),
@@ -489,20 +589,62 @@ class ProductFormScreenState extends State<ProductFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Editar Producto' : 'Nuevo Producto'),
-        actions: [
-          if (_isEditing)
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: _confirmDeleteProduct,
+    return Dialog(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: Text(_isEditing ? 'Editar Producto' : 'Nuevo Producto'),
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context, false),
+                ),
+                if (_isEditing)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: _confirmDeleteProduct,
+                  ),
+              ],
             ),
-        ],
+            Padding(padding: const EdgeInsets.all(16.0), child: _buildForm()),
+            // Botón de guardar en la parte inferior
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ElevatedButton.icon(
+                onPressed: _saveProduct,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: _isLoading 
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.save, size: 20),
+                label: Text(
+                  _isEditing ? 'ACTUALIZAR PRODUCTO' : 'GUARDAR PRODUCTO',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(),
     );
   }
 
@@ -511,7 +653,9 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Producto'),
-        content: const Text('¿Estás seguro de que deseas eliminar este producto?'),
+        content: const Text(
+          '¿Estás seguro de que deseas eliminar este producto?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -519,10 +663,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -536,15 +677,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
 
         await DatabaseService().deleteProducto(widget.product!.id!);
         if (!mounted) return;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Producto eliminado correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        if (!mounted) return;
+
         Navigator.pop(context, true);
       } catch (e) {
         if (!mounted) return;
@@ -564,11 +697,15 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     }
   }
 
-  Widget _buildBody() {
+  Widget _buildForm() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Form(
       key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Sección de imagen
           Center(
@@ -576,89 +713,122 @@ class ProductFormScreenState extends State<ProductFormScreen> {
               children: [
                 GestureDetector(
                   onTap: _pickImage,
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!), 
-                        ),
-                        child: _imagenPath != null && _imagenPath!.isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: FutureBuilder<bool>(
-                                  future: _checkIfFileExists(_imagenPath!),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState == ConnectionState.waiting) {
-                                      return const Center(child: CircularProgressIndicator());
-                                    }
-                                    
-                                    final fileExists = snapshot.data ?? false;
-                                    
-                                    if (!fileExists) {
-                                      return const Center(
-                                        child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                                      );
-                                    }
-                                    
-                                    return FutureBuilder<String>(
-                                      future: _getFullImagePath(_imagenPath!),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState != ConnectionState.done) {
-                                          return const Center(child: CircularProgressIndicator());
-                                        }
-                                        
-                                        final fullPath = snapshot.data ?? '';
-                                        if (fullPath.isEmpty) {
-                                          return const Center(
-                                            child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                                          );
-                                        }
-                                        
-                                        return Image.file(
+                  child: Container(
+                    width: 150,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        _imagenPath != null && _imagenPath!.isNotEmpty
+                            ? FutureBuilder<bool>(
+                                future: _checkIfFileExists(_imagenPath!),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+
+                                  final fileExists = snapshot.data ?? false;
+
+                                  if (!fileExists) {
+                                    return const Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        size: 50,
+                                        color: Colors.grey,
+                                      ),
+                                    );
+                                  }
+
+                                  return FutureBuilder<String>(
+                                    future: _getFullImagePath(_imagenPath!),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState !=
+                                          ConnectionState.done) {
+                                        return const Center(
+                                          child: CircularProgressIndicator(),
+                                        );
+                                      }
+
+                                      final fullPath = snapshot.data ?? '';
+                                      if (fullPath.isEmpty) {
+                                        return const Center(
+                                          child: Icon(
+                                            Icons.broken_image,
+                                            size: 50,
+                                            color: Colors.grey,
+                                          ),
+                                        );
+                                      }
+
+                                      return ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.file(
                                           File(fullPath),
                                           width: 150,
                                           height: 150,
                                           fit: BoxFit.cover,
                                           errorBuilder: (context, error, stackTrace) {
                                             return const Center(
-                                              child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                size: 50,
+                                                color: Colors.grey,
+                                              ),
                                             );
                                           },
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
                               )
                             : const Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.add_photo_alternate, size: 40, color: Colors.grey),
+                                    Icon(
+                                      Icons.add_photo_alternate,
+                                      size: 40,
+                                      color: Colors.grey,
+                                    ),
                                     SizedBox(height: 8),
-                                    Text('Agregar imagen', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                    Text(
+                                      'Agregar imagen',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                      ),
-                      if (_imagenPath != null && _imagenPath!.isNotEmpty)
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
+                        if (_imagenPath != null && _imagenPath!.isNotEmpty)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.edit,
+                                size: 16,
+                                color: Colors.white,
+                              ),
                             ),
-                            child: const Icon(Icons.edit, size: 16, color: Colors.white),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -670,7 +840,10 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       icon: const Icon(Icons.photo_library, size: 20),
                       label: const Text('Galería'),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -679,7 +852,10 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       icon: const Icon(Icons.camera_alt, size: 20),
                       label: const Text('Cámara'),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                   ],
@@ -688,7 +864,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // Formulario
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -708,7 +884,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // Nombre
               CustomTextField(
                 controller: _nombreController,
@@ -735,16 +911,34 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                   Expanded(
                     child: CustomTextField(
                       controller: _precioCompraController,
-                      label: 'Precio de Compra',
-                      hint: '0.00',
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      label: 'Precio de Compra (₲)',
+                      hint: '0',
+                      keyboardType: TextInputType.number,
                       isRequired: true,
                       textInputAction: TextInputAction.next,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      onChanged: (value) {
+                        if (value.isNotEmpty) {
+                          final cleanValue = value.replaceAll('.', '');
+                          final number = int.tryParse(cleanValue) ?? 0;
+                          final formatted = NumberFormat('#,##0', 'es-PY').format(number);
+                          
+                          if (formatted != value) {
+                            _precioCompraController.value = TextEditingValue(
+                              text: formatted,
+                              selection: TextSelection.collapsed(offset: formatted.length),
+                            );
+                          }
+                        }
+                      },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Requerido';
                         }
-                        final price = double.tryParse(value);
+                        final cleanValue = value.replaceAll('.', '');
+                        final price = int.tryParse(cleanValue);
                         if (price == null || price < 0) {
                           return 'Precio inválido';
                         }
@@ -756,16 +950,34 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                   Expanded(
                     child: CustomTextField(
                       controller: _precioVentaController,
-                      label: 'Precio de Venta',
-                      hint: '0.00',
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      label: 'Precio de Venta (₲)',
+                      hint: '0',
+                      keyboardType: TextInputType.number,
                       isRequired: true,
                       textInputAction: TextInputAction.next,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      onChanged: (value) {
+                        if (value.isNotEmpty) {
+                          final cleanValue = value.replaceAll('.', '');
+                          final number = int.tryParse(cleanValue) ?? 0;
+                          final formatted = NumberFormat('#,##0', 'es-PY').format(number);
+                          
+                          if (formatted != value) {
+                            _precioVentaController.value = TextEditingValue(
+                              text: formatted,
+                              selection: TextSelection.collapsed(offset: formatted.length),
+                            );
+                          }
+                        }
+                      },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Requerido';
                         }
-                        final price = double.tryParse(value);
+                        final cleanValue = value.replaceAll('.', '');
+                        final price = int.tryParse(cleanValue);
                         if (price == null || price < 0) {
                           return 'Precio inválido';
                         }
@@ -776,7 +988,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Stock
               CustomTextField(
                 controller: _stockController,
@@ -797,7 +1009,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // Descripción
               CustomTextField(
                 controller: _descripcionController,
@@ -807,16 +1019,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.done,
               ),
-              const SizedBox(height: 32),
-              
-              // Botón de guardar
-              PrimaryButton(
-                text: _isEditing ? 'Actualizar Producto' : 'Guardar Producto',
-                onPressed: _saveProduct,
-                isFullWidth: true,
-                icon: Icons.save,
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
             ],
           ),
         ],

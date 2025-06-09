@@ -412,14 +412,20 @@ class InventoryScreenState extends State<InventoryScreen>
                                     ],
                                   ),
                                   onTap: () async {
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            ProductFormScreen(
-                                          product: producto,
-                                        ),
-                                      ),
+                                    final result = await showDialog<bool>(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return Dialog(
+                                          child: Container(
+                                            padding: const EdgeInsets.all(16.0),
+                                            child: SingleChildScrollView(
+                                              child: ProductFormScreen(
+                                                product: producto,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     );
 
                                     if (result == true) {
@@ -442,11 +448,18 @@ class InventoryScreenState extends State<InventoryScreen>
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton(
               onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProductFormScreen(),
-                  ),
+                final result = await showDialog<bool>(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return Dialog(
+                      child: Container(
+                        padding: const EdgeInsets.all(16.0),
+                        child: SingleChildScrollView(
+                          child: const ProductFormScreen(),
+                        ),
+                      ),
+                    );
+                  },
                 );
                 if (result == true) {
                   _loadProducts();

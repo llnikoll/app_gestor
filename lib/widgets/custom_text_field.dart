@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:form_field_validator/form_field_validator.dart' as validator_pkg;
 
 class CustomTextField extends StatefulWidget {
@@ -36,6 +37,7 @@ class CustomTextField extends StatefulWidget {
     this.enableInteractiveSelection = true,
     this.textAlignVertical,
     this.expands = false,
+    this.inputFormatters,
   });
 
   final TextEditingController controller;
@@ -70,6 +72,7 @@ class CustomTextField extends StatefulWidget {
   final bool enableInteractiveSelection;
   final TextAlignVertical? textAlignVertical;
   final bool expands;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   CustomTextFieldState createState() => CustomTextFieldState();
@@ -190,6 +193,7 @@ class CustomTextFieldState extends State<CustomTextField> {
             enableInteractiveSelection: widget.enableInteractiveSelection,
             textAlignVertical: widget.textAlignVertical,
             expands: widget.expands,
+            inputFormatters: widget.inputFormatters,
             style: theme.textTheme.bodyLarge?.copyWith(
               color: theme.colorScheme.onSurface,
             ),

@@ -34,6 +34,7 @@ dependencies:
   
   # Base de de datos local
   sqflite: ^2.3.2
+  sqflite_common_ffi: ^2.3.5
   path_provider: ^2.1.5
   path: ^1.8.3
   

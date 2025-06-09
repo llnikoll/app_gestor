@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sql;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:sqflite/sqflite.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/settings_service.dart';
 import 'utils/currency_formatter.dart';
 
 void main() async {
+  // Initialize FFI for non-web platforms
+  if (!kIsWeb) {
+    sql.sqfliteFfiInit();
+    databaseFactory = sql.databaseFactoryFfi;
+  }
+  
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize services
