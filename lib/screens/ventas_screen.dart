@@ -1383,10 +1383,11 @@ class SalesScreenState extends State<SalesScreen>
                                       children: [
                                         IconButton(
                                           icon: const Icon(
-                                            Icons.remove,
-                                            size: 18,
+                                            Icons.remove_circle_outline,
+                                            size: 28,
+                                            color: Colors.red,
                                           ),
-                                          padding: EdgeInsets.zero,
+                                          padding: const EdgeInsets.all(8),
                                           constraints: const BoxConstraints(),
                                           onPressed: cantidad > 0
                                               ? () {
@@ -1426,19 +1427,23 @@ class SalesScreenState extends State<SalesScreen>
                                         ),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
+                                            horizontal: 12,
                                           ),
                                           child: Text(
                                             cantidad.toString(),
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                              fontSize: 18,
                                             ),
                                           ),
                                         ),
                                         IconButton(
-                                          icon: const Icon(Icons.add, size: 18),
-                                          padding: EdgeInsets.zero,
+                                          icon: const Icon(
+                                            Icons.add_circle_outline, 
+                                            size: 28,
+                                            color: Colors.green,
+                                          ),
+                                          padding: const EdgeInsets.all(8),
                                           constraints: const BoxConstraints(),
                                           onPressed: cantidad < producto.stock
                                               ? () {
@@ -1466,14 +1471,6 @@ class SalesScreenState extends State<SalesScreen>
                         );
                       },
                     ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: PrimaryButton(
-                onPressed: _procesarVenta,
-                text: 'VER CARRITO Y PROCESAR VENTA',
-                isLoading: _isLoading,
-              ),
             ),
           ],
         ),

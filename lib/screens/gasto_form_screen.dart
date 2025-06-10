@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../models/gasto_model.dart';
 import '../services/database_service.dart';
 
@@ -32,7 +33,7 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
     super.initState();
     if (widget.gasto != null) {
       _descripcionController.text = widget.gasto!.descripcion;
-      _montoController.text = widget.gasto!.monto.toStringAsFixed(2);
+      _montoController.text = _formatearMoneda(widget.gasto!.monto);
       _categoriaSeleccionada = widget.gasto!.categoria;
       _notasController.text = widget.gasto!.notas ?? '';
     }
@@ -44,6 +45,13 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
     _montoController.dispose();
     _notasController.dispose();
     super.dispose();
+  }
+  
+  // Función para formatear montos en guaraníes
+  String _formatearMoneda(double monto) {
+    // Formatear el número con separadores de miles
+    final formatter = NumberFormat('#,##0', 'es_PY');
+    return formatter.format(monto);
   }
 
   void _mostrarError(String mensaje) {
@@ -74,10 +82,17 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
             )
           : fechaActual;
 
+      // Obtener el valor numérico del monto (eliminar puntos de miles y prefijo/sufijo)
+      final valorMonto = _montoController.text
+          .replaceAll('Gs.', '')
+          .replaceAll('.', '')
+          .trim();
+      final monto = double.parse(valorMonto);
+
       final gasto = Gasto(
         id: widget.gasto?.id,
         descripcion: _descripcionController.text,
-        monto: double.parse(_montoController.text),
+        monto: monto,
         categoria: _categoriaSeleccionada,
         fecha: fechaGasto,
         notas: _notasController.text.isNotEmpty ? _notasController.text : null,
@@ -178,19 +193,39 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                       controller: _montoController,
                       decoration: const InputDecoration(
                         labelText: 'Monto',
-                        prefixText: '\$',
+                        prefixText: 'Gs. ',
                         border: OutlineInputBorder(),
+                        suffixText: 'Gs.',
                       ),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Por favor ingrese un monto';
                         }
-                        final monto = double.tryParse(value);
+                        // Eliminar puntos de separación de miles para validar
+                        final valorSinPuntos = value.replaceAll('.', '').replaceAll('Gs', '').trim();
+                        final monto = int.tryParse(valorSinPuntos);
                         if (monto == null || monto <= 0) {
                           return 'Ingrese un monto válido';
                         }
                         return null;
+                      },
+                      onChanged: (value) {
+                        // Formatear el número mientras se escribe
+                        if (value.isNotEmpty) {
+                          // Eliminar todo lo que no sea dígito
+                          final soloNumeros = value.replaceAll(RegExp(r'[^0-9]'), '');
+                          final monto = int.tryParse(soloNumeros) ?? 0;
+                          final formateado = _formatearMoneda(monto.toDouble());
+                          
+                          // Actualizar el controlador solo si el valor formateado es diferente
+                          if (formateado != value) {
+                            _montoController.value = TextEditingValue(
+                              text: formateado,
+                              selection: TextSelection.collapsed(offset: formateado.length),
+                            );
+                          }
+                        }
                       },
                     ),
                     const SizedBox(height: 16),

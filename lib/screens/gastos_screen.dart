@@ -6,6 +6,7 @@ import '../models/gasto_model.dart';
 import '../models/producto_model.dart';
 import '../models/categoria_model.dart';
 import 'gasto_form_screen.dart';
+import '../services/product_notifier_service.dart';
 
 class GastosScreen extends StatefulWidget {
   const GastosScreen({super.key});
@@ -43,6 +44,18 @@ class _GastosScreenState extends State<GastosScreen> {
   void dispose() {
     // Aquí puedes limpiar cualquier controlador o suscripción
     super.dispose();
+  }
+  
+  // Función para formatear montos en guaraníes
+  String _formatearMoneda(double monto) {
+    // Formatear el número con separadores de miles
+    final formatter = NumberFormat('#,##0', 'es_PY');
+    return '${formatter.format(monto)} Gs.';
+  }
+  
+  // Función para calcular el total de gastos
+  double calcularTotal() {
+    return _gastos.fold(0.0, (sum, item) => sum + item.monto);
   }
 
   Future<void> _cargarGastos() async {
@@ -245,7 +258,7 @@ class _GastosScreenState extends State<GastosScreen> {
                       ),
                     ),
                     child: Text(
-                      'Total: \$${_gastos.fold(0.0, (sum, item) => sum + item.monto).toStringAsFixed(2)}',
+                      'Total: ${_formatearMoneda(calcularTotal())}',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
@@ -295,7 +308,7 @@ class _GastosScreenState extends State<GastosScreen> {
                             ],
                           ),
                           trailing: Text(
-                            '\$${gasto.monto.toStringAsFixed(2)}',
+                            _formatearMoneda(gasto.monto),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.red,
@@ -446,21 +459,29 @@ class _GastosScreenState extends State<GastosScreen> {
 
       if (!mounted || productoSeleccionado == null) return;
 
+      // Función para formatear un número para mostrar en el input (sin separadores de miles)
+      String _formatearNumeroParaInput(num valor) {
+        // Eliminar decimales y formatear como entero
+        return valor.toInt().toString();
+      }
+      
       // Paso 4: Ingresar detalles de la compra
       final cantidadController = TextEditingController(text: '1');
       final precioController = TextEditingController(
-        text: productoSeleccionado.precioCompra.toStringAsFixed(2),
+        text: _formatearNumeroParaInput(productoSeleccionado.precioCompra),
       );
       final notasController = TextEditingController();
 
       // Función para calcular el total
       String calcularTotal() {
         if (cantidadController.text.isEmpty || precioController.text.isEmpty) {
-          return '0.00';
+          return _formatearMoneda(0);
         }
-        final cantidad = double.tryParse(cantidadController.text) ?? 0;
-        final precio = double.tryParse(precioController.text) ?? 0;
-        return (cantidad * precio).toStringAsFixed(2);
+        // Obtener valores numéricos de los controladores
+        final cantidad = double.tryParse(cantidadController.text.replaceAll('.', '')) ?? 0;
+        final precio = double.tryParse(precioController.text.replaceAll('.', '')) ?? 0;
+        final total = cantidad * precio;
+        return _formatearMoneda(total);
       }
 
       final confirmado = await showDialog<bool>(
@@ -497,13 +518,29 @@ class _GastosScreenState extends State<GastosScreen> {
                         controller: precioController,
                         decoration: const InputDecoration(
                           labelText: 'Precio Unitario',
-                          prefixText: '\$',
+                          prefixText: 'Gs. ',
+                          suffixText: 'Gs.',
                           border: OutlineInputBorder(),
                         ),
-                        keyboardType: TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        onChanged: (_) => setState(() {}),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Formatear el número mientras se escribe
+                          if (value.isNotEmpty) {
+                            // Eliminar todo lo que no sea dígito
+                            final soloNumeros = value.replaceAll(RegExp(r'[^0-9]'), '');
+                            final monto = int.tryParse(soloNumeros) ?? 0;
+                            final formateado = _formatearMoneda(monto.toDouble());
+                            
+                            // Actualizar el controlador solo si el valor formateado es diferente
+                            if (formateado != value) {
+                              precioController.value = TextEditingValue(
+                                text: formateado,
+                                selection: TextSelection.collapsed(offset: formateado.length),
+                              );
+                            }
+                          }
+                          setState(() {});
+                        },
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -534,7 +571,7 @@ class _GastosScreenState extends State<GastosScreen> {
                               children: [
                                 const Text('Subtotal:'),
                                 Text(
-                                  '\$${calcularTotal()}',
+                                  '${calcularTotal()}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -554,8 +591,9 @@ class _GastosScreenState extends State<GastosScreen> {
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      final cantidad = double.tryParse(cantidadController.text);
-                      final precio = double.tryParse(precioController.text);
+                      // Obtener valores numéricos eliminando los separadores de miles
+                      final cantidad = double.tryParse(cantidadController.text.replaceAll('.', ''));
+                      final precio = double.tryParse(precioController.text.replaceAll('.', ''));
 
                       if (cantidad == null || cantidad <= 0) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -606,6 +644,10 @@ class _GastosScreenState extends State<GastosScreen> {
         if (mounted) {
           _mostrarError('Compra registrada exitosamente');
           await _cargarGastos();
+          
+          // Notificar que se ha actualizado el inventario
+          final productNotifier = ProductNotifierService();
+          productNotifier.notifyProductUpdate();
         }
       } catch (e) {
         if (mounted) {

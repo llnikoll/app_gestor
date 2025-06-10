@@ -18,7 +18,7 @@ class DashboardScreen extends StatefulWidget {
 class DashboardScreenState extends State<DashboardScreen> {
   ProductNotifierService? _productNotifier;
   late Future<Map<String, dynamic>> _dashboardData;
-  final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+  final currencyFormat = NumberFormat.currency(symbol: 'Gs. ', decimalDigits: 0, locale: 'es_PY');
   final numberFormat = NumberFormat.decimalPattern();
 
   @override
