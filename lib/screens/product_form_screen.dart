@@ -7,8 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 
 import '../models/categoria_model.dart';
+import '../services/product_notifier_service.dart';
 import '../models/producto_model.dart';
 import '../services/database_service.dart';
 import '../widgets/custom_text_field.dart';
@@ -471,19 +473,33 @@ class ProductFormScreenState extends State<ProductFormScreen> {
         await db.insertProducto(nuevoProducto);
       }
 
+      // Notificar que se ha actualizado un producto
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _isEditing
-                  ? '✅ Producto actualizado correctamente'
-                  : '✅ Producto agregado correctamente',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+        // Obtener el servicio de notificación de productos
+        final productNotifier = Provider.of<ProductNotifierService>(
+          context,
+          listen: false,
         );
-        Navigator.of(context).pop(true);
+        
+        // Notificar después de que se haya completado el guardado
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          productNotifier.notifyProductUpdate();
+          if (mounted) {
+            // Mostrar mensaje de éxito
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  _isEditing
+                      ? '✅ Producto actualizado correctamente'
+                      : '✅ Producto agregado correctamente',
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            Navigator.of(context).pop(true);
+          }
+        });
         return true;
       }
       return false;

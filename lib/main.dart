@@ -6,6 +6,7 @@ import 'package:sqflite/sqflite.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/settings_service.dart';
+import 'services/product_notifier_service.dart';
 import 'utils/currency_formatter.dart';
 
 void main() async {
@@ -32,15 +33,18 @@ void main() async {
   );
 }
 
-class ThemeNotifier extends ChangeNotifier {
+class ThemeNotifier with ChangeNotifier {
+  bool _isDarkMode;
   final SettingsService _settings = SettingsService();
-  
-  bool get isDarkMode => _settings.isDarkMode;
-  
-  ThemeMode get themeMode => isDarkMode ? ThemeMode.dark : ThemeMode.light;
+
+  ThemeNotifier({bool? isDarkMode}) : _isDarkMode = isDarkMode ?? false;
+
+  bool get isDarkMode => _isDarkMode;
+  ThemeMode get themeMode => _isDarkMode ? ThemeMode.dark : ThemeMode.light;
   
   void toggleTheme() {
-    _settings.setDarkMode(!isDarkMode);
+    _isDarkMode = !_isDarkMode;
+    _settings.setDarkMode(_isDarkMode);
     notifyListeners();
   }
 }
@@ -50,25 +54,42 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeNotifier>(
-      builder: (context, themeNotifier, child) {
-        return MaterialApp(
-          title: 'Gestor de Ventas',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeNotifier.themeMode,
-          navigatorKey: GlobalKey<NavigatorState>(),
-          builder: (context, child) {
-            return Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (context) => child!,
-              ),
-            );
-          },
-          home: const HomeScreen(),
-        );
-      },
+    final platformDispatcher = WidgetsBinding.instance.platformDispatcher;
+    final isDark = platformDispatcher.platformBrightness == Brightness.dark;
+    
+    return MultiProvider(
+      providers: [
+        Provider(create: (_) => ProductNotifierService()),
+        ChangeNotifierProvider(
+          create: (_) => ThemeNotifier(
+            isDarkMode: isDark,
+          ),
+        ),
+      ],
+      child: Builder(
+        builder: (context) {
+          return Consumer<ThemeNotifier>(
+            builder: (context, themeNotifier, child) {
+              return MaterialApp(
+                title: 'Gestor de Ventas',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                themeMode: themeNotifier.themeMode,
+                navigatorKey: GlobalKey<NavigatorState>(),
+                builder: (context, child) {
+                  return Navigator(
+                    onGenerateRoute: (settings) => MaterialPageRoute(
+                      builder: (context) => child!,
+                    ),
+                  );
+                },
+                home: const HomeScreen(),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

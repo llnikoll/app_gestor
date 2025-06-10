@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:app_gestor_ventas/models/cliente_model.dart';
 import 'package:app_gestor_ventas/screens/cliente_form_screen.dart';
 import 'package:app_gestor_ventas/services/database_service.dart';
+import 'package:app_gestor_ventas/services/product_notifier_service.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -13,6 +15,7 @@ class CustomersScreen extends StatefulWidget {
 }
 
 class _CustomersScreenState extends State<CustomersScreen> {
+  ProductNotifierService? _productNotifier;
   final TextEditingController _searchController = TextEditingController();
   final DatabaseService _databaseService = DatabaseService();
   final List<Cliente> _clientes = [];
@@ -23,15 +26,39 @@ class _CustomersScreenState extends State<CustomersScreen> {
   @override
   void initState() {
     super.initState();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Obtener el notificador de productos solo una vez
+    _productNotifier ??= Provider.of<ProductNotifierService>(context, listen: false);
+    
+    // Escuchar cambios en el notificador
+    _productNotifier!.notifier.addListener(_onProductUpdate);
+    
+    // Cargar clientes iniciales
     _loadClientes();
   }
-
+  
   @override
   void dispose() {
+    // Limpiar el listener cuando el widget se destruya
+    _productNotifier?.notifier.removeListener(_onProductUpdate);
     _searchController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
+  
+  // Método que se ejecuta cuando hay una actualización de productos
+  void _onProductUpdate() {
+    if (mounted) {
+      _loadClientes();
+    }
+  }
+
+
 
   Future<void> _loadClientes() async {
     if (!mounted) return;

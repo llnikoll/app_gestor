@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/navigation_item.dart';
-import '../theme/app_colors.dart';
 import 'dashboard_screen.dart';
-import 'venttas_screen.dart';
+import 'ventas_screen.dart';
 import 'inventory_screen.dart';
 import 'clientes_screen.dart';
 import 'reports_screen.dart';
@@ -102,65 +101,118 @@ class _HomeScreenContent extends StatelessWidget {
     int selectedIndex,
     ValueChanged<int> onItemTapped,
   ) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(color: Theme.of(context).primaryColor),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.store, size: 40, color: AppColors.primary),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Mi Negocio',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWideScreen =
+        screenWidth > 600; // Consideramos pantalla ancha más de 600px
+
+    return SizedBox(
+      width: isWideScreen
+          ? screenWidth * 0.25
+          : screenWidth * 0.7, // Ajustar ancho según el tamaño de la pantalla
+      child: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Theme.of(context).primaryColor),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.store, size: 40, color: Colors.blue),
                   ),
-                ),
-                Text(
-                  'admin@minegocio.com',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
-          for (final item in NavigationItem.items)
-            ListTile(
-              leading: Icon(
-                selectedIndex == item.index ? item.selectedIcon : item.icon,
-                color: selectedIndex == item.index
-                    ? Theme.of(context).primaryColor
-                    : null,
+                  const SizedBox(height: 12),
+                  Text(
+                    'Mi Negocio',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18, // Tamaño de fuente un poco más pequeño
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'admin@minegocio.com',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white70,
+                      fontSize: 12, // Tamaño de fuente más pequeño
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              title: Text(item.title),
-              selected: selectedIndex == item.index,
-              selectedTileColor: Theme.of(
-                context,
-              ).primaryColor.withValues(alpha: 0.1),
-              onTap: () {
-                onItemTapped(item.index);
-                Navigator.pop(context);
-              },
             ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Cerrar sesión'),
-            onTap: () {
-              // Cerrar sesión
-            },
-          ),
-        ],
+            for (final item in NavigationItem.items)
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 2.0,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8.0),
+                  color: selectedIndex == item.index
+                      ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+                      : Colors.transparent,
+                ),
+                child: ListTile(
+                  dense: true, // Hace el ListTile más compacto
+                  visualDensity:
+                      VisualDensity.compact, // Reduce el espacio vertical
+                  leading: Icon(
+                    selectedIndex == item.index ? item.selectedIcon : item.icon,
+                    color: selectedIndex == item.index
+                        ? Theme.of(context).primaryColor
+                        : null,
+                    size: 22, // Tamaño de icono ligeramente más pequeño
+                  ),
+                  title: Text(
+                    item.title,
+                    style: TextStyle(
+                      fontSize: isWideScreen
+                          ? 14
+                          : 13, // Tamaño de fuente responsivo
+                      fontWeight: selectedIndex == item.index
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () {
+                    onItemTapped(item.index);
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+            const Divider(thickness: 1, height: 1, indent: 16, endIndent: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(
+                horizontal: 8.0,
+                vertical: 2.0,
+              ),
+              child: ListTile(
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                leading: const Icon(Icons.logout, size: 22),
+                title: const Text(
+                  'Cerrar sesión',
+                  style: TextStyle(fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () {
+                  // Cerrar sesión
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -234,7 +286,7 @@ class HomeScreenState extends State<HomeScreen> {
         children: [
           // Navigation Rail Container with custom logout
           Container(
-            width: 100,
+            width: 140, // Aumentado de 100 a 140 para más espacio
             decoration: BoxDecoration(
               border: Border(
                 right: BorderSide(
@@ -245,52 +297,162 @@ class HomeScreenState extends State<HomeScreen> {
             ),
             child: Column(
               children: [
-                // Header
+                // Header con más espacio
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 20,
+                    horizontal: 12,
+                  ),
                   child: CircleAvatar(
-                    radius: 20,
+                    radius: 24, // Aumentado de 16 a 24
                     backgroundColor: Theme.of(context).primaryColor,
-                    child: const Icon(Icons.store, color: Colors.white),
+                    child: const Icon(
+                      Icons.store,
+                      color: Colors.white,
+                      size: 28, // Aumentado de 18 a 28
+                    ),
                   ),
                 ),
-                // Navigation Rail
+                // Navigation Rail con scroll si es necesario
                 Expanded(
-                  child: NavigationRail(
-                    selectedIndex: _selectedIndex,
-                    onDestinationSelected: onItemTapped,
-                    labelType: NavigationRailLabelType.all,
-                    destinations: NavigationItem.items.map((item) {
-                      return NavigationRailDestination(
-                        icon: Icon(item.icon),
-                        label: Text(item.title),
-                        selectedIcon: Icon(item.selectedIcon),
-                      );
-                    }).toList(),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Calcular si necesitamos scroll
+                      final availableHeight = constraints.maxHeight;
+                      final itemHeight = 72.0; // Altura aproximada por item
+                      final totalItemsHeight =
+                          NavigationItem.items.length * itemHeight;
+                      final needsScroll = totalItemsHeight > availableHeight;
+
+                      if (needsScroll) {
+                        // Si necesita scroll, usar SingleChildScrollView
+                        return SingleChildScrollView(
+                          child: Column(
+                            children: NavigationItem.items.map((item) {
+                              final isSelected = _selectedIndex == item.index;
+                              return Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
+                                child: Material(
+                                  color: isSelected
+                                      ? Theme.of(
+                                          context,
+                                        ).primaryColor.withValues(alpha: 0.1)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () => onItemTapped(item.index),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12, // Aumentado de 8 a 12
+                                        horizontal: 8,  // Aumentado de 4 a 8
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isSelected
+                                                ? item.selectedIcon
+                                                : item.icon,
+                                            size: 26,  // Aumentado de 20 a 26
+                                            color: isSelected
+                                                ? Theme.of(context).primaryColor
+                                                : null,
+                                          ),
+                                          const SizedBox(height: 8), // Aumentado de 4 a 8
+                                          Text(
+                                            item.title,
+                                            style: TextStyle(
+                                              fontSize: 13, // Aumentado de 10 a 13
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
+                                              color: isSelected
+                                                  ? Theme.of(
+                                                      context,
+                                                    ).primaryColor
+                                                  : null,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        );
+                      } else {
+                        // Si no necesita scroll, usar NavigationRail normal
+                        return NavigationRail(
+                          selectedIndex: _selectedIndex,
+                          onDestinationSelected: onItemTapped,
+                          labelType: NavigationRailLabelType.all,
+                          minWidth: 140, // Aumentado de 100 a 140
+                          minExtendedWidth: 140, // Añadido para asegurar el ancho mínimo
+                          groupAlignment: 0.0, // Centrar los ítems
+                          leading: const SizedBox(height: 20), // Espacio adicional en la parte superior
+                          trailing: const SizedBox(height: 20), // Espacio adicional en la parte inferior
+                          destinations: NavigationItem.items.map((item) {
+                            return NavigationRailDestination(
+                              icon: Icon(item.icon, size: 26), // Aumentado de 20 a 26
+                              label: Padding(
+                                padding: const EdgeInsets.only(top: 6), // Añadido espacio arriba del texto
+                                child: Text(
+                                  item.title,
+                                  style: const TextStyle(
+                                    fontSize: 13, // Aumentado de 10 a 13
+                                    fontWeight: FontWeight.w500, // Texto un poco más grueso
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              selectedIcon: Icon(item.selectedIcon, size: 26), // Aumentado de 20 a 26
+                            );
+                          }).toList(),
+                        );
+                      }
+                    },
                   ),
                 ),
-                // Logout button at bottom
+                // Botón de salida con más espacio
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12), // Aumentado de 4 a 12
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Divider(),
+                      Container(
+                        height: 1,
+                        margin: const EdgeInsets.symmetric(horizontal: 12), // Aumentado de 8 a 12
+                        color: Theme.of(context).dividerColor,
+                      ),
+                      const SizedBox(height: 12), // Añadido espacio
                       InkWell(
                         onTap: () {
                           // Cerrar sesión
                         },
+                        borderRadius: BorderRadius.circular(8),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 8,
+                            vertical: 12, // Aumentado de 8 a 12
+                            horizontal: 8,  // Aumentado de 4 a 8
                           ),
                           child: const Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.logout, size: 20),
-                              SizedBox(height: 4),
-                              Text('Salir', style: TextStyle(fontSize: 12)),
+                              Icon(Icons.logout, size: 24), // Aumentado de 18 a 24
+                              SizedBox(height: 6), // Aumentado de 2 a 6
+                              Text(
+                                'Cerrar Sesión', // Texto más descriptivo
+                                style: TextStyle(fontSize: 13), // Aumentado de 10 a 13
+                              ),
                             ],
                           ),
                         ),

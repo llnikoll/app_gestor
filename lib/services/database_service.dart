@@ -15,7 +15,7 @@ class DatabaseService {
 
   // Database configuration
   static const String _databaseName = 'gestor_ventas.db';
-  static const int _databaseVersion = 12; // Add fecha_actualizacion to productos schema
+  static const int _databaseVersion = 13; // Add venta_id to gastos table
 
   // Table names
   static const String tableClientes = 'clientes';
@@ -185,6 +185,23 @@ class DatabaseService {
 
   // Handle database upgrades
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // Migrate to version 13: Add venta_id column to gastos table
+    if (oldVersion < 13) {
+      try {
+        // Verificar si la columna ya existe
+        final List<Map> columns = await db.rawQuery('PRAGMA table_info($tableGastos)');
+        final bool ventaIdExists = columns.any((column) => column['name'] == 'venta_id');
+        
+        if (!ventaIdExists) {
+          await db.execute('ALTER TABLE $tableGastos ADD COLUMN venta_id INTEGER');
+          debugPrint('Added venta_id column to $tableGastos table');
+        } else {
+          debugPrint('venta_id column already exists in $tableGastos table');
+        }
+      } catch (e) {
+        debugPrint('Error adding venta_id column: $e');
+      }
+    }
     if (oldVersion < 2) {
       // Migrate to version 2: Add stock_minimo to productos table
       await db.execute(
@@ -200,7 +217,7 @@ class DatabaseService {
     if (oldVersion < 4) {
       // Migrate to version 4: Add entradas_inventario table
       await db.execute('''
-        CREATE TABLE $tableEntradasInventario (
+        CREATE TABLE IF NOT EXISTS $tableEntradasInventario (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           producto_id INTEGER NOT NULL,
           cantidad INTEGER NOT NULL,
@@ -434,23 +451,29 @@ class DatabaseService {
         'metodo_pago': venta.metodoPago,
         'referencia_pago': venta.referenciaPago,
         'estado': venta.estado,
+        'notas': '', // Agregamos un valor por defecto para notas
       }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       // Insert sale details
       for (var item in venta.items) {
-        await txn.insert(tableVentaDetalles, {
-          'venta_id': ventaId,
-          'producto_id': item['producto_id'],
-          'cantidad': item['cantidad'],
-          'precio_unitario': item['precio_unitario'],
-          'subtotal': item['subtotal'],
-        });
+        // Solo insertar en venta_detalles si es un producto (tiene producto_id)
+        if (item['tipo'] == 'producto' || item['producto_id'] != null) {
+          await txn.insert(tableVentaDetalles, {
+            'venta_id': ventaId,
+            'producto_id': item['producto_id'],
+            'cantidad': item['cantidad'],
+            'precio_unitario': item['precio_unitario'] ?? 0.0,
+            'subtotal': item['subtotal'],
+          });
 
-        // Update product stock
-        await txn.rawUpdate(
-          'UPDATE $tableProductos SET stock = stock - ? WHERE id = ?',
-          [item['cantidad'], item['producto_id']],
-        );
+          // Update product stock
+          await txn.rawUpdate(
+            'UPDATE $tableProductos SET stock = stock - ? WHERE id = ?',
+            [item['cantidad'], item['producto_id']],
+          );
+        }
+        // Para ventas casuales, no hacemos nada en venta_detalles
+        // ya que no están asociadas a un producto
       }
     });
 
@@ -934,9 +957,34 @@ class DatabaseService {
 
   Future<List<Map<String, dynamic>>> getVentaDetalles(int ventaId) async {
     final db = await database;
+  
+    // Primero verificamos si es una venta casual
+    final ventaCasual = await db.query(
+      tableGastos,
+      where: 'venta_id = ? AND categoria = ?',
+      whereArgs: [ventaId, 'Venta Casual'],
+    );
+
+    if (ventaCasual.isNotEmpty) {
+      // Es una venta casual, devolvemos la descripción de la tabla gastos
+      return [
+        {
+          'id': 0,
+          'venta_id': ventaId,
+          'producto_id': null,
+          'nombre_producto': 'Venta Casual',
+          'cantidad': 1,
+          'precio_unitario': ventaCasual.first['monto'],
+          'subtotal': ventaCasual.first['monto'],
+          'descripcion': ventaCasual.first['descripcion'],
+        }
+      ];
+    }
+
+    // No es una venta casual, devolvemos los detalles normales
     final List<Map<String, dynamic>> maps = await db.rawQuery(
       '''
-      SELECT vd.*, p.nombre as nombre_producto 
+      SELECT vd.*, p.nombre as nombre_producto, p.descripcion as descripcion
       FROM $tableVentaDetalles vd
       LEFT JOIN $tableProductos p ON vd.producto_id = p.id
       WHERE vd.venta_id = ?
@@ -1314,6 +1362,53 @@ class DatabaseService {
       }
     }
     return ventas;
+  }
+
+  // Insert a casual sale (income without products)
+  Future<int> insertVentaCasual({
+    required double monto,
+    required String descripcion,
+    String metodoPago = 'Efectivo',
+    String? referenciaPago,
+    String? notas,
+    int? clienteId,
+    String? clienteNombre,
+  }) async {
+    final db = await database;
+    
+    // Insert the sale
+    final ventaId = await db.insert(
+      tableVentas,
+      {
+        'cliente_id': clienteId,
+        'cliente': clienteNombre ?? 'Venta Casual',
+        'total': monto,
+        'fecha': DateTime.now().toIso8601String(),
+        'metodo_pago': metodoPago,
+        'estado': 'Completada',
+        'referencia_pago': referenciaPago,
+        'notas': notas,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+
+    // Insert an income record with the sale ID
+    await db.insert(
+      tableGastos,
+      {
+        'descripcion': descripcion,
+        'monto': monto,
+        'categoria': 'Venta Casual',
+        'fecha': DateTime.now().toIso8601String(),
+        'comprobante_url': null,
+        'notas': notas,
+        'producto_id': null,
+        'venta_id': ventaId, // Guardar el ID de la venta para poder relacionarlos
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+
+    return ventaId;
   }
 
   // Cerrar la base de datos

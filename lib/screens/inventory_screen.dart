@@ -2,10 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 import 'inventory_entries_screen.dart';
 import 'product_form_screen.dart';
 import '../models/producto_model.dart';
 import '../services/database_service.dart';
+import '../services/product_notifier_service.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -16,6 +18,7 @@ class InventoryScreen extends StatefulWidget {
 
 class InventoryScreenState extends State<InventoryScreen>
     with SingleTickerProviderStateMixin {
+  ProductNotifierService? _productNotifier;
   late TabController _tabController;
   int _currentIndex = 0;
 
@@ -26,6 +29,7 @@ class InventoryScreenState extends State<InventoryScreen>
   bool _isLoading = true;
   String? _selectedCategory;
   List<String> _categories = ['Todas las categorías'];
+  final TextEditingController _searchController = TextEditingController();
 
   Future<void> _loadProducts() async {
     if (!mounted) return;
@@ -66,9 +70,37 @@ class InventoryScreenState extends State<InventoryScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(_handleTabSelection);
-    _selectedCategory = 'Todas las categorías';
-    _loadCategories().then((_) => _loadProducts());
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Obtener el notificador de productos solo una vez
+    _productNotifier ??= Provider.of<ProductNotifierService>(context, listen: false);
+    
+    // Escuchar cambios en el notificador
+    _productNotifier!.notifier.addListener(_onProductUpdate);
+    
+    // Cargar productos iniciales
+    _loadProducts();
+  }
+  
+  @override
+  void dispose() {
+    // Limpiar el listener cuando el widget se destruya
+    _productNotifier?.notifier.removeListener(_onProductUpdate);
+    _tabController.removeListener(_handleTabSelection);
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+  
+  // Método que se ejecuta cuando hay una actualización de productos
+  void _onProductUpdate() {
+    if (mounted) {
+      _loadProducts();
+    }
   }
 
   // Método para cargar las categorías
@@ -153,12 +185,7 @@ class InventoryScreenState extends State<InventoryScreen>
     }
   }
 
-  @override
-  void dispose() {
-    _tabController.removeListener(_handleTabSelection);
-    _tabController.dispose();
-    super.dispose();
-  }
+
 
   // Widget para mostrar la imagen del producto
   Widget _buildProductImage(String? imageName) {
@@ -367,18 +394,47 @@ class InventoryScreenState extends State<InventoryScreen>
                                       producto.imagenUrl,
                                     ),
                                   ),
-                                  title: Text(
-                                    producto.nombre,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  title: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        producto.nombre,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (producto.descripcion.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 2.0),
+                                          child: RichText(
+                                            text: TextSpan(
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Theme.of(context).textTheme.bodySmall?.color,
+                                              ),
+                                              children: [
+                                                const TextSpan(
+                                                  text: 'Descripción: ',
+                                                  style: TextStyle(fontWeight: FontWeight.w500),
+                                                ),
+                                                TextSpan(
+                                                  text: producto.descripcion,
+                                                  style: const TextStyle(fontWeight: FontWeight.normal),
+                                                ),
+                                              ],
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   subtitle: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 6),
                                       Text(
                                         'Precio: ${currencyFormat.format(producto.precioVenta)}',
                                         style: const TextStyle(
