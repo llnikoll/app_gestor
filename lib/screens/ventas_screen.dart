@@ -583,18 +583,33 @@ class SalesScreenState extends State<SalesScreen>
           .where((item) => item.esVentaCasual)
           .toList();
       for (final item in ventasCasuales) {
+        // Construir las notas con la descripción de la venta y el cliente si existe
+        final descripcion = item.descripcionVentaCasual ?? 'Venta Casual';
+        String notas = descripcion;
+
+        // Agregar información del cliente si está seleccionado
+        if (_clienteSeleccionado != null) {
+          notas = '$notas\nCliente: ${_clienteSeleccionado!.nombre}';
+        }
+
+        // Agregar referencia de pago si aplica
+        final referenciaPago =
+            (_metodoPagoSeleccionado == 'Transferencia' ||
+                _metodoPagoSeleccionado == 'Tarjeta de Crédito' ||
+                _metodoPagoSeleccionado == 'Tarjeta de Débito')
+            ? _numeroTransaccionController.text.trim()
+            : null;
+
+        if (referenciaPago != null && referenciaPago.isNotEmpty) {
+          notas = '$notas\nReferencia: $referenciaPago';
+        }
+
+        // Insertar la venta casual
         await DatabaseService().insertVentaCasual(
           monto: item.subtotal,
-          descripcion: item.descripcionVentaCasual ?? 'Venta Casual',
           metodoPago: _metodoPagoSeleccionado!,
-          referenciaPago:
-              (_metodoPagoSeleccionado == 'Transferencia' ||
-                  _metodoPagoSeleccionado == 'Tarjeta de Crédito' ||
-                  _metodoPagoSeleccionado == 'Tarjeta de Débito')
-              ? _numeroTransaccionController.text.trim()
-              : null,
-          clienteId: _clienteSeleccionado?.id,
-          clienteNombre: _clienteSeleccionado?.nombre,
+          referenciaPago: referenciaPago,
+          notas: notas.trim(),
         );
       }
 
@@ -1439,7 +1454,7 @@ class SalesScreenState extends State<SalesScreen>
                                         ),
                                         IconButton(
                                           icon: const Icon(
-                                            Icons.add_circle_outline, 
+                                            Icons.add_circle_outline,
                                             size: 28,
                                             color: Colors.green,
                                           ),
@@ -1611,8 +1626,13 @@ class SalesScreenState extends State<SalesScreen>
     // Obtener el título de la venta
     String tituloVenta = venta.clienteNombre ?? 'Venta Casual';
     if (esVentaCasual && primerProducto != null) {
-      tituloVenta =
-          primerProducto['nombre_producto']?.toString() ?? 'Venta Casual';
+      // Usar la descripción de la venta casual si está disponible
+      tituloVenta = primerProducto['descripcion']?.toString() ?? 
+                   primerProducto['notas']?.toString() ?? 
+                   primerProducto['nombre_producto']?.toString() ?? 
+                   'Venta Casual';
+      // Tomar solo la primera línea si hay saltos de línea
+      tituloVenta = tituloVenta.split('\n').first;
     }
 
     return Card(
@@ -1799,13 +1819,20 @@ class SalesScreenState extends State<SalesScreen>
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
-          ...venta.items.map(
-            (item) => Column(
+          ...venta.items.map((item) {
+            // Si es una venta casual, mostramos la descripción en lugar del nombre del producto
+            final esVentaCasual =
+                item['tipo'] == 'venta_casual' || item['producto_id'] == null;
+            final descripcion = item['descripcion'] ?? item['notas'];
+
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ListTile(
                   title: Text(
-                    item['nombre_producto'] ?? 'Venta Casual',
+                    esVentaCasual && descripcion != null
+                        ? descripcion.split('\n').first
+                        : (item['nombre_producto'] ?? 'Venta Casual'),
                     style: const TextStyle(fontWeight: FontWeight.normal),
                   ),
                   subtitle: Column(
@@ -1814,12 +1841,17 @@ class SalesScreenState extends State<SalesScreen>
                       Text(
                         '${item['cantidad']} x ${_formatoMoneda(item['precio_unitario'])}',
                       ),
-                      if (item['descripcion'] != null &&
-                          item['descripcion'].toString().isNotEmpty)
+                      if (descripcion != null && descripcion.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 4.0),
                           child: Text(
-                            '${item['descripcion']}',
+                            // Mostrar la descripción completa si es una venta casual
+                            // o si hay una descripción específica
+                            esVentaCasual && descripcion.split('\n').length > 1
+                                ? descripcion
+                                      .substring(descripcion.indexOf('\n') + 1)
+                                      .trim()
+                                : descripcion,
                             style: TextStyle(
                               fontStyle: FontStyle.italic,
                               color: Colors.grey[600],
@@ -1850,8 +1882,8 @@ class SalesScreenState extends State<SalesScreen>
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
               ],
-            ),
-          ),
+            );
+          }),
           const Divider(),
           Padding(
             padding: const EdgeInsets.all(16.0),

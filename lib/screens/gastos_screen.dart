@@ -45,14 +45,14 @@ class _GastosScreenState extends State<GastosScreen> {
     // Aquí puedes limpiar cualquier controlador o suscripción
     super.dispose();
   }
-  
+
   // Función para formatear montos en guaraníes
   String _formatearMoneda(double monto) {
     // Formatear el número con separadores de miles
     final formatter = NumberFormat('#,##0', 'es_PY');
     return '${formatter.format(monto)} Gs.';
   }
-  
+
   // Función para calcular el total de gastos
   double calcularTotal() {
     return _gastos.fold(0.0, (sum, item) => sum + item.monto);
@@ -460,15 +460,15 @@ class _GastosScreenState extends State<GastosScreen> {
       if (!mounted || productoSeleccionado == null) return;
 
       // Función para formatear un número para mostrar en el input (sin separadores de miles)
-      String _formatearNumeroParaInput(num valor) {
+      String formatearNumeroParaInput(num valor) {
         // Eliminar decimales y formatear como entero
         return valor.toInt().toString();
       }
-      
+
       // Paso 4: Ingresar detalles de la compra
       final cantidadController = TextEditingController(text: '1');
       final precioController = TextEditingController(
-        text: _formatearNumeroParaInput(productoSeleccionado.precioCompra),
+        text: formatearNumeroParaInput(productoSeleccionado.precioCompra),
       );
       final notasController = TextEditingController();
 
@@ -478,8 +478,10 @@ class _GastosScreenState extends State<GastosScreen> {
           return _formatearMoneda(0);
         }
         // Obtener valores numéricos de los controladores
-        final cantidad = double.tryParse(cantidadController.text.replaceAll('.', '')) ?? 0;
-        final precio = double.tryParse(precioController.text.replaceAll('.', '')) ?? 0;
+        final cantidad =
+            double.tryParse(cantidadController.text.replaceAll('.', '')) ?? 0;
+        final precio =
+            double.tryParse(precioController.text.replaceAll('.', '')) ?? 0;
         final total = cantidad * precio;
         return _formatearMoneda(total);
       }
@@ -527,15 +529,22 @@ class _GastosScreenState extends State<GastosScreen> {
                           // Formatear el número mientras se escribe
                           if (value.isNotEmpty) {
                             // Eliminar todo lo que no sea dígito
-                            final soloNumeros = value.replaceAll(RegExp(r'[^0-9]'), '');
+                            final soloNumeros = value.replaceAll(
+                              RegExp(r'[^0-9]'),
+                              '',
+                            );
                             final monto = int.tryParse(soloNumeros) ?? 0;
-                            final formateado = _formatearMoneda(monto.toDouble());
-                            
+                            final formateado = _formatearMoneda(
+                              monto.toDouble(),
+                            );
+
                             // Actualizar el controlador solo si el valor formateado es diferente
                             if (formateado != value) {
                               precioController.value = TextEditingValue(
                                 text: formateado,
-                                selection: TextSelection.collapsed(offset: formateado.length),
+                                selection: TextSelection.collapsed(
+                                  offset: formateado.length,
+                                ),
                               );
                             }
                           }
@@ -571,7 +580,7 @@ class _GastosScreenState extends State<GastosScreen> {
                               children: [
                                 const Text('Subtotal:'),
                                 Text(
-                                  '${calcularTotal()}',
+                                  calcularTotal(),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -592,8 +601,12 @@ class _GastosScreenState extends State<GastosScreen> {
                   ElevatedButton(
                     onPressed: () {
                       // Obtener valores numéricos eliminando los separadores de miles
-                      final cantidad = double.tryParse(cantidadController.text.replaceAll('.', ''));
-                      final precio = double.tryParse(precioController.text.replaceAll('.', ''));
+                      final cantidad = double.tryParse(
+                        cantidadController.text.replaceAll('.', ''),
+                      );
+                      final precio = double.tryParse(
+                        precioController.text.replaceAll('.', ''),
+                      );
 
                       if (cantidad == null || cantidad <= 0) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -644,7 +657,7 @@ class _GastosScreenState extends State<GastosScreen> {
         if (mounted) {
           _mostrarError('Compra registrada exitosamente');
           await _cargarGastos();
-          
+
           // Notificar que se ha actualizado el inventario
           final productNotifier = ProductNotifierService();
           productNotifier.notifyProductUpdate();
