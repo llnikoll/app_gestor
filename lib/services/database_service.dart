@@ -7,6 +7,7 @@ import '../models/venta_model.dart';
 import '../models/cliente_model.dart';
 import '../models/entrada_inventario_model.dart';
 import '../models/gasto_model.dart';
+import 'transaction_notifier_service.dart';
 
 class DatabaseService {
   // Singleton instance
@@ -42,23 +43,41 @@ class DatabaseService {
 
   // Métodos para informes
   Future<List<Venta>> getVentasPorRango(DateTime desde, DateTime hasta) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      tableVentas,
-      where: 'fecha BETWEEN ? AND ?',
-      whereArgs: [desde.toIso8601String(), hasta.toIso8601String()],
-    );
-    return List.generate(maps.length, (i) => Venta.fromMap(maps[i]));
+    try {
+      final db = await database;
+      debugPrint('Buscando ventas en DB desde: ${desde.toIso8601String()} hasta: ${hasta.toIso8601String()}');
+      
+      final List<Map<String, dynamic>> maps = await db.query(
+        tableVentas,
+        where: 'fecha BETWEEN ? AND ?',
+        whereArgs: [desde.toIso8601String(), hasta.toIso8601String()],
+      );
+      
+      debugPrint('Ventas encontradas en DB: ${maps.length}');
+      return List.generate(maps.length, (i) => Venta.fromMap(maps[i]));
+    } catch (e) {
+      debugPrint('Error en getVentasPorRango: $e');
+      rethrow;
+    }
   }
 
   Future<List<Gasto>> getGastosPorRango(DateTime desde, DateTime hasta) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      tableGastos,
-      where: 'fecha BETWEEN ? AND ?',
-      whereArgs: [desde.toIso8601String(), hasta.toIso8601String()],
-    );
-    return List.generate(maps.length, (i) => Gasto.fromMap(maps[i]));
+    try {
+      final db = await database;
+      debugPrint('Buscando gastos en DB desde: ${desde.toIso8601String()} hasta: ${hasta.toIso8601String()}');
+      
+      final List<Map<String, dynamic>> maps = await db.query(
+        tableGastos,
+        where: 'fecha BETWEEN ? AND ?',
+        whereArgs: [desde.toIso8601String(), hasta.toIso8601String()],
+      );
+      
+      debugPrint('Gastos encontrados en DB: ${maps.length}');
+      return List.generate(maps.length, (i) => Gasto.fromMap(maps[i]));
+    } catch (e) {
+      debugPrint('Error en getGastosPorRango: $e');
+      rethrow;
+    }
   }
 
   Future<Map<String, Map<String, dynamic>>> getProductosMasVendidos(DateTime desde, DateTime hasta) async {
@@ -603,45 +622,62 @@ class DatabaseService {
   // Insertar una nueva venta
   Future<int> insertVenta(Venta venta) async {
     final db = await database;
+    final transactionNotifier = TransactionNotifierService();
     int ventaId = 0; // Initialize with default value
 
-    await db.transaction((txn) async {
-      // Insert sale
-      ventaId = await txn.insert(tableVentas, {
-        'cliente_id': venta.clienteId,
-        'cliente': venta.clienteNombre,
-        'total': venta.total,
-        'fecha': venta.fecha.toIso8601String(),
-        'metodo_pago': venta.metodoPago,
-        'referencia_pago': venta.referenciaPago,
-        'estado': venta.estado,
-        'notas': '', // Agregamos un valor por defecto para notas
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    try {
+      await db.transaction((txn) async {
+        // Insert sale
+        ventaId = await txn.insert(tableVentas, {
+          'cliente_id': venta.clienteId,
+          'cliente': venta.clienteNombre,
+          'total': venta.total,
+          'fecha': venta.fecha.toIso8601String(),
+          'metodo_pago': venta.metodoPago,
+          'referencia_pago': venta.referenciaPago,
+          'estado': venta.estado,
+          'notas': '', // Agregamos un valor por defecto para notas
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-      // Insert sale details
-      for (var item in venta.items) {
-        // Solo insertar en venta_detalles si es un producto (tiene producto_id)
-        if (item['tipo'] == 'producto' || item['producto_id'] != null) {
-          await txn.insert(tableVentaDetalles, {
-            'venta_id': ventaId,
-            'producto_id': item['producto_id'],
-            'cantidad': item['cantidad'],
-            'precio_unitario': item['precio_unitario'] ?? 0.0,
-            'subtotal': item['subtotal'],
-          });
+        debugPrint('Venta insertada con ID: $ventaId');
 
-          // Update product stock
-          await txn.rawUpdate(
-            'UPDATE $tableProductos SET stock = stock - ? WHERE id = ?',
-            [item['cantidad'], item['producto_id']],
-          );
+        // Insert sale details
+        for (var item in venta.items) {
+          // Solo insertar en venta_detalles si es un producto (tiene producto_id)
+          if (item['tipo'] == 'producto' || item['producto_id'] != null) {
+            await txn.insert(tableVentaDetalles, {
+              'venta_id': ventaId,
+              'producto_id': item['producto_id'],
+              'cantidad': item['cantidad'],
+              'precio_unitario': item['precio_unitario'] ?? 0.0,
+              'subtotal': item['subtotal'],
+            });
+
+            debugPrint('Detalle de venta insertado para el producto ${item['producto_id']}');
+
+            // Update product stock
+            await txn.rawUpdate(
+              'UPDATE $tableProductos SET stock = stock - ? WHERE id = ?',
+              [item['cantidad'], item['producto_id']],
+            );
+            debugPrint('Stock actualizado para el producto ${item['producto_id']}');
+          }
+          // Para ventas casuales, no hacemos nada en venta_detalles
+          // ya que no están asociadas a un producto
         }
-        // Para ventas casuales, no hacemos nada en venta_detalles
-        // ya que no están asociadas a un producto
-      }
-    });
+      });
 
-    return ventaId;
+      // Notificar que se ha realizado una venta
+      debugPrint('Notificando actualización de ventas...');
+      transactionNotifier.notifySalesUpdate();
+      transactionNotifier.notifyTransactionsUpdate(); // Asegurar notificación general
+      debugPrint('Notificaciones de venta enviadas correctamente');
+
+      return ventaId;
+    } catch (e) {
+      debugPrint('Error al insertar venta: $e');
+      rethrow;
+    }
   }
 
   // Insertar detalle de venta
@@ -1297,22 +1333,30 @@ class DatabaseService {
   Future<int> insertGasto(Gasto gasto) async {
     final db = await database;
     final map = gasto.toMap()..remove('id');
+    final transactionNotifier = TransactionNotifierService();
 
-    if (kDebugMode) {
+    try {
       debugPrint('Insertando gasto: $map');
-    }
 
-    final id = await db.insert(
-      tableGastos,
-      map,
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+      final id = await db.insert(
+        tableGastos,
+        map,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
 
-    if (kDebugMode) {
       debugPrint('Gasto insertado con ID: $id');
-    }
 
-    return id;
+      // Notificar que se ha realizado un gasto
+      debugPrint('Notificando actualización de gastos...');
+      transactionNotifier.notifyExpensesUpdate();
+      transactionNotifier.notifyTransactionsUpdate(); // Asegurar notificación general
+      debugPrint('Notificaciones de gasto enviadas correctamente');
+
+      return id;
+    } catch (e) {
+      debugPrint('Error al insertar gasto: $e');
+      rethrow;
+    }
   }
 
   // Actualizar un gasto existente
@@ -1320,18 +1364,60 @@ class DatabaseService {
     if (gasto.id == null) throw Exception('ID del gasto no puede ser nulo');
 
     final db = await database;
-    return await db.update(
-      tableGastos,
-      gasto.toMap()..remove('id'),
-      where: 'id = ?',
-      whereArgs: [gasto.id],
-    );
+    final transactionNotifier = TransactionNotifierService();
+    
+    try {
+      debugPrint('Actualizando gasto ID: ${gasto.id}');
+      
+      final result = await db.update(
+        tableGastos,
+        gasto.toMap()..remove('id'),
+        where: 'id = ?',
+        whereArgs: [gasto.id],
+      );
+      
+      debugPrint('Gasto ID: ${gasto.id} actualizado correctamente');
+      
+      // Notificar que se ha actualizado un gasto
+      debugPrint('Notificando actualización de gastos...');
+      transactionNotifier.notifyExpensesUpdate();
+      transactionNotifier.notifyTransactionsUpdate(); // Asegurar notificación general
+      debugPrint('Notificaciones de gasto enviadas correctamente');
+      
+      return result;
+    } catch (e) {
+      debugPrint('Error al actualizar gasto ID ${gasto.id}: $e');
+      rethrow;
+    }
   }
 
   // Eliminar un gasto
   Future<int> deleteGasto(int id) async {
     final db = await database;
-    return await db.delete(tableGastos, where: 'id = ?', whereArgs: [id]);
+    final transactionNotifier = TransactionNotifierService();
+    
+    try {
+      debugPrint('Eliminando gasto ID: $id');
+      
+      final result = await db.delete(
+        tableGastos, 
+        where: 'id = ?', 
+        whereArgs: [id]
+      );
+      
+      debugPrint('Gasto ID: $id eliminado correctamente');
+      
+      // Notificar que se ha eliminado un gasto
+      debugPrint('Notificando eliminación de gasto...');
+      transactionNotifier.notifyExpensesUpdate();
+      transactionNotifier.notifyTransactionsUpdate(); // Asegurar notificación general
+      debugPrint('Notificaciones de eliminación de gasto enviadas correctamente');
+      
+      return result;
+    } catch (e) {
+      debugPrint('Error al eliminar gasto ID $id: $e');
+      rethrow;
+    }
   }
 
   // Obtener todos los gastos
@@ -1540,6 +1626,7 @@ class DatabaseService {
     String? referenciaPago,
   }) async {
     final db = await database;
+    final transactionNotifier = TransactionNotifierService();
 
     // Iniciar transacción
     return await db.transaction((txn) async {
@@ -1570,6 +1657,9 @@ class DatabaseService {
             'notas': notas ?? 'Venta casual', // Usar las notas proporcionadas o un valor por defecto
           },
         );
+
+        // Notificar que se ha realizado una venta
+        transactionNotifier.notifySalesUpdate();
 
         return ventaId;
       } catch (e) {

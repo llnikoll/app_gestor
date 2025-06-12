@@ -2,6 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:app_gestor_ventas/services/database_service.dart';
+import 'package:app_gestor_ventas/services/transaction_notifier_service.dart';
+
+// Extensión para capitalizar la primera letra de un String
+extension StringExtension on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return '${this[0].toUpperCase()}${substring(1)}';
+  }
+}
 
 // Modelos para los datos
 class SalesData {
@@ -68,16 +77,35 @@ class _ReportsScreenState extends State<ReportsScreen>
   final DatabaseService _dbService = DatabaseService();
 
   // Rango de fechas seleccionado
+  // Asegurarse de que la fecha de fin sea al final del día
   DateTimeRange _selectedDateRange = DateTimeRange(
-    start: DateTime.now().subtract(const Duration(days: 30)),
-    end: DateTime.now(),
+    start: DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    ).subtract(const Duration(days: 30)),
+    end: DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+      23,
+      59,
+      59,
+      999,
+    ),
   );
 
   // Datos para los gráficos y tablas
   final List<SalesData> _ventasData = [];
+  List<SalesData> _gastosData = [];
   final List<FinancialData> _financialData = [];
   final List<ClienteData> _clientesData = [];
   final List<ProductoData> _productosData = [];
+
+  // Datos para la pestaña de Gastos
+  double _gastosDiaSeleccionado = 0.0;
+  int _gastosCountDiaSeleccionado = 0;
+  List<Map<String, dynamic>> _gastosDiaSeleccionadoLista = [];
   // _categoriasData se eliminó porque no se estaba utilizando
 
   // Estado de carga y errores
@@ -85,14 +113,58 @@ class _ReportsScreenState extends State<ReportsScreen>
   String _errorMessage = '';
 
   // Notificador para actualizar la UI cuando cambian los datos
-  // Usamos un booleano que alternamos para forzar la reconstrucción
-  final ValueNotifier<bool> _dataUpdated = ValueNotifier<bool>(false);
+  // Usamos un contador para asegurar que cada notificación sea única
+  final ValueNotifier<int> _dataUpdated = ValueNotifier<int>(0);
+
+  // Usar la instancia singleton directamente
+  final TransactionNotifierService _transactionNotifier =
+      TransactionNotifierService();
+  late final VoidCallback _onTransactionUpdated;
+
+  // Variables para almacenar los datos del resumen financiero
+  double _ventasTotales = 0.0;
+  double _gastosTotales = 0.0;
+  double _gananciasTotales = 0.0;
+
+  // Datos para el ranking de productos
+  List<Map<String, dynamic>> _productosMasVendidos = [];
+
+  // Datos para el resumen del día
+  double _ventasHoy = 0.0;
+  int _ventasCountHoy = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    _cargarDatos();
+    _tabController = TabController(length: 3, vsync: this);
+
+    // Configurar el listener para actualizar los datos cuando haya cambios en las transacciones
+    _onTransactionUpdated = () {
+      if (mounted) {
+        final value = _transactionNotifier.transactionsNotifier.value;
+        debugPrint(
+          'Notificación de transacción recibida (valor: $value) - Recargando datos...',
+        );
+        _cargarDatos();
+      }
+    };
+
+    // Agregar el listener al notifier
+    _transactionNotifier.transactionsNotifier.addListener(
+      _onTransactionUpdated,
+    );
+    debugPrint('Listener de transacciones registrado en ReportsScreen');
+
+    // Cargar los datos iniciales
+    _cargarTodo();
+  }
+
+  Future<void> _cargarTodo() async {
+    await _cargarDatos();
+    await _cargarVentas();
+    await _cargarGastos();
+    await _cargarClientes();
+    await _cargarProductos();
   }
 
   Future<void> _cargarDatos() async {
@@ -105,7 +177,7 @@ class _ReportsScreenState extends State<ReportsScreen>
           _errorMessage = '';
         });
       }
-      
+
       debugPrint('Iniciando carga de datos...');
 
       // Cargar en secuencia para evitar problemas de concurrencia
@@ -127,13 +199,14 @@ class _ReportsScreenState extends State<ReportsScreen>
       debugPrint('Clientes cargados en ${stopwatch.elapsedMilliseconds}ms');
 
       debugPrint('Carga de datos completada exitosamente');
-      
+
       // Forzar actualización de la UI después de cargar todos los datos
       if (mounted) {
+        // Incrementar el valor para forzar la reconstrucción del ValueListenableBuilder
+        _dataUpdated.value++;
         setState(() {
           _isLoading = false;
         });
-        _dataUpdated.value = !_dataUpdated.value; // Alternar el valor para forzar la actualización
       }
     } catch (e, stackTrace) {
       debugPrint('Error en _cargarDatos: $e');
@@ -164,15 +237,13 @@ class _ReportsScreenState extends State<ReportsScreen>
     // Función para mostrar el SnackBar de manera segura
     void showErrorSnackBar(String message) {
       if (!mounted) return;
-      
+
       // Usar el ScaffoldMessenger del contexto raíz
       final scaffoldMessenger = ScaffoldMessenger.of(context);
       scaffoldMessenger.clearSnackBars();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text(message)));
     }
-    
+
     try {
       final DateTimeRange? picked = await showDateRangePicker(
         context: context,
@@ -201,16 +272,34 @@ class _ReportsScreenState extends State<ReportsScreen>
 
       // Verificar si el widget sigue montado después del await
       if (!mounted) return;
-      
-      if (picked != null && picked != _selectedDateRange) {
+
+      if (picked != null) {
+        // Asegurarse de que la fecha de fin sea al final del día
+        final startDate = DateTime(
+          picked.start.year,
+          picked.start.month,
+          picked.start.day,
+        );
+        final endDate = DateTime(
+          picked.end.year,
+          picked.end.month,
+          picked.end.day,
+          23,
+          59,
+          59,
+          999,
+        );
+
+        final newDateRange = DateTimeRange(start: startDate, end: endDate);
+
         setState(() {
-          _selectedDateRange = picked;
+          _selectedDateRange = newDateRange;
         });
         await _cargarDatos();
       }
     } catch (e) {
       debugPrint('Error al seleccionar rango de fechas: $e');
-      
+
       // Mostrar el error usando la función segura
       showErrorSnackBar('Error al seleccionar fechas: $e');
     }
@@ -220,6 +309,11 @@ class _ReportsScreenState extends State<ReportsScreen>
     if (!mounted) return;
 
     try {
+      debugPrint(
+        'Buscando ventas desde ${_selectedDateRange.start} hasta ${_selectedDateRange.end}',
+      );
+
+      // Asegurarse de que las fechas tengan el formato correcto para la consulta
       debugPrint(
         'Buscando ventas desde ${_selectedDateRange.start} hasta ${_selectedDateRange.end}',
       );
@@ -235,6 +329,13 @@ class _ReportsScreenState extends State<ReportsScreen>
       // Procesar ventas por día para el gráfico de líneas
       final ventasPorDia = <DateTime, double>{};
       double totalVentas = 0;
+
+      // Variables para el resumen del día seleccionado
+      double ventasDiaSeleccionado = 0.0;
+      int ventasCountDiaSeleccionado = 0;
+
+      // Mapa para el ranking de productos
+      final productosMap = <String, Map<String, dynamic>>{};
 
       for (var venta in ventas) {
         try {
@@ -252,8 +353,39 @@ class _ReportsScreenState extends State<ReportsScreen>
             continue;
           }
 
+          // Acumular ventas por día para el gráfico
           ventasPorDia[fecha] = (ventasPorDia[fecha] ?? 0) + venta.total;
           totalVentas += venta.total;
+
+          // Calcular ventas del día seleccionado (último día del rango)
+          if (venta.fecha.year == _selectedDateRange.end.year &&
+              venta.fecha.month == _selectedDateRange.end.month &&
+              venta.fecha.day == _selectedDateRange.end.day) {
+            ventasDiaSeleccionado += venta.total;
+            ventasCountDiaSeleccionado++;
+          }
+
+          // Obtener detalles de la venta para el ranking de productos
+          final detalles = await _dbService.getDetallesVenta(venta.id!);
+          for (var detalle in detalles) {
+            final productoId = detalle['producto_id'].toString();
+            if (productoId != 'null') {
+              // Solo productos, no ventas casuales
+              if (!productosMap.containsKey(productoId)) {
+                productosMap[productoId] = {
+                  'id': detalle['producto_id'],
+                  'nombre':
+                      detalle['nombre_producto'] ?? 'Producto desconocido',
+                  'cantidad': 0,
+                  'total': 0.0,
+                };
+              }
+              productosMap[productoId]!['cantidad'] +=
+                  detalle['cantidad'] as int;
+              productosMap[productoId]!['total'] += (detalle['subtotal'] as num)
+                  .toDouble();
+            }
+          }
 
           debugPrint(
             'Venta: ${venta.id} - Fecha: ${venta.fecha} - Total: ${venta.total}',
@@ -263,6 +395,15 @@ class _ReportsScreenState extends State<ReportsScreen>
           continue; // Continuar con la siguiente venta en caso de error
         }
       }
+
+      // Ordenar productos por cantidad vendida (ranking)
+      final productosList = productosMap.values.toList();
+      productosList.sort(
+        (a, b) => (b['cantidad'] as int).compareTo(a['cantidad'] as int),
+      );
+
+      // Tomar los 10 productos más vendidos
+      final topProductos = productosList.take(10).toList();
 
       // Ordenar las fechas para asegurar un orden cronológico
       final fechasOrdenadas = ventasPorDia.keys.toList()..sort();
@@ -283,6 +424,9 @@ class _ReportsScreenState extends State<ReportsScreen>
       setState(() {
         _ventasData.clear();
         _ventasData.addAll(ventasData);
+        _productosMasVendidos = topProductos;
+        _ventasHoy = ventasDiaSeleccionado;
+        _ventasCountHoy = ventasCountDiaSeleccionado;
       });
 
       // Actualizar los datos financieros
@@ -327,11 +471,25 @@ class _ReportsScreenState extends State<ReportsScreen>
 
       debugPrint('Gastos encontrados: ${gastos.length}');
 
-      // Calcular total de gastos para el resumen
+      // Procesar gastos por día para el gráfico
+      final gastosPorDia = <DateTime, double>{};
       double totalGastos = 0;
 
+      // Reiniciar variables de resumen
+      _gastosDiaSeleccionado = 0.0;
+      _gastosCountDiaSeleccionado = 0;
+      _gastosDiaSeleccionadoLista = [];
+
+      // Procesar cada gasto
       for (var gasto in gastos) {
         try {
+          // Formatear fecha sin horas/minutos/segundos
+          final fecha = DateTime(
+            gasto.fecha.year,
+            gasto.fecha.month,
+            gasto.fecha.day,
+          );
+
           // Validar que el monto sea un número válido
           if (gasto.monto.isNaN || gasto.monto.isInfinite) {
             debugPrint(
@@ -340,20 +498,51 @@ class _ReportsScreenState extends State<ReportsScreen>
             continue;
           }
 
+          // Acumular gastos por día para el gráfico
+          gastosPorDia[fecha] = (gastosPorDia[fecha] ?? 0) + gasto.monto;
           totalGastos += gasto.monto;
-          debugPrint(
-            'Gasto: ${gasto.id} - Fecha: ${gasto.fecha} - Monto: ${gasto.monto}',
-          );
+
+          // Calcular gastos del día seleccionado (último día del rango)
+          if (gasto.fecha.year == _selectedDateRange.end.year &&
+              gasto.fecha.month == _selectedDateRange.end.month &&
+              gasto.fecha.day == _selectedDateRange.end.day) {
+            _gastosDiaSeleccionado += gasto.monto;
+            _gastosCountDiaSeleccionado++;
+
+            // Agregar a la lista de gastos del día
+            _gastosDiaSeleccionadoLista.add({
+              'descripcion': gasto.descripcion,
+              'monto': gasto.monto,
+              'categoria': gasto.categoria,
+              'fecha': gasto.fecha.toIso8601String(),
+            });
+          }
         } catch (e) {
-          debugPrint('Error procesando gasto ${gasto.id}: $e');
-          continue; // Continuar con el siguiente gasto en caso de error
+          debugPrint('Error procesando gasto: $e');
+          continue;
         }
       }
 
-      debugPrint('Total de gastos calculado: $totalGastos');
+      // Ordenar las fechas para el gráfico
+      final fechasOrdenadas = gastosPorDia.keys.toList()..sort();
+      
+      // Crear lista de SalesData para el gráfico
+      final List<SalesData> gastosData = [];
+      for (var fecha in fechasOrdenadas) {
+        gastosData.add(SalesData(
+          DateFormat('dd/MM').format(fecha),
+          gastosPorDia[fecha] ?? 0,
+        ));
+      }
 
-      if (!mounted) return;
+      if (mounted) {
+        setState(() {
+          _gastosData = gastosData;
+        });
+      }
 
+      debugPrint('Datos de gastos para el gráfico: ${gastosData.length} puntos');
+      
       // Actualizar los datos financieros con el total de gastos
       _updateFinancialData(-1, totalGastos);
     } catch (e, stackTrace) {
@@ -388,67 +577,34 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
 
     try {
-      // Obtener los valores actuales si existen
-      double ventasActuales = 0;
-      double gastosActuales = 0;
-
-      // Usar try-catch para evitar errores si la lista está vacía o no tiene los elementos esperados
-      if (_financialData.isNotEmpty) {
-        try {
-          final ventasData = _financialData.firstWhere(
-            (data) => data.concepto == 'Ventas',
-            orElse: () => FinancialData('Ventas', 0, Colors.green),
-          );
-          ventasActuales = ventasData.monto;
-
-          final gastosData = _financialData.firstWhere(
-            (data) => data.concepto == 'Gastos',
-            orElse: () => FinancialData('Gastos', 0, Colors.red),
-          );
-          gastosActuales = gastosData.monto;
-        } catch (e) {
-          debugPrint('Error al obtener datos financieros actuales: $e');
-          // Continuar con valores por defecto si hay un error
-        }
-      }
-
-      debugPrint(
-        'Valores actuales - Ventas: $ventasActuales, Gastos: $gastosActuales',
-      );
-
       // Actualizar solo los valores que se están pasando (si son mayores o iguales a 0)
-
       if (totalVentas >= 0) {
-        debugPrint('Actualizando ventas de $ventasActuales a $totalVentas');
-        ventasActuales = totalVentas;
+        debugPrint('Actualizando ventas de $_ventasTotales a $totalVentas');
+        _ventasTotales = totalVentas;
       }
 
       if (totalGastos >= 0) {
-        debugPrint('Actualizando gastos de $gastosActuales a $totalGastos');
-        gastosActuales = totalGastos;
+        debugPrint('Actualizando gastos de $_gastosTotales a $totalGastos');
+        _gastosTotales = totalGastos;
       }
 
-      // Siempre actualizar los datos financieros para asegurar que estén actualizados
+      _gananciasTotales = _ventasTotales - _gastosTotales;
+
+      // Actualizar la lista de datos financieros
+      _financialData.clear();
+      _financialData.addAll([
+        FinancialData('Ventas', _ventasTotales, Colors.green),
+        FinancialData('Gastos', _gastosTotales, Colors.red),
+        FinancialData('Ganancias', _gananciasTotales, Colors.blue),
+      ]);
+
+      debugPrint(
+        'Datos financieros actualizados - Ventas: $_ventasTotales, Gastos: $_gastosTotales, Ganancias: $_gananciasTotales',
+      );
+
+      // Notificar a los listeners para actualizar la UI
       if (mounted) {
-        setState(() {
-          _financialData.clear();
-          _financialData.addAll([
-            FinancialData('Ventas', ventasActuales, Colors.green),
-            FinancialData('Gastos', gastosActuales, Colors.red),
-            FinancialData(
-              'Ganancias',
-              ventasActuales - gastosActuales,
-              Colors.blue,
-            ),
-          ]);
-        });
-
-        debugPrint(
-          'Datos financieros actualizados - Ventas: $ventasActuales, Gastos: $gastosActuales, Ganancias: ${ventasActuales - gastosActuales}',
-        );
-
-        // Alternar el valor para forzar la reconstrucción del ValueListenableBuilder
-        _dataUpdated.value = !_dataUpdated.value;
+        _dataUpdated.value++;
       }
     } catch (e, stackTrace) {
       debugPrint('Error en _updateFinancialData: $e');
@@ -622,7 +778,7 @@ class _ReportsScreenState extends State<ReportsScreen>
   @override
   Widget build(BuildContext context) {
     // Forzar la reconstrucción cuando los datos cambien
-    return ValueListenableBuilder<bool>(
+    return ValueListenableBuilder<int>(
       valueListenable: _dataUpdated,
       builder: (context, _, _) {
         return Scaffold(
@@ -631,11 +787,10 @@ class _ReportsScreenState extends State<ReportsScreen>
             bottom: TabBar(
               controller: _tabController,
               isScrollable: true,
-              tabs: const [
-                Tab(icon: Icon(Icons.analytics), text: 'Resumen'),
-                Tab(icon: Icon(Icons.bar_chart), text: 'Ventas'),
-                Tab(icon: Icon(Icons.category), text: 'Categorías'),
-                Tab(icon: Icon(Icons.people), text: 'Clientes'),
+              tabs: [
+                Tab(icon: Icon(Icons.summarize), text: 'Resumen'),
+                Tab(icon: Icon(Icons.shopping_cart), text: 'Ventas'),
+                Tab(icon: Icon(Icons.money_off), text: 'Gastos'),
               ],
             ),
             actions: [
@@ -662,14 +817,9 @@ class _ReportsScreenState extends State<ReportsScreen>
                   children: [
                     _buildResumenTab(),
                     _buildVentasTab(),
-                    _buildCategoriasTab(),
-                    _buildClientesTab(),
+                    _buildGastosTab(),
                   ],
                 ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: _cargarDatos,
-            child: const Icon(Icons.refresh),
-          ),
         );
       },
     );
@@ -693,46 +843,35 @@ class _ReportsScreenState extends State<ReportsScreen>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Selector de rango de fechas
           _buildDateRangeInfo(),
           const SizedBox(height: 20),
+
+          // Resumen del día
+          _buildResumenHoy(),
+          const SizedBox(height: 20),
+
+          // Gráfico de ventas
           _buildSalesChart(),
           const SizedBox(height: 20),
-          _buildSalesTable(),
+
+          // Título para el ranking de productos
+          const Text(
+            'Productos más vendidos',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+
+          // Ranking de productos
+          _buildProductosRanking(),
         ],
       ),
     );
   }
 
-  Widget _buildCategoriasTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          _buildDateRangeInfo(),
-          const SizedBox(height: 20),
-          _buildCategoriesChart(),
-          const SizedBox(height: 20),
-          _buildCategoriesTable(),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildClientesTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          _buildDateRangeInfo(),
-          const SizedBox(height: 20),
-          _buildTopClientsChart(),
-          const SizedBox(height: 20),
-          _buildClientsTable(),
-        ],
-      ),
-    );
-  }
 
   Widget _buildDateRangeInfo() {
     final formatter = DateFormat('dd/MM/yyyy');
@@ -755,7 +894,7 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildFinancialSummary() {
     // Usar ValueListenableBuilder para reconstruir cuando los datos cambien
-    return ValueListenableBuilder<bool>(
+    return ValueListenableBuilder<int>(
       valueListenable: _dataUpdated,
       builder: (context, value, _) {
         return Column(
@@ -858,36 +997,95 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  // Resto de los métodos para las otras pestañas...
-  Widget _buildSalesChart() {
+  // Pestaña de Gastos
+  Widget _buildGastosTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Selector de rango de fechas
+          _buildDateRangeInfo(),
+          const SizedBox(height: 20),
+
+          // Resumen del día
+          _buildResumenGastos(),
+          const SizedBox(height: 20),
+
+          // Gráfico de gastos
+          _buildGastosChart(),
+          const SizedBox(height: 20),
+
+          // Título para el ranking de categorías de gastos
+          const Text(
+            'Gastos por Categoría',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+
+          // Lista de gastos
+          _buildListaGastos(),
+        ],
+      ),
+    );
+  }
+
+  // Resumen de gastos del día seleccionado
+  Widget _buildResumenGastos() {
+    final fechaSeleccionada = DateFormat(
+      'dd/MM/yyyy',
+    ).format(_selectedDateRange.end);
     return Card(
       elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Ventas por Día',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                const Text(
+                  'Resumen de Gastos: ',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  fechaSeleccionada,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 300,
-              child: SfCartesianChart(
-                primaryXAxis: CategoryAxis(),
-                primaryYAxis: NumericAxis(
-                  numberFormat: NumberFormat.currency(symbol: 'Gs. '),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildResumenItem(
+                  'Gastos',
+                  _gastosCountDiaSeleccionado.toString(),
+                  Icons.receipt,
+                  Colors.red,
                 ),
-                series: <CartesianSeries>[
-                  LineSeries<SalesData, String>(
-                    dataSource: _ventasData,
-                    xValueMapper: (SalesData sales, _) => sales.periodo,
-                    yValueMapper: (SalesData sales, _) => sales.ventas,
-                    name: 'Ventas',
-                  ),
-                ],
-              ),
+                _buildResumenItem(
+                  'Total',
+                  _formatearMoneda(_gastosDiaSeleccionado),
+                  Icons.money_off,
+                  Colors.orange,
+                ),
+                _buildResumenItem(
+                  'Promedio',
+                  _gastosCountDiaSeleccionado > 0
+                      ? _formatearMoneda(
+                          _gastosDiaSeleccionado / _gastosCountDiaSeleccionado,
+                        )
+                      : _formatearMoneda(0),
+                  Icons.bar_chart,
+                  Colors.deepOrange,
+                ),
+              ],
             ),
           ],
         ),
@@ -895,33 +1093,342 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Widget _buildSalesTable() {
-    // Implementación de la tabla de ventas
-    return const SizedBox.shrink();
+  // Gráfico de gastos
+  Widget _buildGastosChart() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Gastos por Período',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 250,
+              child: _gastosData.isEmpty
+                  ? const Center(
+                      child: Text('No hay datos de gastos disponibles'),
+                    )
+                  : SfCartesianChart(
+                      primaryXAxis: CategoryAxis(
+                        labelRotation: 45,
+                        labelStyle: const TextStyle(fontSize: 10),
+                      ),
+                      primaryYAxis: NumericAxis(
+                        numberFormat: NumberFormat.currency(
+                          symbol: 'Gs. ',
+                          decimalDigits: 0,
+                        ),
+                      ),
+                      tooltipBehavior: TooltipBehavior(enable: true),
+                      series: <CartesianSeries>[
+                        LineSeries<SalesData, String>(
+                          dataSource: _gastosData,
+                          xValueMapper: (SalesData gasto, _) => gasto.periodo,
+                          yValueMapper: (SalesData gasto, _) => gasto.ventas,
+                          name: 'Gastos',
+                          color: Colors.red,
+                          markerSettings: const MarkerSettings(
+                            isVisible: true,
+                            color: Colors.red,
+                            borderColor: Colors.white,
+                            borderWidth: 2,
+                          ),
+                          dataLabelSettings: const DataLabelSettings(
+                            isVisible: true,
+                            labelAlignment: ChartDataLabelAlignment.top,
+                            textStyle: TextStyle(
+                              color: Colors.red,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Widget _buildCategoriesChart() {
-    // Implementación del gráfico de categorías
-    return const SizedBox.shrink();
+  // Lista de gastos
+  Widget _buildListaGastos() {
+    if (_gastosDiaSeleccionadoLista.isEmpty) {
+      return Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.0),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(child: Text('No hay gastos registrados')),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _gastosDiaSeleccionadoLista.length,
+        itemBuilder: (context, index) {
+          final gasto = _gastosDiaSeleccionadoLista[index];
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundColor: Colors.red.withValues(alpha: 0.1),
+              child: const Icon(Icons.money_off, color: Colors.red),
+            ),
+            title: Text(
+              gasto['descripcion'] ?? 'Sin descripción',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            subtitle: Text(
+              'Categoría: ${gasto['categoria'] ?? 'Sin categoría'}\n${DateFormat('HH:mm').format(DateTime.parse(gasto['fecha']))}',
+            ),
+            trailing: Text(
+              _formatearMoneda((gasto['monto'] as num).toDouble()),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.red,
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
-  Widget _buildCategoriesTable() {
-    // Implementación de la tabla de categorías
-    return const SizedBox.shrink();
+  // Resto de los métodos para las otras pestañas...
+
+  // Resumen de ventas del día seleccionado
+  Widget _buildResumenHoy() {
+    final fechaSeleccionada = DateFormat(
+      'dd/MM/yyyy',
+    ).format(_selectedDateRange.end);
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'Resumen del día: ',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  fechaSeleccionada,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildResumenItem(
+                  'Ventas',
+                  _ventasCountHoy.toString(),
+                  Icons.receipt,
+                  Colors.blue,
+                ),
+                _buildResumenItem(
+                  'Total',
+                  _formatearMoneda(_ventasHoy),
+                  Icons.attach_money,
+                  Colors.green,
+                ),
+                _buildResumenItem(
+                  'Promedio',
+                  _ventasCountHoy > 0
+                      ? _formatearMoneda(_ventasHoy / _ventasCountHoy)
+                      : _formatearMoneda(0),
+                  Icons.bar_chart,
+                  Colors.orange,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Widget _buildTopClientsChart() {
-    // Implementación del gráfico de clientes
-    return const SizedBox.shrink();
+  // Widget auxiliar para mostrar un ítem del resumen
+  Widget _buildResumenItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
+    );
   }
 
-  Widget _buildClientsTable() {
-    // Implementación de la tabla de clientes
-    return const SizedBox.shrink();
+  Widget _buildSalesChart() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Ventas por Período',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Últimos ${_ventasData.length} ${_ventasData.length == 1 ? 'día' : 'días'}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 250,
+              child: _ventasData.isEmpty
+                  ? const Center(
+                      child: Text('No hay datos de ventas disponibles'),
+                    )
+                  : SfCartesianChart(
+                      primaryXAxis: CategoryAxis(
+                        labelRotation: 45,
+                        labelStyle: const TextStyle(fontSize: 10),
+                      ),
+                      primaryYAxis: NumericAxis(
+                        numberFormat: NumberFormat.compactCurrency(
+                          symbol: 'Gs. ',
+                          decimalDigits: 0,
+                        ),
+                      ),
+                      tooltipBehavior: TooltipBehavior(enable: true),
+                      series: <CartesianSeries>[
+                        LineSeries<SalesData, String>(
+                          dataSource: _ventasData,
+                          xValueMapper: (SalesData sales, _) => sales.periodo,
+                          yValueMapper: (SalesData sales, _) => sales.ventas,
+                          name: 'Ventas',
+                          markerSettings: const MarkerSettings(isVisible: true),
+                          dataLabelSettings: const DataLabelSettings(
+                            isVisible: true,
+                            labelAlignment: ChartDataLabelAlignment.top,
+                          ),
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
+
+  // Ranking de productos más vendidos
+  Widget _buildProductosRanking() {
+    if (_productosMasVendidos.isEmpty) {
+      return Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.0),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(child: Text('No hay datos de productos vendidos')),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _productosMasVendidos.length,
+        separatorBuilder: (context, index) =>
+            const Divider(height: 1, indent: 16, endIndent: 16),
+        itemBuilder: (context, index) {
+          final producto = _productosMasVendidos[index];
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(
+                context,
+              ).primaryColor.withValues(alpha: 0.1),
+              child: Text(
+                '${index + 1}',
+                style: TextStyle(
+                  color: Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            title: Text(
+              producto['nombre'] ?? 'Producto desconocido',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            subtitle: Text('${producto['cantidad']} unidades'),
+            trailing: Text(
+              _formatearMoneda((producto['total'] as num).toDouble()),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
 
   @override
   void dispose() {
+    debugPrint('Dispose de ReportsScreen - Removiendo listeners');
+    // Importante: Remover el listener cuando el widget se destruya
+    try {
+      _transactionNotifier.transactionsNotifier.removeListener(
+        _onTransactionUpdated,
+      );
+      debugPrint('Listener de transacciones removido correctamente');
+    } catch (e) {
+      debugPrint('Error al remover listener de transacciones: $e');
+    }
+
     _tabController.dispose();
     _dataUpdated.dispose();
     super.dispose();
