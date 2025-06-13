@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sql;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:sqflite/sqflite.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/settings_service.dart';
@@ -10,18 +7,15 @@ import 'services/product_notifier_service.dart';
 import 'utils/currency_formatter.dart';
 
 void main() async {
-  // Initialize FFI for non-web platforms
-  if (!kIsWeb) {
-    sql.sqfliteFfiInit();
-    databaseFactory = sql.databaseFactoryFfi;
-  }
+  // No es necesaria ninguna configuración especial para SQLite
+  // sqflite usará automáticamente la implementación correcta según la plataforma
   
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize services
+  // Inicializar servicios
   await SettingsService.init();
   
-  // Initialize currency formatter
+  // Inicializar el formateador de moneda
   final settings = SettingsService();
   CurrencyFormatter.init(settings);
   

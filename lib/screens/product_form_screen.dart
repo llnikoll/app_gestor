@@ -549,47 +549,60 @@ class ProductFormScreenState extends State<ProductFormScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _selectedCategoria,
-                decoration: InputDecoration(
-                  hintText: 'Seleccione una categoría',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  value: _selectedCategoria,
+                  decoration: InputDecoration(
+                    hintText: 'Seleccione una categoría',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    isDense: true,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                  items: _categorias.map<DropdownMenuItem<String>>((categoria) {
+                    return DropdownMenuItem<String>(
+                      value: categoria.nombre,
+                      child: Text(
+                        categoria.nombre,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCategoria = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor seleccione una categoría';
+                    }
+                    return null;
+                  },
                 ),
-                items: _categorias.map<DropdownMenuItem<String>>((categoria) {
-                  return DropdownMenuItem<String>(
-                    value: categoria.nombre,
-                    child: Text(categoria.nombre),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCategoria = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor seleccione una categoría';
-                  }
-                  return null;
-                },
               ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: _mostrarDialogoNuevaCategoria,
-              icon: const Icon(Icons.add_circle_outline, size: 32),
-              tooltip: 'Agregar categoría',
-            ),
-          ],
+              const SizedBox(width: 8),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 2), // Match the input field's border
+                child: IconButton(
+                  onPressed: _mostrarDialogoNuevaCategoria,
+                  icon: const Icon(Icons.add_circle_outline, size: 32),
+                  tooltip: 'Agregar categoría',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ),
+            ],
+          ),
         ),
         if (_categorias.isEmpty)
           const Padding(
@@ -848,33 +861,46 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextButton.icon(
-                      onPressed: _pickImage,
-                      icon: const Icon(Icons.photo_library, size: 20),
-                      label: const Text('Galería'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 140),
+                        child: TextButton.icon(
+                          onPressed: _pickImage,
+                          icon: const Icon(Icons.photo_library, size: 20),
+                          label: const Text('Galería'),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            minimumSize: const Size(120, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    TextButton.icon(
-                      onPressed: _takePhoto,
-                      icon: const Icon(Icons.camera_alt, size: 20),
-                      label: const Text('Cámara'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 140),
+                        child: TextButton.icon(
+                          onPressed: _takePhoto,
+                          icon: const Icon(Icons.camera_alt, size: 20),
+                          label: const Text('Cámara'),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            minimumSize: const Size(120, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),

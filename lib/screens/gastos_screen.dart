@@ -224,27 +224,62 @@ class _GastosScreenState extends State<GastosScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _seleccionarFechaInicio,
-                          icon: const Icon(Icons.calendar_today, size: 16),
-                          label: Text(_dateFormat.format(_fechaInicio)),
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Text('hasta'),
-                      ),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _seleccionarFechaFin,
-                          icon: const Icon(Icons.calendar_today, size: 16),
-                          label: Text(_dateFormat.format(_fechaFin)),
-                        ),
-                      ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 1.0),
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 2.0),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: _seleccionarFechaInicio,
+                                icon: const Icon(Icons.calendar_today, size: 14),
+                                label: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    _dateFormat.format(_fechaInicio),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 2.0),
+                            child: Text('hasta', style: TextStyle(fontSize: 13)),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 1.0),
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 2.0),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: _seleccionarFechaFin,
+                                icon: const Icon(Icons.calendar_today, size: 14),
+                                label: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    _dateFormat.format(_fechaFin),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 4),
                   Container(

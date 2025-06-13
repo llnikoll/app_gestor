@@ -348,7 +348,7 @@ class HomeScreenState extends State<HomeScreen> {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 12, // Aumentado de 8 a 12
-                                        horizontal: 8,  // Aumentado de 4 a 8
+                                        horizontal: 8, // Aumentado de 4 a 8
                                       ),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
@@ -357,16 +357,19 @@ class HomeScreenState extends State<HomeScreen> {
                                             isSelected
                                                 ? item.selectedIcon
                                                 : item.icon,
-                                            size: 26,  // Aumentado de 20 a 26
+                                            size: 26, // Aumentado de 20 a 26
                                             color: isSelected
                                                 ? Theme.of(context).primaryColor
                                                 : null,
                                           ),
-                                          const SizedBox(height: 8), // Aumentado de 4 a 8
+                                          const SizedBox(
+                                            height: 8,
+                                          ), // Aumentado de 4 a 8
                                           Text(
                                             item.title,
                                             style: TextStyle(
-                                              fontSize: 13, // Aumentado de 10 a 13
+                                              fontSize:
+                                                  13, // Aumentado de 10 a 13
                                               fontWeight: isSelected
                                                   ? FontWeight.w600
                                                   : FontWeight.normal,
@@ -396,25 +399,39 @@ class HomeScreenState extends State<HomeScreen> {
                           onDestinationSelected: onItemTapped,
                           labelType: NavigationRailLabelType.all,
                           minWidth: 140, // Aumentado de 100 a 140
-                          minExtendedWidth: 140, // Añadido para asegurar el ancho mínimo
+                          minExtendedWidth:
+                              140, // Añadido para asegurar el ancho mínimo
                           groupAlignment: 0.0, // Centrar los ítems
-                          leading: const SizedBox(height: 20), // Espacio adicional en la parte superior
-                          trailing: const SizedBox(height: 20), // Espacio adicional en la parte inferior
+                          leading: const SizedBox(
+                            height: 20,
+                          ), // Espacio adicional en la parte superior
+                          trailing: const SizedBox(
+                            height: 20,
+                          ), // Espacio adicional en la parte inferior
                           destinations: NavigationItem.items.map((item) {
                             return NavigationRailDestination(
-                              icon: Icon(item.icon, size: 26), // Aumentado de 20 a 26
+                              icon: Icon(
+                                item.icon,
+                                size: 26,
+                              ), // Aumentado de 20 a 26
                               label: Padding(
-                                padding: const EdgeInsets.only(top: 6), // Añadido espacio arriba del texto
+                                padding: const EdgeInsets.only(
+                                  top: 6,
+                                ), // Añadido espacio arriba del texto
                                 child: Text(
                                   item.title,
                                   style: const TextStyle(
                                     fontSize: 13, // Aumentado de 10 a 13
-                                    fontWeight: FontWeight.w500, // Texto un poco más grueso
+                                    fontWeight: FontWeight
+                                        .w500, // Texto un poco más grueso
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
-                              selectedIcon: Icon(item.selectedIcon, size: 26), // Aumentado de 20 a 26
+                              selectedIcon: Icon(
+                                item.selectedIcon,
+                                size: 26,
+                              ), // Aumentado de 20 a 26
                             );
                           }).toList(),
                         );
@@ -430,7 +447,9 @@ class HomeScreenState extends State<HomeScreen> {
                     children: [
                       Container(
                         height: 1,
-                        margin: const EdgeInsets.symmetric(horizontal: 12), // Aumentado de 8 a 12
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ), // Aumentado de 8 a 12
                         color: Theme.of(context).dividerColor,
                       ),
                       const SizedBox(height: 12), // Añadido espacio
@@ -442,16 +461,21 @@ class HomeScreenState extends State<HomeScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             vertical: 12, // Aumentado de 8 a 12
-                            horizontal: 8,  // Aumentado de 4 a 8
+                            horizontal: 8, // Aumentado de 4 a 8
                           ),
                           child: const Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.logout, size: 24), // Aumentado de 18 a 24
+                              Icon(
+                                Icons.logout,
+                                size: 24,
+                              ), // Aumentado de 18 a 24
                               SizedBox(height: 6), // Aumentado de 2 a 6
                               Text(
                                 'Cerrar Sesión', // Texto más descriptivo
-                                style: TextStyle(fontSize: 13), // Aumentado de 10 a 13
+                                style: TextStyle(
+                                  fontSize: 13,
+                                ), // Aumentado de 10 a 13
                               ),
                             ],
                           ),

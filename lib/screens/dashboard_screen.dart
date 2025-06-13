@@ -18,7 +18,11 @@ class DashboardScreen extends StatefulWidget {
 class DashboardScreenState extends State<DashboardScreen> {
   ProductNotifierService? _productNotifier;
   late Future<Map<String, dynamic>> _dashboardData;
-  final currencyFormat = NumberFormat.currency(symbol: 'Gs. ', decimalDigits: 0, locale: 'es_PY');
+  final currencyFormat = NumberFormat.currency(
+    symbol: 'Gs. ',
+    decimalDigits: 0,
+    locale: 'es_PY',
+  );
   final numberFormat = NumberFormat.decimalPattern();
 
   @override
@@ -29,28 +33,20 @@ class DashboardScreenState extends State<DashboardScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    // Obtener el notificador de productos solo una vez
     _productNotifier ??= Provider.of<ProductNotifierService>(
       context,
       listen: false,
     );
-
-    // Escuchar cambios en el notificador
     _productNotifier!.notifier.addListener(_onProductUpdate);
-
-    // Cargar datos iniciales
     _loadDashboardData();
   }
 
   @override
   void dispose() {
-    // Limpiar el listener cuando el widget se destruya
     _productNotifier?.notifier.removeListener(_onProductUpdate);
     super.dispose();
   }
 
-  // Método que se ejecuta cuando hay una actualización de productos
   void _onProductUpdate() {
     if (mounted) {
       _loadDashboardData();
@@ -67,13 +63,9 @@ class DashboardScreenState extends State<DashboardScreen> {
     try {
       final db = DatabaseService();
       final products = await db.getProductos();
-
-      // Calcular estadísticas
       final totalProducts = products.length;
       final lowStockProducts = products.where((p) => p.stock < 10).length;
       final outOfStockProducts = products.where((p) => p.stock <= 0).length;
-
-      // Calcular valor total del inventario
       double totalInventoryValue = 0;
       for (var product in products) {
         try {
@@ -88,13 +80,8 @@ class DashboardScreenState extends State<DashboardScreen> {
           rethrow;
         }
       }
-
-      // Obtener productos más vendidos (vacío por ahora hasta tener datos reales)
       final topSellingProducts = <Producto>[];
-
-      // Ventas recientes (vacío por ahora hasta tener datos reales)
       final recentSales = <Map<String, dynamic>>[];
-
       return {
         'totalProducts': totalProducts,
         'lowStockProducts': lowStockProducts,
@@ -116,9 +103,10 @@ class DashboardScreenState extends State<DashboardScreen> {
     Color color,
   ) {
     return Card(
-      elevation: 2,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,33 +115,38 @@ class DashboardScreenState extends State<DashboardScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.2),
+                    color: color.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: color, size: 18),
+                  child: Icon(icon, color: color, size: 24),
                 ),
                 const Spacer(),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Flexible(
               child: Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Flexible(
               child: Text(
                 title,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -168,10 +161,19 @@ class DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Panel de Control'),
+        title: const Text(
+          'Panel de Control',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: Theme.of(context).primaryColor,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadDashboardData,
           ),
         ],
@@ -180,7 +182,10 @@ class DashboardScreenState extends State<DashboardScreen> {
         builder: (context, constraints) {
           return SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 24.0,
+              ),
               child: FutureBuilder<Map<String, dynamic>>(
                 future: _dashboardData,
                 builder: (context, snapshot) {
@@ -191,17 +196,39 @@ class DashboardScreenState extends State<DashboardScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Error al cargar los datos'),
-                          const SizedBox(height: 8),
+                          Text(
+                            'Error al cargar los datos',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey[800],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           Text(
                             snapshot.error.toString(),
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.red),
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 14,
+                            ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           ElevatedButton(
                             onPressed: _loadDashboardData,
-                            child: const Text('Reintentar'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Reintentar',
+                              style: TextStyle(fontSize: 16),
+                            ),
                           ),
                         ],
                       ),
@@ -213,33 +240,22 @@ class DashboardScreenState extends State<DashboardScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Título y resumen
-                      const Text(
+                      Text(
                         'Resumen General',
                         style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Tarjetas de estadísticas
+                      const SizedBox(height: 20),
                       GridView.count(
-                        crossAxisCount: MediaQuery.of(context).size.width > 900
-                            ? 4
-                            : MediaQuery.of(context).size.width > 600
-                            ? 2
-                            : 1,
+                        crossAxisCount: _getCrossAxisCount(context),
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
-                        childAspectRatio:
-                            MediaQuery.of(context).size.width > 900
-                            ? 1.8
-                            : MediaQuery.of(context).size.width > 600
-                            ? 2.0
-                            : 2.2,
+                        childAspectRatio: _getChildAspectRatio(context),
                         children: [
                           _buildStatCard(
                             'Productos Totales',
@@ -267,49 +283,32 @@ class DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
-
-                      // Acciones rápidas
-                      const Padding(
-                        padding: EdgeInsets.only(top: 16.0, bottom: 8.0),
-                        child: Text(
-                          'Acciones Rápidas',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'Acciones Rápidas',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
                         ),
                       ),
+                      const SizedBox(height: 16),
                       GridView.count(
-                        crossAxisCount: MediaQuery.of(context).size.width > 900
-                            ? 4
-                            : MediaQuery.of(context).size.width > 600
-                            ? 2
-                            : 1,
+                        crossAxisCount: _getCrossAxisCount(context),
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
-                        childAspectRatio:
-                            MediaQuery.of(context).size.width > 900
-                            ? 4.0
-                            : MediaQuery.of(context).size.width > 600
-                            ? 3.5
-                            : 3.0,
+                        childAspectRatio: _getActionButtonAspectRatio(context),
                         children: [
-                          // Botón Nueva Venta
                           PrimaryButton(
                             text: 'Nueva Venta',
                             icon: Icons.point_of_sale,
                             onPressed: () {
-                              // Navegar a la pantalla de ventas usando el HomeScreenState
-                              HomeScreen.of(context)?.onItemTapped(
-                                1,
-                              ); // El índice 1 corresponde a la pantalla de ventas
+                              HomeScreen.of(context)?.onItemTapped(1);
                             },
-                            height: 50,
+                            height: 60,
                           ),
-                          // Botón Agregar Producto
                           PrimaryButton(
                             text: 'Agregar Producto',
                             icon: Icons.add_circle_outline,
@@ -318,42 +317,43 @@ class DashboardScreenState extends State<DashboardScreen> {
                                 context: context,
                                 builder: (BuildContext context) {
                                   return Dialog(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
                                     child: Container(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: SingleChildScrollView(
-                                        child: const ProductFormScreen(),
+                                      padding: const EdgeInsets.all(20.0),
+                                      constraints: BoxConstraints(
+                                        maxWidth: 500,
+                                        maxHeight:
+                                            MediaQuery.of(context).size.height *
+                                            0.8,
+                                      ),
+                                      child: const SingleChildScrollView(
+                                        child: ProductFormScreen(),
                                       ),
                                     ),
                                   );
                                 },
                               );
                               if (result == true) {
-                                // Recargar datos si es necesario
                                 _loadDashboardData();
                               }
                             },
-                            height: 50,
+                            height: 60,
                           ),
-                          // Botón Ver Inventario
                           PrimaryButton(
                             text: 'Ver Inventario',
                             icon: Icons.inventory,
                             onPressed: () {
-                              // Navegar a la pantalla de inventario
-                              HomeScreen.of(context)?.onItemTapped(
-                                2,
-                              ); // Ajusta el índice según corresponda
+                              HomeScreen.of(context)?.onItemTapped(2);
                             },
-                            height: 50,
+                            height: 60,
                           ),
-                          // Botón Generar Reporte
                           PrimaryButton(
                             text: 'Generar Reporte',
                             icon: Icons.bar_chart,
-                            onPressed: () {
-                              // Navegar a la pantalla de reportes
-                            },
-                            height: 50,
+                            onPressed: () {},
+                            height: 60,
                           ),
                         ],
                       ),
@@ -366,5 +366,29 @@ class DashboardScreenState extends State<DashboardScreen> {
         },
       ),
     );
+  }
+
+  int _getCrossAxisCount(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width > 1200) return 4;
+    if (width > 800) return 3;
+    if (width > 500) return 2;
+    return 1;
+  }
+
+  double _getChildAspectRatio(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width > 1200) return 1.6;
+    if (width > 800) return 1.8;
+    if (width > 500) return 2.0;
+    return 2.2;
+  }
+
+  double _getActionButtonAspectRatio(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width > 1200) return 3.5;
+    if (width > 800) return 3.0;
+    if (width > 500) return 2.8;
+    return 2.5;
   }
 }

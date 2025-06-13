@@ -164,6 +164,11 @@ class DatabaseService {
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onDowngrade: onDatabaseDowngradeDelete,
+      // Asegurarse de que se use la fábrica correcta
+      onConfigure: (db) async {
+        // Habilita las claves foráneas
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
     );
   }
 

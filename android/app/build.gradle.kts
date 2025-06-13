@@ -12,6 +12,13 @@ android {
     
     // Configuración para el NDK
     // No es necesario especificar ABI, ya que Flutter lo maneja automáticamente
+    
+    // Configuración para SQLite
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
