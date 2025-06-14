@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/producto_model.dart';
-import '../services/database_service.dart';
-import '../services/product_notifier_service.dart';
-import '../widgets/primary_button.dart';
-import 'home_screen.dart';
-import 'product_form_screen.dart';
+import '../models/producto_model.dart'; // Asegúrate que esta ruta sea correcta
+import '../services/database_service.dart'; // Asegúrate que esta ruta sea correcta
+import '../services/product_notifier_service.dart'; // Asegúrate que esta ruta sea correcta
+import '../widgets/primary_button.dart'; // Asegúrate que esta ruta sea correcta
+import 'home_screen.dart'; // Asegúrate que esta ruta sea correcta
+import 'product_form_screen.dart'; // Asegúrate que esta ruta sea correcta
 import 'package:intl/intl.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -19,26 +19,32 @@ class DashboardScreenState extends State<DashboardScreen> {
   ProductNotifierService? _productNotifier;
   late Future<Map<String, dynamic>> _dashboardData;
   final currencyFormat = NumberFormat.currency(
-    symbol: 'Gs. ',
-    decimalDigits: 0,
-    locale: 'es_PY',
+    symbol: 'Gs. ', // Símbolo de Guaraníes
+    decimalDigits: 0, // Sin decimales para Guaraníes
+    locale: 'es_PY', // Formato paraguayo
   );
-  final numberFormat = NumberFormat.decimalPattern();
+  final numberFormat = NumberFormat.decimalPattern(
+    'es_PY',
+  ); // Para números generales
 
   @override
   void initState() {
     super.initState();
+    // La carga inicial se moverá a didChangeDependencies para asegurar que
+    // _productNotifier esté disponible.
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _productNotifier ??= Provider.of<ProductNotifierService>(
-      context,
-      listen: false,
-    );
-    _productNotifier!.notifier.addListener(_onProductUpdate);
-    _loadDashboardData();
+    if (_productNotifier == null) {
+      _productNotifier = Provider.of<ProductNotifierService>(
+        context,
+        listen: false,
+      );
+      _productNotifier!.notifier.addListener(_onProductUpdate);
+      _loadDashboardData(); // Carga inicial de datos
+    }
   }
 
   @override
@@ -54,9 +60,11 @@ class DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadDashboardData() async {
-    setState(() {
-      _dashboardData = _getDashboardData();
-    });
+    if (mounted) {
+      setState(() {
+        _dashboardData = _getDashboardData();
+      });
+    }
   }
 
   Future<Map<String, dynamic>> _getDashboardData() async {
@@ -64,24 +72,22 @@ class DashboardScreenState extends State<DashboardScreen> {
       final db = DatabaseService();
       final products = await db.getProductos();
       final totalProducts = products.length;
-      final lowStockProducts = products.where((p) => p.stock < 10).length;
+      // Productos con stock bajo (entre 1 y 9 unidades)
+      final lowStockProducts = products
+          .where((p) => p.stock > 0 && p.stock < 10)
+          .length;
+      // Productos sin stock (0 o menos unidades)
       final outOfStockProducts = products.where((p) => p.stock <= 0).length;
+
       double totalInventoryValue = 0;
       for (var product in products) {
-        try {
-          debugPrint(
-            'Procesando producto: ${product.id} - ${product.nombre} - Precio: ${product.precioVenta} - Stock: ${product.stock}',
-          );
-          totalInventoryValue += product.precioVenta * product.stock;
-        } catch (e) {
-          debugPrint(
-            'Error procesando producto ${product.id} - ${product.nombre}: $e',
-          );
-          rethrow;
-        }
+        totalInventoryValue += product.precioVenta * product.stock;
       }
+
+      // Simulación de datos para futuras secciones. Reemplazar con lógica real.
       final topSellingProducts = <Producto>[];
       final recentSales = <Map<String, dynamic>>[];
+
       return {
         'totalProducts': totalProducts,
         'lowStockProducts': lowStockProducts,
@@ -96,60 +102,79 @@ class DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  int _getCrossAxisCount(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth < 600) return 2; // Móviles
+    if (screenWidth < 1024) return 3; // Tablets pequeñas, móviles en horizontal
+    return 4; // Tablets grandes, Escritorio
+  }
+
+  double _getChildAspectRatioForStats(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth < 600) {
+      return 1 / 1.15; // Tarjetas de estadísticas más altas en móviles
+    }
+    if (screenWidth < 1024) {
+      return 3 / 2.3;
+    }
+    return 3 / 2.2; // Tarjetas de estadísticas más anchas en pantallas grandes
+  }
+
+  double _getChildAspectRatioForActions(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth < 600) {
+      return 2 / 1.1; // Botones de acción ligeramente más altos
+    }
+    return 2.5 / 1; // Botones de acción más anchos en pantallas grandes
+  }
+
   Widget _buildStatCard(
     String title,
     String value,
     IconData icon,
     Color color,
   ) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                const Spacer(),
-              ],
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: Icon(icon, color: color, size: 26),
             ),
-            const SizedBox(height: 12),
-            Flexible(
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
               child: Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                style: textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
                 ),
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(height: 4),
-            Flexible(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[700],
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            Text(
+              title,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -159,236 +184,279 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Panel de Control',
           style: TextStyle(
-            fontSize: 22,
+            color: colorScheme.onPrimary,
             fontWeight: FontWeight.w600,
-            color: Colors.white,
           ),
         ),
-        backgroundColor: Theme.of(context).primaryColor,
-        elevation: 0,
+        backgroundColor: colorScheme.primary,
+        elevation: 1.0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
+            icon: Icon(Icons.refresh_rounded, color: colorScheme.onPrimary),
+            tooltip: 'Actualizar datos',
             onPressed: _loadDashboardData,
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20.0,
-                vertical: 24.0,
-              ),
-              child: FutureBuilder<Map<String, dynamic>>(
-                future: _dashboardData,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Error al cargar los datos',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[800],
-                              fontWeight: FontWeight.w500,
-                            ),
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        color: colorScheme.primary,
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: _dashboardData,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 60.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(color: colorScheme.primary),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Cargando datos...',
+                          style: textTheme.titleMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            snapshot.error.toString(),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 14,
-                            ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              } else if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.cloud_off_rounded,
+                          color: colorScheme.error,
+                          size: 50,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error al Cargar Datos',
+                          style: textTheme.titleLarge?.copyWith(
+                            color: colorScheme.onSurface,
                           ),
-                          const SizedBox(height: 20),
-                          ElevatedButton(
-                            onPressed: _loadDashboardData,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              'Reintentar',
-                              style: TextStyle(fontSize: 16),
-                            ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No se pudo conectar para obtener la información. Verifica tu conexión e inténtalo de nuevo.',
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
                           ),
-                        ],
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Reintentar'),
+                          onPressed: _loadDashboardData,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colorScheme.primary,
+                            foregroundColor: colorScheme.onPrimary,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            textStyle: textTheme.labelLarge,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              if (!snapshot.hasData ||
+                  snapshot.data == null ||
+                  snapshot.data!.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: colorScheme.secondary,
+                          size: 50,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No hay datos para mostrar',
+                          style: textTheme.titleLarge?.copyWith(
+                            color: colorScheme.onSurface,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Parece que aún no hay información registrada en el panel.',
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Actualizar'),
+                          onPressed: _loadDashboardData,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final data = snapshot.data!;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
+                    child: Text(
+                      'Resumen General',
+                      style: textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme
+                            .primary, // Destacar título con color primario
                       ),
-                    );
-                  }
-
-                  final data = snapshot.data!;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: _getCrossAxisCount(context),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: _getChildAspectRatioForStats(context),
                     children: [
-                      Text(
-                        'Resumen General',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
+                      _buildStatCard(
+                        'Productos Totales',
+                        numberFormat.format(data['totalProducts']),
+                        Icons.inventory_2_outlined,
+                        Colors.blue.shade700,
                       ),
-                      const SizedBox(height: 20),
-                      GridView.count(
-                        crossAxisCount: _getCrossAxisCount(context),
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: _getChildAspectRatio(context),
-                        children: [
-                          _buildStatCard(
-                            'Productos Totales',
-                            numberFormat.format(data['totalProducts']),
-                            Icons.inventory_2,
-                            Colors.blue,
-                          ),
-                          _buildStatCard(
-                            'Bajo Stock',
-                            '${data['lowStockProducts']}',
-                            Icons.warning_amber,
-                            Colors.orange,
-                          ),
-                          _buildStatCard(
-                            'Agotados',
-                            '${data['outOfStockProducts']}',
-                            Icons.error_outline,
-                            Colors.red,
-                          ),
-                          _buildStatCard(
-                            'Valor del Inventario',
-                            currencyFormat.format(data['totalInventoryValue']),
-                            Icons.attach_money,
-                            Colors.green,
-                          ),
-                        ],
+                      _buildStatCard(
+                        'Bajo Stock (<10)',
+                        numberFormat.format(data['lowStockProducts']),
+                        Icons.warning_amber_outlined,
+                        Colors.orange.shade700,
                       ),
-                      const SizedBox(height: 32),
-                      Text(
-                        'Acciones Rápidas',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
+                      _buildStatCard(
+                        'Agotados',
+                        numberFormat.format(data['outOfStockProducts']),
+                        Icons.error_outline_rounded,
+                        Colors.red.shade700,
                       ),
-                      const SizedBox(height: 16),
-                      GridView.count(
-                        crossAxisCount: _getCrossAxisCount(context),
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: _getActionButtonAspectRatio(context),
-                        children: [
-                          PrimaryButton(
-                            text: 'Nueva Venta',
-                            icon: Icons.point_of_sale,
-                            onPressed: () {
-                              HomeScreen.of(context)?.onItemTapped(1);
-                            },
-                            height: 60,
-                          ),
-                          PrimaryButton(
-                            text: 'Agregar Producto',
-                            icon: Icons.add_circle_outline,
-                            onPressed: () async {
-                              final result = await showDialog<bool>(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return Dialog(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(20.0),
-                                      constraints: BoxConstraints(
-                                        maxWidth: 500,
-                                        maxHeight:
-                                            MediaQuery.of(context).size.height *
-                                            0.8,
-                                      ),
-                                      child: const SingleChildScrollView(
-                                        child: ProductFormScreen(),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                              if (result == true) {
-                                _loadDashboardData();
-                              }
-                            },
-                            height: 60,
-                          ),
-                          PrimaryButton(
-                            text: 'Ver Inventario',
-                            icon: Icons.inventory,
-                            onPressed: () {
-                              HomeScreen.of(context)?.onItemTapped(2);
-                            },
-                            height: 60,
-                          ),
-                          PrimaryButton(
-                            text: 'Generar Reporte',
-                            icon: Icons.bar_chart,
-                            onPressed: () {},
-                            height: 60,
-                          ),
-                        ],
+                      _buildStatCard(
+                        'Valor Inventario', // Título más corto
+                        currencyFormat.format(data['totalInventoryValue']),
+                        Icons.monetization_on_outlined,
+                        Colors.green.shade700,
                       ),
                     ],
-                  );
-                },
-              ),
-            ),
-          );
-        },
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(
+                      'Acciones Rápidas',
+                      style: textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: _getCrossAxisCount(context),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: _getChildAspectRatioForActions(context),
+                    children: [
+                      PrimaryButton(
+                        text: 'Nueva Venta',
+                        icon: Icons.point_of_sale_rounded,
+                        onPressed: () =>
+                            HomeScreen.of(context)?.onItemTapped(1),
+                      ),
+                      PrimaryButton(
+                        text: 'Agregar Producto',
+                        icon: Icons.add_shopping_cart_rounded,
+                        onPressed: () async {
+                          final result = await showDialog<bool>(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return Dialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                insetPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20.0,
+                                  vertical: 24.0,
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: 600,
+                                      maxHeight:
+                                          MediaQuery.of(context).size.height *
+                                          0.8,
+                                    ),
+                                    child: const ProductFormScreen(),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                          if (result == true) _loadDashboardData();
+                        },
+                      ),
+                      PrimaryButton(
+                        text: 'Ver Inventario',
+                        icon: Icons.inventory_rounded,
+                        onPressed: () =>
+                            HomeScreen.of(context)?.onItemTapped(2),
+                      ),
+                      PrimaryButton(
+                        text: 'Generar Reporte',
+                        icon: Icons.bar_chart_rounded,
+                        onPressed: () =>
+                            HomeScreen.of(context)?.onItemTapped(4),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20), // Espacio final
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
-  }
-
-  int _getCrossAxisCount(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width > 1200) return 4;
-    if (width > 800) return 3;
-    if (width > 500) return 2;
-    return 1;
-  }
-
-  double _getChildAspectRatio(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width > 1200) return 1.6;
-    if (width > 800) return 1.8;
-    if (width > 500) return 2.0;
-    return 2.2;
-  }
-
-  double _getActionButtonAspectRatio(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width > 1200) return 3.5;
-    if (width > 800) return 3.0;
-    if (width > 500) return 2.8;
-    return 2.5;
   }
 }

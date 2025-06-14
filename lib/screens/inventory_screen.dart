@@ -472,12 +472,23 @@ class InventoryScreenState extends State<InventoryScreen>
                                       context: context,
                                       builder: (BuildContext context) {
                                         return Dialog(
-                                          child: Container(
-                                            padding: const EdgeInsets.all(16.0),
-                                            child: SingleChildScrollView(
-                                              child: ProductFormScreen(
-                                                product: producto,
-                                              ),
+                                          child: SizedBox(
+                                            width: 600,
+                                            height: MediaQuery.of(context).size.height * 0.9,
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Expanded(
+                                                  child: SingleChildScrollView(
+                                                    padding: const EdgeInsets.all(16.0),
+                                                    child: IntrinsicWidth(
+                                                      child: ProductFormScreen(
+                                                        product: producto,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         );
@@ -508,10 +519,21 @@ class InventoryScreenState extends State<InventoryScreen>
                   context: context,
                   builder: (BuildContext context) {
                     return Dialog(
-                      child: Container(
-                        padding: const EdgeInsets.all(16.0),
-                        child: SingleChildScrollView(
-                          child: const ProductFormScreen(),
+                      child: SizedBox(
+                        width: 600,
+                        height: MediaQuery.of(context).size.height * 0.9,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Expanded(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(16.0),
+                                child: const IntrinsicWidth(
+                                  child: ProductFormScreen(),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );

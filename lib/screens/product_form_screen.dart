@@ -47,35 +47,29 @@ class ProductFormScreenState extends State<ProductFormScreen> {
   void initState() {
     super.initState();
     _isEditing = widget.product != null;
-    
+
     // Inicializar controladores con datos del producto si existe
     if (widget.product != null) {
       final product = widget.product!;
       _codigoBarrasController = TextEditingController(
         text: product.codigoBarras,
       );
-      _nombreController = TextEditingController(
-        text: product.nombre,
-      );
-      _descripcionController = TextEditingController(
-        text: product.descripcion,
-      );
-      
+      _nombreController = TextEditingController(text: product.nombre);
+      _descripcionController = TextEditingController(text: product.descripcion);
+
       // Formatear precios sin decimales y con separadores de miles
       final priceFormat = NumberFormat('#,##0', 'es-PY');
-      
+
       _precioCompraController = TextEditingController(
         text: priceFormat.format(product.precioCompra.toInt()),
       );
-      
+
       _precioVentaController = TextEditingController(
         text: priceFormat.format(product.precioVenta.toInt()),
       );
-      
-      _stockController = TextEditingController(
-        text: product.stock.toString(),
-      );
-      
+
+      _stockController = TextEditingController(text: product.stock.toString());
+
       _selectedCategoria = product.categoria;
       _imagenPath = product.imagenUrl;
     } else {
@@ -131,12 +125,25 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Nueva Categoría'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.category, color: Colors.deepPurple),
+            SizedBox(width: 8),
+            Text('Nueva Categoría'),
+          ],
+        ),
         content: TextField(
           controller: _nuevaCategoriaController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Nombre de la categoría',
             hintText: 'Ej: Bebidas, Snacks, etc.',
+            prefixIcon: const Icon(Icons.label_outline),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.deepPurple, width: 2),
+            ),
           ),
           autofocus: true,
         ),
@@ -151,7 +158,13 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                 Navigator.pop(context, true);
               }
             },
-            child: const Text('Guardar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -211,21 +224,26 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       if (imagePath.isEmpty) return '';
 
       // Normalizar los separadores de ruta
-      imagePath = imagePath.replaceAll('/', Platform.pathSeparator).replaceAll('\\', Platform.pathSeparator);
+      imagePath = imagePath
+          .replaceAll('/', Platform.pathSeparator)
+          .replaceAll('\\', Platform.pathSeparator);
 
       // Verificar si la imagen ya está en el directorio de la aplicación
       if (imagePath.contains('product_images')) {
         // Si ya está en el directorio de imágenes, devolver solo el nombre del archivo
         final fileName = path.basename(imagePath);
-        debugPrint('La imagen ya está en el directorio de la aplicación: $fileName');
+        debugPrint(
+          'La imagen ya está en el directorio de la aplicación: $fileName',
+        );
         return fileName;
       }
 
       // Usar el directorio de documentos de la aplicación
       final Directory appDir = await getApplicationDocumentsDirectory();
-      final String imagesPath = '${appDir.path}${Platform.pathSeparator}product_images';
+      final String imagesPath =
+          '${appDir.path}${Platform.pathSeparator}product_images';
       final Directory imagesDir = Directory(imagesPath);
-      
+
       // Crear directorio para las imágenes si no existe
       if (!await imagesDir.exists()) {
         await imagesDir.create(recursive: true);
@@ -235,7 +253,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final extension = path.extension(imagePath).toLowerCase();
       final fileName = 'product_$timestamp$extension';
-      
+
       // Usar path.join para manejar correctamente los separadores de ruta
       final String fullPath = path.join(imagesDir.path, fileName);
 
@@ -280,10 +298,12 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     if (fileName.isEmpty) return '';
 
     // Normalizar los separadores de ruta
-    fileName = fileName.replaceAll('\\', Platform.pathSeparator).replaceAll('/', Platform.pathSeparator);
+    fileName = fileName
+        .replaceAll('\\', Platform.pathSeparator)
+        .replaceAll('/', Platform.pathSeparator);
 
     // Si ya es una ruta completa, devolverla tal cual
-    if (path.isAbsolute(fileName) || 
+    if (path.isAbsolute(fileName) ||
         fileName.startsWith('file:') ||
         (fileName.contains(':') && Platform.isWindows)) {
       return fileName;
@@ -294,7 +314,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       final Directory appDir = await getApplicationDocumentsDirectory();
       final String imagesPath = path.join(appDir.path, 'product_images');
       final Directory imagesDir = Directory(imagesPath);
-      
+
       // Asegurarse de que el directorio exista
       if (!await imagesDir.exists()) {
         await imagesDir.create(recursive: true);
@@ -303,7 +323,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       // Construir la ruta completa usando path.join
       final fullPath = path.join(imagesDir.path, path.basename(fileName));
       debugPrint('Resolviendo ruta de imagen: $fileName -> $fullPath');
-      
+
       // Verificar si el archivo existe
       final file = File(fullPath);
       if (await file.exists()) {
@@ -324,37 +344,48 @@ class ProductFormScreenState extends State<ProductFormScreen> {
 
     try {
       // Normalizar los separadores de ruta
-      final normalizedPath = fileName.replaceAll('\\', Platform.pathSeparator).replaceAll('/', Platform.pathSeparator);
-      
+      final normalizedPath = fileName
+          .replaceAll('\\', Platform.pathSeparator)
+          .replaceAll('/', Platform.pathSeparator);
+
       // Primero verificar si la ruta ya es absoluta
       final file = File(normalizedPath);
       if (await file.exists()) {
-        debugPrint('_checkIfFileExists: Archivo encontrado en ruta: $normalizedPath');
+        debugPrint(
+          '_checkIfFileExists: Archivo encontrado en ruta: $normalizedPath',
+        );
         return true;
       }
 
       // Si no es una ruta absoluta, intentar con la ruta completa
       final fullPath = await _getFullImagePath(normalizedPath);
       if (fullPath.isEmpty) {
-        debugPrint('_checkIfFileExists: No se pudo obtener ruta para: $normalizedPath');
+        debugPrint(
+          '_checkIfFileExists: No se pudo obtener ruta para: $normalizedPath',
+        );
         return false;
       }
 
       final fullFile = File(fullPath);
       final exists = await fullFile.exists();
       debugPrint('_checkIfFileExists: Verificando $fullPath - Existe: $exists');
-      
+
       if (!exists) {
         // Si no existe, verificar si el archivo está en el directorio de documentos
         final appDir = await getApplicationDocumentsDirectory();
-        final possiblePath = path.join(appDir.path, path.basename(normalizedPath));
+        final possiblePath = path.join(
+          appDir.path,
+          path.basename(normalizedPath),
+        );
         final possibleFile = File(possiblePath);
         if (await possibleFile.exists()) {
-          debugPrint('_checkIfFileExists: Archivo encontrado en documentos: $possiblePath');
+          debugPrint(
+            '_checkIfFileExists: Archivo encontrado en documentos: $possiblePath',
+          );
           return true;
         }
       }
-      
+
       return exists;
     } catch (e) {
       debugPrint('Error en _checkIfFileExists para $fileName: $e');
@@ -429,13 +460,19 @@ class ProductFormScreenState extends State<ProductFormScreen> {
 
       // Si hay una imagen, asegurarse de que se guarde en el directorio de la app
       String? imagenUrl = _imagenPath;
-      if (imagenUrl != null && !imagenUrl.contains('product_images') && File(imagenUrl).existsSync()) {
+      if (imagenUrl != null &&
+          !imagenUrl.contains('product_images') &&
+          File(imagenUrl).existsSync()) {
         imagenUrl = await _saveImageToAppDir(imagenUrl);
       }
 
       // Limpiar los puntos de los miles y convertir a double
-      final precioCompra = double.parse(_precioCompraController.text.replaceAll('.', ''));
-      final precioVenta = double.parse(_precioVentaController.text.replaceAll('.', ''));
+      final precioCompra = double.parse(
+        _precioCompraController.text.replaceAll('.', ''),
+      );
+      final precioVenta = double.parse(
+        _precioVentaController.text.replaceAll('.', ''),
+      );
 
       if (_isEditing) {
         // Actualizar el producto existente
@@ -453,7 +490,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
           fechaActualizacion: DateTime.now(),
           activo: widget.product?.activo ?? true,
         );
-        
+
         debugPrint('Actualizando producto: ${productoActualizado.toMap()}');
         final result = await db.updateProducto(productoActualizado);
         debugPrint('Resultado de la actualización: $result');
@@ -480,7 +517,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
           context,
           listen: false,
         );
-        
+
         // Notificar después de que se haya completado el guardado
         WidgetsBinding.instance.addPostFrameCallback((_) {
           productNotifier.notifyProductUpdate();
@@ -533,9 +570,15 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       children: [
         Row(
           children: [
+            const Icon(
+              Icons.category_outlined,
+              size: 18,
+              color: Colors.deepPurple,
+            ),
+            const SizedBox(width: 6),
             const Text(
               'Categoría',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(width: 4),
             Text(
@@ -548,25 +591,51 @@ class ProductFormScreenState extends State<ProductFormScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: DropdownButtonFormField<String>(
                   isExpanded: true,
                   value: _selectedCategoria,
                   decoration: InputDecoration(
                     hintText: 'Seleccione una categoría',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                    prefixIcon: const Icon(
+                      Icons.label_outline,
+                      color: Colors.deepPurple,
                     ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.deepPurple,
+                        width: 2,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 12,
+                      vertical: 16,
                     ),
-                    isDense: true,
                   ),
                   items: _categorias.map<DropdownMenuItem<String>>((categoria) {
                     return DropdownMenuItem<String>(
@@ -574,6 +643,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       child: Text(
                         categoria.nombre,
                         overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 16),
                       ),
                     );
                   }).toList(),
@@ -590,26 +660,48 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                   },
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 2), // Match the input field's border
-                child: IconButton(
-                  onPressed: _mostrarDialogoNuevaCategoria,
-                  icon: const Icon(Icons.add_circle_outline, size: 32),
-                  tooltip: 'Agregar categoría',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ],
-          ),
+              child: IconButton(
+                onPressed: _mostrarDialogoNuevaCategoria,
+                icon: const Icon(
+                  Icons.add_circle_outline,
+                  size: 28,
+                  color: Colors.deepPurple,
+                ),
+                tooltip: 'Agregar categoría',
+                padding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
         ),
         if (_categorias.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 8.0),
-            child: Text(
-              'No hay categorías. Crea una nueva categoría haciendo clic en el botón +',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+          Padding(
+            padding: const EdgeInsets.only(top: 12.0),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No hay categorías. Crea una nueva categoría haciendo clic en el botón +',
+                      style: TextStyle(fontSize: 13, color: Colors.amber),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -618,55 +710,138 @@ class ProductFormScreenState extends State<ProductFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+    final maxWidth = isTablet ? 800.0 : double.infinity;
+
     return Dialog(
-      child: SingleChildScrollView(
+      insetPadding: EdgeInsets.all(isTablet ? 40 : 16),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: maxWidth,
+          maxHeight: MediaQuery.of(context).size.height * 0.95,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AppBar(
-              title: Text(_isEditing ? 'Editar Producto' : 'Nuevo Producto'),
-              automaticallyImplyLeading: false,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context, false),
+            // Header mejorado
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.deepPurple, Colors.deepPurple.shade400],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                if (_isEditing)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: _confirmDeleteProduct,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: AppBar(
+                title: Row(
+                  children: [
+                    Icon(
+                      _isEditing ? Icons.edit : Icons.add_shopping_cart,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isEditing ? 'Editar Producto' : 'Nuevo Producto',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                automaticallyImplyLeading: false,
+                actions: [
+                  if (_isEditing)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.white),
+                        onPressed: _confirmDeleteProduct,
+                        tooltip: 'Eliminar producto',
+                      ),
+                    ),
+                  Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context, false),
+                      tooltip: 'Cerrar',
+                    ),
                   ),
-              ],
+                ],
+              ),
             ),
-            Padding(padding: const EdgeInsets.all(16.0), child: _buildForm()),
-            // Botón de guardar en la parte inferior
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton.icon(
-                onPressed: _saveProduct,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+
+            // Contenido principal
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(isTablet ? 32 : 20),
+                child: _buildForm(),
+              ),
+            ),
+
+            // Footer con botón de guardar mejorado
+            Container(
+              padding: EdgeInsets.all(isTablet ? 32 : 20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _saveProduct,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 32,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                    shadowColor: Colors.deepPurple.withValues(alpha: 0.3),
                   ),
-                ),
-                icon: _isLoading 
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.save, size: 20),
-                label: Text(
-                  _isEditing ? 'ACTUALIZAR PRODUCTO' : 'GUARDAR PRODUCTO',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Icon(_isEditing ? Icons.update : Icons.save, size: 20),
+                  label: Text(
+                    _isLoading
+                        ? 'Guardando...'
+                        : _isEditing
+                        ? 'ACTUALIZAR PRODUCTO'
+                        : 'GUARDAR PRODUCTO',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ),
@@ -804,15 +979,16 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                                           width: 150,
                                           height: 150,
                                           fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            return const Center(
-                                              child: Icon(
-                                                Icons.broken_image,
-                                                size: 50,
-                                                color: Colors.grey,
-                                              ),
-                                            );
-                                          },
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return const Center(
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    size: 50,
+                                                    color: Colors.grey,
+                                                  ),
+                                                );
+                                              },
                                         ),
                                       );
                                     },
@@ -958,19 +1134,22 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       keyboardType: TextInputType.number,
                       isRequired: true,
                       textInputAction: TextInputAction.next,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (value) {
                         if (value.isNotEmpty) {
                           final cleanValue = value.replaceAll('.', '');
                           final number = int.tryParse(cleanValue) ?? 0;
-                          final formatted = NumberFormat('#,##0', 'es-PY').format(number);
-                          
+                          final formatted = NumberFormat(
+                            '#,##0',
+                            'es-PY',
+                          ).format(number);
+
                           if (formatted != value) {
                             _precioCompraController.value = TextEditingValue(
                               text: formatted,
-                              selection: TextSelection.collapsed(offset: formatted.length),
+                              selection: TextSelection.collapsed(
+                                offset: formatted.length,
+                              ),
                             );
                           }
                         }
@@ -997,19 +1176,22 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       keyboardType: TextInputType.number,
                       isRequired: true,
                       textInputAction: TextInputAction.next,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (value) {
                         if (value.isNotEmpty) {
                           final cleanValue = value.replaceAll('.', '');
                           final number = int.tryParse(cleanValue) ?? 0;
-                          final formatted = NumberFormat('#,##0', 'es-PY').format(number);
-                          
+                          final formatted = NumberFormat(
+                            '#,##0',
+                            'es-PY',
+                          ).format(number);
+
                           if (formatted != value) {
                             _precioVentaController.value = TextEditingValue(
                               text: formatted,
-                              selection: TextSelection.collapsed(offset: formatted.length),
+                              selection: TextSelection.collapsed(
+                                offset: formatted.length,
+                              ),
                             );
                           }
                         }

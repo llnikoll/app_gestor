@@ -183,10 +183,11 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Future<void> _selectDateRange(BuildContext context) async {
+    final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      lastDate: now,
       initialDateRange: _selectedDateRange,
       builder: (context, child) {
         return Theme(
@@ -208,21 +209,28 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
 
     if (picked != null && mounted) {
+      // Set start time to 00:00:00.000
+      final start = DateTime(
+        picked.start.year,
+        picked.start.month,
+        picked.start.day,
+      );
+
+      // Set end time to 23:59:59.999
+      final end = DateTime(
+        picked.end.year,
+        picked.end.month,
+        picked.end.day,
+        23,
+        59,
+        59,
+        999,
+      );
+
       setState(() {
-        _selectedDateRange = DateTimeRange(
-          start: picked.start,
-          end: DateTime(
-            picked.end.year,
-            picked.end.month,
-            picked.end.day,
-            23,
-            59,
-            59,
-            999,
-          ),
-        );
+        _selectedDateRange = DateTimeRange(start: start, end: end);
       });
-      await _cargarDatos();
+      _cargarTodo();
     }
   }
 
@@ -237,6 +245,13 @@ class _ReportsScreenState extends State<ReportsScreen>
     int ventasCountDiaSeleccionado = 0;
     final productosMap = <String, Map<String, dynamic>>{};
 
+    // Create date-only variables for comparison
+    final selectedEndDate = DateTime(
+      _selectedDateRange.end.year,
+      _selectedDateRange.end.month,
+      _selectedDateRange.end.day,
+    );
+
     for (var venta in ventas) {
       final fecha = DateTime(
         venta.fecha.year,
@@ -247,9 +262,8 @@ class _ReportsScreenState extends State<ReportsScreen>
         ventasPorDia[fecha] = (ventasPorDia[fecha] ?? 0) + venta.total;
         totalVentas += venta.total;
 
-        if (fecha.day == _selectedDateRange.end.day &&
-            fecha.month == _selectedDateRange.end.month &&
-            fecha.year == _selectedDateRange.end.year) {
+        // Compare with the date-only version of the end date
+        if (fecha.isAtSameMomentAs(selectedEndDate)) {
           ventasDiaSeleccionado += venta.total;
           ventasCountDiaSeleccionado++;
         }
@@ -315,6 +329,13 @@ class _ReportsScreenState extends State<ReportsScreen>
     _gastosCountDiaSeleccionado = 0;
     _gastosDiaSeleccionadoLista = [];
 
+    // Create date-only variables for comparison
+    final selectedEndDate = DateTime(
+      _selectedDateRange.end.year,
+      _selectedDateRange.end.month,
+      _selectedDateRange.end.day,
+    );
+
     for (var gasto in gastos) {
       final fecha = DateTime(
         gasto.fecha.year,
@@ -325,9 +346,8 @@ class _ReportsScreenState extends State<ReportsScreen>
         gastosPorDia[fecha] = (gastosPorDia[fecha] ?? 0) + gasto.monto;
         totalGastos += gasto.monto;
 
-        if (fecha.day == _selectedDateRange.end.day &&
-            fecha.month == _selectedDateRange.end.month &&
-            fecha.year == _selectedDateRange.end.year) {
+        // Compare with the date-only version of the end date
+        if (fecha.isAtSameMomentAs(selectedEndDate)) {
           _gastosDiaSeleccionado += gasto.monto;
           _gastosCountDiaSeleccionado++;
           _gastosDiaSeleccionadoLista.add({
@@ -650,51 +670,68 @@ class _ReportsScreenState extends State<ReportsScreen>
         icon = Icons.analytics_rounded;
     }
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(isLargeScreen ? 24 : 16),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(isLargeScreen ? 12 : 8),
-              decoration: BoxDecoration(
-                color: data.color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: data.color,
-                size: isLargeScreen ? 32 : 24,
-              ),
-            ),
-            SizedBox(width: isLargeScreen ? 16 : 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    data.concepto,
-                    style: TextStyle(
-                      fontSize: isLargeScreen ? 18 : 16,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
-                    ),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: double.infinity,
+        minHeight: isLargeScreen ? 120 : 100,
+      ),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+        child: Padding(
+          padding: EdgeInsets.all(isLargeScreen ? 16 : 12),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(isLargeScreen ? 12 : 10),
+                  decoration: BoxDecoration(
+                    color: data.color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  SizedBox(height: isLargeScreen ? 8 : 4),
-                  Text(
-                    _formatearMoneda(data.monto),
-                    style: TextStyle(
-                      fontSize: isLargeScreen ? 22 : 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Icon(
+                    icon,
+                    color: data.color,
+                    size: isLargeScreen ? 28 : 24,
                   ),
-                ],
-              ),
+                ),
+                SizedBox(width: isLargeScreen ? 16 : 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        data.concepto,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isLargeScreen ? 16 : 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      SizedBox(height: isLargeScreen ? 6 : 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _formatearMoneda(data.monto),
+                          style: TextStyle(
+                            fontSize: isLargeScreen ? 20 : 18,
+                            fontWeight: FontWeight.bold,
+                            color: data.color,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
