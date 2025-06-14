@@ -2351,6 +2351,7 @@ class SalesScreenState extends State<SalesScreen>
       ),
       floatingActionButton: _carrito.isNotEmpty
           ? FloatingActionButton.extended(
+              heroTag: 'sales_fab',
               onPressed: _carrito.isEmpty ? null : _mostrarDialogoCarrito,
               backgroundColor: _carrito.isEmpty
                   ? Colors.grey[400]

@@ -358,6 +358,7 @@ class _GastosScreenState extends State<GastosScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'expenses_fab',
         onPressed: _mostrarOpciones,
         child: const Icon(Icons.add),
       ),

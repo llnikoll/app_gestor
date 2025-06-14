@@ -514,6 +514,7 @@ class InventoryScreenState extends State<InventoryScreen>
       ),
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton(
+              heroTag: 'inventory_fab',
               onPressed: () async {
                 final result = await showDialog<bool>(
                   context: context,

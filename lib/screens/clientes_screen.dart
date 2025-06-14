@@ -390,6 +390,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'customers_fab',
         onPressed: () => _navigateToCustomerForm(),
         tooltip: 'Agregar cliente',
         child: const Icon(Icons.person_add),
