@@ -724,7 +724,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header mejorado
+            // Header fijo
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -739,6 +739,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
               ),
               child: AppBar(
                 title: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       _isEditing ? Icons.edit : Icons.add_shopping_cart,
@@ -746,12 +747,16 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       size: 24,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      _isEditing ? 'Editar Producto' : 'Nuevo Producto',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                    Flexible(
+                      child: Text(
+                        _isEditing ? 'Editar Producto' : 'Nuevo Producto',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ),
                   ],
@@ -789,60 +794,66 @@ class ProductFormScreenState extends State<ProductFormScreen> {
               ),
             ),
 
-            // Contenido principal
+            // Contenido principal con scroll único
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.all(isTablet ? 32 : 20),
-                child: _buildForm(),
-              ),
-            ),
-
-            // Footer con botón de guardar mejorado
-            Container(
-              padding: EdgeInsets.all(isTablet ? 32 : 20),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                border: Border(top: BorderSide(color: Colors.grey.shade200)),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _saveProduct,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 32,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                    shadowColor: Colors.deepPurple.withValues(alpha: 0.3),
-                  ),
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+                padding: EdgeInsets.only(
+                  left: isTablet ? 32 : 20,
+                  right: isTablet ? 32 : 20,
+                  top: isTablet ? 32 : 20,
+                  bottom: isTablet ? 32 : 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Formulario
+                    _buildForm(),
+                    
+                    // Espaciado antes del botón
+                    const SizedBox(height: 32),
+                    
+                    // Botón de guardar
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _saveProduct,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        )
-                      : Icon(_isEditing ? Icons.update : Icons.save, size: 20),
-                  label: Text(
-                    _isLoading
-                        ? 'Guardando...'
-                        : _isEditing
-                        ? 'ACTUALIZAR PRODUCTO'
-                        : 'GUARDAR PRODUCTO',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                          elevation: 2,
+                        ),
+                        icon: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(_isEditing ? Icons.update : Icons.save, size: 20),
+                        label: Text(
+                          _isLoading
+                              ? 'GUARDANDO...'
+                              : _isEditing
+                                  ? 'ACTUALIZAR PRODUCTO'
+                                  : 'GUARDAR PRODUCTO',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    
+                    // Espaciado final para mejor visualización en dispositivos pequeños
+                    const SizedBox(height: 20),
+                  ],
                 ),
               ),
             ),

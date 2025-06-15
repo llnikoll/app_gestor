@@ -57,8 +57,8 @@ class SalesScreenState extends State<SalesScreen>
     'Tarjeta de Débito',
     'Transferencia',
   ];
-  final TextEditingController _montoRecibidoController =
-      TextEditingController();
+  final TextEditingController _montoRecibidoController = TextEditingController();
+  final TextEditingController _dialogMontoController = TextEditingController();
   double _montoRecibido = 0.0;
   bool _isLoading = false;
   // Variables para la pestaña de historial
@@ -80,6 +80,7 @@ class SalesScreenState extends State<SalesScreen>
     _tabController.dispose();
     _filtroBusquedaController.dispose();
     _montoRecibidoController.dispose();
+    _dialogMontoController.dispose();
     _numeroTransaccionController.dispose();
     _productNotifier?.notifier.removeListener(_onProductUpdate);
     super.dispose();
@@ -344,6 +345,7 @@ class SalesScreenState extends State<SalesScreen>
     required double monto,
     int cantidad = 1,
   }) {
+    if (!mounted) return;
     setState(() {
       _carrito.add(
         CarritoItem.ventaCasual(
@@ -472,10 +474,8 @@ class SalesScreenState extends State<SalesScreen>
     _montoRecibido = total;
     _montoRecibidoController.text = total.toStringAsFixed(0);
 
-    // Create a local TextEditingController for the dialog
-    final dialogMontoController = TextEditingController(
-      text: _montoRecibido.toStringAsFixed(0),
-    );
+    // Use the class-level controller
+    _dialogMontoController.text = _montoRecibido.toStringAsFixed(0);
     double dialogMonto = _montoRecibido;
     bool pagoConfirmado = false;
 
@@ -493,7 +493,7 @@ class SalesScreenState extends State<SalesScreen>
                   Text('Total a Pagar: ${_formatoMoneda(total)}'),
                   const SizedBox(height: 16),
                   TextField(
-                    controller: dialogMontoController,
+                    controller: _dialogMontoController,
                     decoration: const InputDecoration(
                       labelText: 'Monto Recibido',
                       border: OutlineInputBorder(),
@@ -557,9 +557,9 @@ class SalesScreenState extends State<SalesScreen>
       );
 
       return pagoConfirmado;
-    } finally {
-      // Clean up the dialog controller
-      dialogMontoController.dispose();
+    } catch (e) {
+      debugPrint('Error en _mostrarDialogoPago: $e');
+      return false;
     }
   }
 
@@ -983,6 +983,7 @@ class SalesScreenState extends State<SalesScreen>
             const SnackBar(
               content: Text('Venta casual agregada al carrito'),
               backgroundColor: Colors.green,
+              duration: Duration(milliseconds: 500),
             ),
           );
         }
