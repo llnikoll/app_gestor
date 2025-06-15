@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "449521017092",
+    "project_id": "poket-gestor",
+    "storage_bucket": "poket-gestor.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:449521017092:android:f499f7c7d6553e93753051",
+        "android_client_info": {
+          "package_name": "com.example.app_gestor_ventas"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "449521017092-bl23aci62iggrrja5liqrb56chv2hcb8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.app_gestor_ventas",
+            "certificate_hash": "45c91200efad90e88a568f8ad775aaabf18b7ff6"
+          }
+        },
+        {
+          "client_id": "449521017092-dh6u4fnpodmck21fa1cdju3udh6u6r4k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.app_gestor_ventas",
+            "certificate_hash": "db08f8b68840f6753c0018a725b9e0bfcfd7d854"
+          }
+        },
+        {
+          "client_id": "449521017092-n2t16mgmv5gtuqtsl5au5hbiqccg5aua.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWAQVNiEPTLeJFGwUyspZlh8aHyz8ZneI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "449521017092-n2t16mgmv5gtuqtsl5au5hbiqccg5aua.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
