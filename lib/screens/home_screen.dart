@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../models/navigation_item.dart';
-import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
-import 'auth/login_screen.dart';
 import 'ventas_screen.dart';
 import 'inventory_screen.dart';
 import 'clientes_screen.dart';
@@ -27,7 +24,9 @@ class SafeConstraints extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final screenSize = MediaQuery.of(context).size;
+        final screenSize = MediaQuery
+            .of(context)
+            .size;
         final safeMaxWidth = maxWidth ?? screenSize.width;
         final safeMinWidth = minWidth ?? 0.0;
         return ConstrainedBox(
@@ -53,7 +52,7 @@ class HomeScreen extends StatefulWidget {
   }
 }
 
-class _HomeScreenContent extends StatefulWidget {
+class _HomeScreenContent extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemTapped;
   final List<Widget> screens;
@@ -67,79 +66,39 @@ class _HomeScreenContent extends StatefulWidget {
   });
 
   @override
-  _HomeScreenContentState createState() => _HomeScreenContentState();
-}
-
-class _HomeScreenContentState extends State<_HomeScreenContent> {
-  bool _isSigningOut = false;
-
-  Future<void> _handleSignOut() async {
-    if (_isSigningOut) return;
-    
-    setState(() {
-      _isSigningOut = true;
-    });
-
-    try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      await authService.signOut();
-
-      // Usar un postFrameCallback para asegurar que el contexto sea válido
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (route) => false,
-          );
-        }
-      });
-    } catch (e) {
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al cerrar sesión: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSigningOut = false;
-        });
-        // Solo intentar cerrar el drawer si el widget aún está en el árbol
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        }
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
+    final screenSize = MediaQuery
+        .of(context)
+        .size;
     return Scaffold(
-      key: widget.scaffoldKey,
+      key: scaffoldKey,
       appBar: AppBar(
-        title: Text(NavigationItem.fromIndex(widget.selectedIndex).title),
+        title: Text(NavigationItem
+            .fromIndex(selectedIndex)
+            .title),
         leading: IconButton(
           icon: const Icon(Icons.menu),
-          onPressed: () => widget.scaffoldKey.currentState?.openDrawer(),
+          onPressed: () => scaffoldKey.currentState?.openDrawer(),
         ),
       ),
-      drawer: _buildDrawer(context),
+      drawer: _buildDrawer(context, selectedIndex, onItemTapped),
       body: SafeConstraints(
         maxWidth: screenSize.width,
         child: IndexedStack(
-          index: widget.selectedIndex.clamp(0, widget.screens.length - 1),
-          children: widget.screens,
+          index: selectedIndex.clamp(0, screens.length - 1),
+          children: screens,
         ),
       ),
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+  Widget _buildDrawer(BuildContext context,
+      int selectedIndex,
+      ValueChanged<int> onItemTapped,) {
+    final screenWidth = MediaQuery
+        .of(context)
+        .size
+        .width;
     final isWideScreen = screenWidth > 600;
 
     return SizedBox(
@@ -149,7 +108,9 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: Theme.of(context).primaryColor),
+              decoration: BoxDecoration(color: Theme
+                  .of(context)
+                  .primaryColor),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -162,7 +123,11 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
                   const SizedBox(height: 12),
                   Text(
                     'Mi Negocio',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    style: Theme
+                        .of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -173,7 +138,11 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
                   const SizedBox(height: 4),
                   Text(
                     'admin@minegocio.com',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: Theme
+                        .of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(
                       color: Colors.white70,
                       fontSize: 12,
                     ),
@@ -191,19 +160,22 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8.0),
-                  color: widget.selectedIndex == item.index
-                      ? Theme.of(context).primaryColor.withAlpha(26)
+                  color: selectedIndex == item.index
+                      ? Theme
+                      .of(context)
+                      .primaryColor
+                      .withAlpha(26) // alpha 0.1
                       : Colors.transparent,
                 ),
                 child: ListTile(
                   dense: true,
                   visualDensity: VisualDensity.compact,
                   leading: Icon(
-                    widget.selectedIndex == item.index
-                        ? item.selectedIcon
-                        : item.icon,
-                    color: widget.selectedIndex == item.index
-                        ? Theme.of(context).primaryColor
+                    selectedIndex == item.index ? item.selectedIcon : item.icon,
+                    color: selectedIndex == item.index
+                        ? Theme
+                        .of(context)
+                        .primaryColor
                         : null,
                     size: 22,
                   ),
@@ -211,7 +183,7 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
                     item.title,
                     style: TextStyle(
                       fontSize: isWideScreen ? 14 : 13,
-                      fontWeight: widget.selectedIndex == item.index
+                      fontWeight: selectedIndex == item.index
                           ? FontWeight.w600
                           : FontWeight.normal,
                     ),
@@ -219,8 +191,8 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   onTap: () {
-                    widget.onItemTapped(item.index);
-                    Navigator.pop(context);
+                    onItemTapped(item.index);
+                    Navigator.pop(context); // Cierra el drawer
                   },
                 ),
               ),
@@ -233,20 +205,16 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
               child: ListTile(
                 dense: true,
                 visualDensity: VisualDensity.compact,
-                leading: _isSigningOut
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.logout, size: 22),
+                leading: const Icon(Icons.logout, size: 22),
                 title: const Text(
                   'Cerrar sesión',
                   style: TextStyle(fontSize: 14),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                onTap: _isSigningOut ? null : _handleSignOut,
+                onTap: () {
+                  // Lógica para Cerrar sesión
+                },
               ),
             ),
           ],
@@ -276,7 +244,7 @@ class HomeScreenState extends State<HomeScreen> {
     if (_isInitialized) return;
     _screens = [
       const DashboardScreen(),
-      const SalesScreen(),
+      const SalesScreen(), // O VentasScreen si ese es el nombre de tu clase
       const InventoryScreen(),
       const CustomersScreen(),
       const ReportsScreen(),
@@ -298,21 +266,25 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Define un método para manejar la lógica de "pop"
+  // Devuelve true si el pop debe continuar (cerrar app), false si fue manejado.
   bool _handlePop() {
-    if (_selectedIndex != 0) {
-      onItemTapped(0);
-      return false;
+    if (_selectedIndex != 0) { // Si no estamos en el Dashboard (índice 0)
+      onItemTapped(0); // Volver al Dashboard
+      return false; // El pop fue manejado, no continuar
     }
-    return true;
+    return true; // Estamos en el Dashboard, permitir el pop (cerrar app)
   }
 
   Widget _buildMobileLayout() {
     return PopScope(
       canPop: _selectedIndex == 0,
+      // Solo permite el pop si estamos en Dashboard
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
-          return;
+          return; // Si el pop ocurrió (porque canPop era true), no hacer nada más
         }
+        // Si el pop fue prevenido (porque canPop era false), manejarlo aquí
         _handlePop();
       },
       child: Container(
@@ -331,8 +303,12 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDesktopLayout() {
+    final screenSize = MediaQuery
+        .of(context)
+        .size;
     return PopScope(
       canPop: _selectedIndex == 0,
+      // Solo permite el pop si estamos en Dashboard
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           return;
@@ -348,7 +324,9 @@ class HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 border: Border(
                   right: BorderSide(
-                    color: Theme.of(context).dividerColor,
+                    color: Theme
+                        .of(context)
+                        .dividerColor,
                     width: 1,
                   ),
                 ),
@@ -362,7 +340,9 @@ class HomeScreenState extends State<HomeScreen> {
                     ),
                     child: CircleAvatar(
                       radius: 24,
-                      backgroundColor: Theme.of(context).primaryColor,
+                      backgroundColor: Theme
+                          .of(context)
+                          .primaryColor,
                       child: const Icon(
                         Icons.store,
                         color: Colors.white,
@@ -391,9 +371,10 @@ class HomeScreenState extends State<HomeScreen> {
                                   ),
                                   child: Material(
                                     color: isSelected
-                                        ? Theme.of(
-                                            context,
-                                          ).primaryColor.withAlpha(26)
+                                        ? Theme
+                                        .of(context)
+                                        .primaryColor
+                                        .withAlpha(26)
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(8),
                                     child: InkWell(
@@ -413,9 +394,9 @@ class HomeScreenState extends State<HomeScreen> {
                                                   : item.icon,
                                               size: 26,
                                               color: isSelected
-                                                  ? Theme.of(
-                                                      context,
-                                                    ).primaryColor
+                                                  ? Theme
+                                                  .of(context)
+                                                  .primaryColor
                                                   : null,
                                             ),
                                             const SizedBox(height: 8),
@@ -427,9 +408,9 @@ class HomeScreenState extends State<HomeScreen> {
                                                     ? FontWeight.w600
                                                     : FontWeight.normal,
                                                 color: isSelected
-                                                    ? Theme.of(
-                                                        context,
-                                                      ).primaryColor
+                                                    ? Theme
+                                                    .of(context)
+                                                    .primaryColor
                                                     : null,
                                               ),
                                               textAlign: TextAlign.center,
@@ -445,79 +426,87 @@ class HomeScreenState extends State<HomeScreen> {
                               }).toList(),
                             ),
                           );
-                        }
-
-                        return Column(
-                          children: NavigationItem.items.map((item) {
-                            final isSelected = _selectedIndex == item.index;
-                            return Container(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 2,
-                              ),
-                              child: Material(
-                                color: isSelected
-                                    ? Theme.of(
-                                        context,
-                                      ).primaryColor.withAlpha(26)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(8),
-                                  onTap: () => onItemTapped(item.index),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                      horizontal: 8,
+                        } else {
+                          return NavigationRail(
+                            selectedIndex: _selectedIndex,
+                            onDestinationSelected: onItemTapped,
+                            labelType: NavigationRailLabelType.all,
+                            minWidth: 140,
+                            minExtendedWidth: 140,
+                            groupAlignment: 0.0,
+                            leading: const SizedBox(height: 20),
+                            trailing: const SizedBox(height: 20),
+                            destinations: NavigationItem.items.map((item) {
+                              return NavigationRailDestination(
+                                icon: Icon(item.icon, size: 26),
+                                label: Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(
+                                    item.title,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          isSelected
-                                              ? item.selectedIcon
-                                              : item.icon,
-                                          size: 26,
-                                          color: isSelected
-                                              ? Theme.of(context).primaryColor
-                                              : null,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          item.title,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: isSelected
-                                                ? FontWeight.w600
-                                                : FontWeight.normal,
-                                            color: isSelected
-                                                ? Theme.of(context).primaryColor
-                                                : null,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
-                              ),
-                            );
-                          }).toList(),
-                        );
+                                selectedIcon: Icon(item.selectedIcon, size: 26),
+                              );
+                            }).toList(),
+                          );
+                        }
                       },
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          height: 1,
+                          margin: const EdgeInsets.symmetric(horizontal: 12),
+                          color: Theme
+                              .of(context)
+                              .dividerColor,
+                        ),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () {
+                            // Lógica para Cerrar sesión
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 8,
+                            ),
+                            child: const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.logout, size: 24),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Cerrar Sesión',
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: _HomeScreenContent(
-                selectedIndex: _selectedIndex.clamp(0, _screens.length - 1),
-                onItemTapped: onItemTapped,
-                screens: _screens,
-                scaffoldKey: _scaffoldKey,
+              child: SafeConstraints(
+                maxWidth: screenSize.width - 100,
+                child: IndexedStack(
+                  index: _selectedIndex.clamp(0, _screens.length - 1),
+                  children: _screens,
+                ),
               ),
             ),
           ],
@@ -528,18 +517,29 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (!_isInitialized || _screens.isEmpty) {
+      return const Material(child: Center(child: CircularProgressIndicator()));
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 600) {
-          return _buildMobileLayout();
-        } else {
-          return _buildDesktopLayout();
+    final safeIndex = _selectedIndex.clamp(0, _screens.length - 1);
+    if (_selectedIndex != safeIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _selectedIndex = safeIndex);
         }
-      },
+      });
+      return const Material(child: Center(child: CircularProgressIndicator()));
+    }
+
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return constraints.maxWidth < 600
+              ? _buildMobileLayout()
+              : _buildDesktopLayout();
+        },
+      ),
     );
   }
 }

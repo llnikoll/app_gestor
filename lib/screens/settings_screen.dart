@@ -27,7 +27,6 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _initPackageInfo() async {
     final packageInfo = await PackageInfo.fromPlatform();
-    if (!mounted) return;
     setState(() {
       _packageInfo = packageInfo;
       _appVersion = '${packageInfo.version} (${packageInfo.buildNumber})';
@@ -205,17 +204,12 @@ class SettingsScreenState extends State<SettingsScreen> {
   }
 
   @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Consumer<ThemeNotifier>(
       builder: (context, themeNotifier, _) {
         return Scaffold(
           appBar: AppBar(
-            toolbarHeight: 0,
+            title: const Text('Configuración'),
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh),
@@ -237,30 +231,18 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ),
                         TextButton(
                           onPressed: () async {
-                            try {
-                              await _settings.resetToDefault();
-                              if (!mounted) return;
-                              setState(() {});
-                              themeNotifier.toggleTheme();
-                              if (!mounted) return;
-                              navigator.pop();
-                              if (!mounted) return;
-                              scaffoldMessenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('Configuración restaurada'),
-                                ),
-                              );
-                            } catch (e) {
-                              if (!mounted) return;
-                              scaffoldMessenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Error al restaurar configuración: $e',
-                                  ),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
+                            await _settings.resetToDefault();
+                            if (!mounted) return;
+                            setState(() {});
+                            themeNotifier.toggleTheme();
+                            if (!mounted) return;
+                            navigator.pop();
+                            if (!mounted) return;
+                            scaffoldMessenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Configuración restaurada'),
+                              ),
+                            );
                           },
                           child: const Text('Restaurar'),
                         ),
@@ -316,31 +298,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                 title: 'Notificaciones',
                 trailing: Switch(
                   value: _settings.notificationsEnabled,
-                  onChanged: (value) {
-                    // Capture context before async operation
-                    final currentContext = context;
-                    final currentScaffoldMessenger = ScaffoldMessenger.of(
-                      currentContext,
-                    );
-
-                    _settings
-                        .setNotificationsEnabled(value)
-                        .then((_) {
-                          if (mounted) {
-                            setState(() {});
-                          }
-                        })
-                        .catchError((e) {
-                          if (!mounted) return;
-                          currentScaffoldMessenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Error al actualizar notificaciones: $e',
-                              ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        });
+                  onChanged: (value) async {
+                    await _settings.setNotificationsEnabled(value);
+                    if (mounted) {
+                      setState(() {});
+                    }
                   },
                   activeColor: Theme.of(context).primaryColor,
                 ),
@@ -355,30 +317,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                     return Switch(
                       value: _settings.biometricAuthEnabled && isAvailable,
                       onChanged: isAvailable
-                          ? (bool value) {
-                              // Capture context before async operation
-                              final currentContext = context;
-                              final currentScaffoldMessenger =
-                                  ScaffoldMessenger.of(currentContext);
-
-                              _settings
-                                  .setBiometricAuthEnabled(value)
-                                  .then((_) {
-                                    if (mounted) {
-                                      setState(() {});
-                                    }
-                                  })
-                                  .catchError((e) {
-                                    if (!mounted) return;
-                                    currentScaffoldMessenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Error al actualizar autenticación biométrica: $e',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  });
+                          ? (bool value) async {
+                              await _settings.setBiometricAuthEnabled(value);
+                              if (mounted) {
+                                setState(() {});
+                              }
                             }
                           : null,
                       activeColor: isAvailable
@@ -395,15 +338,13 @@ class SettingsScreenState extends State<SettingsScreen> {
               _buildSettingItem(
                 icon: Icons.info_outline,
                 title: 'Versión de la aplicación',
-                subtitle: _packageInfo != null
+                subtitle: _packageInfo != null 
                     ? 'Versión $_appVersion\n${_packageInfo!.packageName}'
                     : 'Cargando...',
                 isLoading: _packageInfo == null,
-                onTap: _packageInfo != null
-                    ? () {
-                        // Verificar actualizaciones
-                      }
-                    : null,
+                onTap: _packageInfo != null ? () {
+                  // Verificar actualizaciones
+                } : null,
               ),
               _buildSettingItem(
                 icon: Icons.help_outline,

@@ -718,19 +718,30 @@ class _ReportsScreenState extends State<ReportsScreen>
       builder: (context, _, _) {
         return Scaffold(
           appBar: AppBar(
-            toolbarHeight: 0,
-            automaticallyImplyLeading: false,
+            title: const Text('Informes'),
             bottom: TabBar(
               controller: _tabController,
               isScrollable: true,
-              indicatorWeight: 3.0,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 24.0),
               tabs: [
-                Tab(child: Text('Resumen')),
-                Tab(child: Text('Ventas')),
-                Tab(child: Text('Gastos')),
+                Tab(icon: Icon(Icons.summarize), text: 'Resumen'),
+                Tab(icon: Icon(Icons.shopping_cart), text: 'Ventas'),
+                Tab(icon: Icon(Icons.money_off), text: 'Gastos'),
               ],
             ),
+            actions: [
+              Builder(
+                builder: (BuildContext context) => IconButton(
+                  icon: const Icon(Icons.date_range),
+                  onPressed: () => _selectDateRange(context),
+                  tooltip: 'Seleccionar rango de fechas',
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _cargarDatos,
+                tooltip: 'Actualizar datos',
+              ),
+            ],
           ),
           body: _isLoading
               ? const Center(child: CircularProgressIndicator())
