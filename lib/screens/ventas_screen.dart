@@ -1186,15 +1186,15 @@ class SalesScreenState extends State<SalesScreen>
                           ),
                           child: TextFormField(
                             controller: _numeroTransaccionController,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'Número de transacción',
                               hintText: 'Ingrese el número de transacción',
-                              border: const OutlineInputBorder(),
-                              contentPadding: const EdgeInsets.symmetric(
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 12,
                               ),
-                              prefixIcon: const Icon(
+                              prefixIcon: Icon(
                                 Icons.confirmation_number,
                                 size: 20,
                               ),
@@ -1272,11 +1272,11 @@ class SalesScreenState extends State<SalesScreen>
             Container(
               decoration: BoxDecoration(
                 color: colorScheme.surface,
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
                     color: Color.fromRGBO(0, 0, 0, 0.05),
                     blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),

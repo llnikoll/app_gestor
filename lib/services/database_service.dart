@@ -1479,8 +1479,7 @@ class DatabaseService {
       }
 
       // Usar una consulta raw con comparación directa de fechas ISO 8601
-      final query =
-          '''
+      const query = '''
         SELECT * FROM $tableGastos 
         WHERE fecha >= ? AND fecha <= ?
         ORDER BY fecha DESC

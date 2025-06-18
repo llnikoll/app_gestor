@@ -26,7 +26,7 @@ class NavigationItem {
     required this.index,
   });
 
-  static List<NavigationItem> get items => [
+  static const List<NavigationItem> items = [
     NavigationItem(
       type: NavigationItemType.dashboard,
       title: 'Inicio',

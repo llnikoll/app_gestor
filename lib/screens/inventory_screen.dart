@@ -281,7 +281,7 @@ class InventoryScreenState extends State<InventoryScreen>
   Future<String> _getImagePath(String imageName) async {
     try {
       // Primero intentamos con el almacenamiento externo
-      final externalDir = '/storage/emulated/0/Android/data/com.example.app_gestor_ventas/files/product_images';
+      const String externalDir = '/storage/emulated/0/Android/data/com.example.app_gestor_ventas/files/product_images';
       final externalPath = '$externalDir/$imageName';
       
       // Verificamos si el archivo existe en el almacenamiento externo
@@ -523,13 +523,13 @@ class InventoryScreenState extends State<InventoryScreen>
                       child: SizedBox(
                         width: 600,
                         height: MediaQuery.of(context).size.height * 0.9,
-                        child: Column(
+                        child: const Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Expanded(
                               child: SingleChildScrollView(
-                                padding: const EdgeInsets.all(16.0),
-                                child: const IntrinsicWidth(
+                                padding: EdgeInsets.all(16.0),
+                                child: IntrinsicWidth(
                                   child: ProductFormScreen(),
                                 ),
                               ),

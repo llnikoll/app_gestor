@@ -354,7 +354,7 @@ class HomeScreenState extends State<HomeScreen> {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final availableHeight = constraints.maxHeight;
-                        final itemHeight = 72.0;
+                        const double itemHeight = 72.0;
                         final totalItemsHeight =
                             NavigationItem.items.length * itemHeight;
                         final needsScroll = totalItemsHeight > availableHeight;
@@ -532,7 +532,7 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     return MediaQuery(
-      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
+      data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.0)),
       child: LayoutBuilder(
         builder: (context, constraints) {
           return constraints.maxWidth < 600

@@ -10,7 +10,7 @@ class AppTheme {
     primaryColorLight: AppColors.primaryLight,
 
     // Color de acento
-    colorScheme: ColorScheme.light(
+    colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
       secondary: AppColors.accent,
       surface: AppColors.background,

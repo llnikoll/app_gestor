@@ -715,33 +715,20 @@ class _ReportsScreenState extends State<ReportsScreen>
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: _dataUpdated,
-      builder: (context, _, _) {
+      builder: (context, value, _) {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Informes'),
             bottom: TabBar(
               controller: _tabController,
               isScrollable: true,
-              tabs: [
+              tabs: const [
                 Tab(icon: Icon(Icons.summarize), text: 'Resumen'),
                 Tab(icon: Icon(Icons.shopping_cart), text: 'Ventas'),
                 Tab(icon: Icon(Icons.money_off), text: 'Gastos'),
               ],
             ),
-            actions: [
-              Builder(
-                builder: (BuildContext context) => IconButton(
-                  icon: const Icon(Icons.date_range),
-                  onPressed: () => _selectDateRange(context),
-                  tooltip: 'Seleccionar rango de fechas',
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _cargarDatos,
-                tooltip: 'Actualizar datos',
-              ),
-            ],
+            actions: const [],
           ),
           body: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -1026,9 +1013,9 @@ class _ReportsScreenState extends State<ReportsScreen>
                       child: Text('No hay datos de gastos disponibles'),
                     )
                   : SfCartesianChart(
-                      primaryXAxis: CategoryAxis(
+                      primaryXAxis: const CategoryAxis(
                         labelRotation: 45,
-                        labelStyle: const TextStyle(fontSize: 10),
+                        labelStyle: TextStyle(fontSize: 10),
                       ),
                       primaryYAxis: NumericAxis(
                         numberFormat: NumberFormat.currency(
@@ -1234,9 +1221,9 @@ class _ReportsScreenState extends State<ReportsScreen>
                       child: Text('No hay datos de ventas disponibles'),
                     )
                   : SfCartesianChart(
-                      primaryXAxis: CategoryAxis(
+                      primaryXAxis: const CategoryAxis(
                         labelRotation: 45,
-                        labelStyle: const TextStyle(fontSize: 10),
+                        labelStyle: TextStyle(fontSize: 10),
                       ),
                       primaryYAxis: NumericAxis(
                         numberFormat: NumberFormat.compactCurrency(
