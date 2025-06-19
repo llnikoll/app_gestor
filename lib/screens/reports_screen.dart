@@ -722,6 +722,7 @@ class _ReportsScreenState extends State<ReportsScreen>
             bottom: TabBar(
               controller: _tabController,
               isScrollable: true,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 24.0),
               tabs: const [
                 Tab(icon: Icon(Icons.summarize), text: 'Resumen'),
                 Tab(icon: Icon(Icons.shopping_cart), text: 'Ventas'),

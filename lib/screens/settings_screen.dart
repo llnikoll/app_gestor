@@ -152,8 +152,9 @@ class SettingsScreenState extends State<SettingsScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       elevation: 1,
+      color: Theme.of(context).cardColor,
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         leading: Container(
           width: 40,
           height: 40,
@@ -165,13 +166,26 @@ class SettingsScreenState extends State<SettingsScreen> {
         ),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
+          style: TextStyle(
+            fontWeight: FontWeight.w500, 
+            fontSize: 15,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
         ),
         subtitle: subtitle != null
-            ? Text(subtitle, style: const TextStyle(fontSize: 13))
+            ? Text(
+                subtitle, 
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              )
             : null,
         trailing: trailing,
         onTap: onTap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }
@@ -198,6 +212,7 @@ class SettingsScreenState extends State<SettingsScreen> {
           color: Theme.of(context).primaryColor,
           fontWeight: FontWeight.bold,
           fontSize: 16,
+          letterSpacing: 0.5,
         ),
       ),
     );
