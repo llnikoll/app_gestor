@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../utils/currency_formatter.dart';
 import '../services/database_service.dart';
+import '../services/settings_service.dart';
 import '../models/gasto_model.dart';
 import '../models/producto_model.dart';
 import '../models/categoria_model.dart';
@@ -46,11 +49,9 @@ class _GastosScreenState extends State<GastosScreen> {
     super.dispose();
   }
 
-  // Función para formatear montos en guaraníes
+  // Función para formatear montos según la moneda configurada
   String _formatearMoneda(double monto) {
-    // Formatear el número con separadores de miles
-    final formatter = NumberFormat('#,##0', 'es_PY');
-    return '${formatter.format(monto)} Gs.';
+    return monto.formattedCurrency;
   }
 
   // Función para calcular el total de gastos
@@ -234,11 +235,14 @@ class _GastosScreenState extends State<GastosScreen> {
                               padding: const EdgeInsets.only(right: 1.0),
                               child: OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 2.0),
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 8.0, horizontal: 2.0),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 onPressed: _seleccionarFechaInicio,
-                                icon: const Icon(Icons.calendar_today, size: 14),
+                                icon:
+                                    const Icon(Icons.calendar_today, size: 14),
                                 label: FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
@@ -253,18 +257,22 @@ class _GastosScreenState extends State<GastosScreen> {
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 2.0),
-                            child: Text('hasta', style: TextStyle(fontSize: 13)),
+                            child:
+                                Text('hasta', style: TextStyle(fontSize: 13)),
                           ),
                           Expanded(
                             child: Padding(
                               padding: const EdgeInsets.only(left: 1.0),
                               child: OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 2.0),
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 8.0, horizontal: 2.0),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 onPressed: _seleccionarFechaFin,
-                                icon: const Icon(Icons.calendar_today, size: 14),
+                                icon:
+                                    const Icon(Icons.calendar_today, size: 14),
                                 label: FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
@@ -311,49 +319,50 @@ class _GastosScreenState extends State<GastosScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _gastos.isEmpty
-                ? const Center(child: Text('No hay gastos registrados'))
-                : ListView.builder(
-                    itemCount: _gastos.length,
-                    itemBuilder: (context, index) {
-                      final gasto = _gastos[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: ListTile(
-                          title: Text(gasto.descripcion),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Categoría: ${gasto.categoria}'),
-                              Text(
-                                '${gasto.fecha.day}/${gasto.fecha.month}/${gasto.fecha.year}',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              if (gasto.notas?.isNotEmpty ?? false) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  gasto.notas!,
-                                  style: const TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          trailing: Text(
-                            _formatearMoneda(gasto.monto),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red,
-                              fontSize: 16,
+                    ? const Center(child: Text('No hay gastos registrados'))
+                    : ListView.builder(
+                        itemCount: _gastos.length,
+                        itemBuilder: (context, index) {
+                          final gasto = _gastos[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                            child: ListTile(
+                              title: Text(gasto.descripcion),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Categoría: ${gasto.categoria}'),
+                                  Text(
+                                    '${gasto.fecha.day}/${gasto.fecha.month}/${gasto.fecha.year}',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  if (gasto.notas?.isNotEmpty ?? false) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      gasto.notas!,
+                                      style: const TextStyle(
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              trailing: Text(
+                                _formatearMoneda(gasto.monto),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
@@ -522,6 +531,9 @@ class _GastosScreenState extends State<GastosScreen> {
         return _formatearMoneda(total);
       }
 
+      final settings = Provider.of<SettingsService>(context, listen: false);
+      final currencySymbol = settings.currentCurrency.symbol;
+
       final confirmado = await showDialog<bool>(
         context: context,
         builder: (BuildContext context) {
@@ -554,11 +566,11 @@ class _GastosScreenState extends State<GastosScreen> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: precioController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Precio Unitario',
-                          prefixText: 'Gs. ',
-                          suffixText: 'Gs.',
-                          border: OutlineInputBorder(),
+                          prefixText: '$currencySymbol ',
+                          suffixText: currencySymbol,
+                          border: const OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
                         onChanged: (value) {
@@ -600,7 +612,7 @@ class _GastosScreenState extends State<GastosScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
+                          color: const Color.fromARGB(0, 245, 245, 245),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Column(

@@ -1,0 +1,3 @@
+builders:
+  intl_utils:build_runner:
+    generate_only: true

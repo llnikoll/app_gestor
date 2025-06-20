@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -36,41 +37,97 @@ class SettingsScreenState extends State<SettingsScreen> {
   void _showLanguageDialog() {
     final BuildContext dialogContext = context;
     final navigator = Navigator.of(dialogContext);
+    final currentLocale = EasyLocalization.of(context)?.locale ?? const Locale('es');
 
     showDialog(
       context: dialogContext,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('Seleccionar idioma'),
+        title: Text('selectLanguage'.tr()),
         content: SizedBox(
           width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: SettingsService.availableLanguages.length,
-            itemBuilder: (BuildContext context, int index) {
-              final lang = SettingsService.availableLanguages[index];
-              return RadioListTile<String>(
-                title: Text(lang['name']),
-                value: lang['code'],
-                groupValue: _settings.language,
-                onChanged: (String? value) async {
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<Locale>(
+                title: const Text('Español'),
+                value: const Locale('es'),
+                groupValue: currentLocale,
+                onChanged: (Locale? value) async {
                   if (value != null) {
-                    await _settings.setLanguage(value);
+                    await _changeLocale(value);
                     if (!mounted) return;
-                    setState(() {});
                     navigator.pop();
                   }
                 },
-              );
-            },
+              ),
+              RadioListTile<Locale>(
+                title: const Text('English'),
+                value: const Locale('en', 'US'),
+                groupValue: currentLocale,
+                onChanged: (Locale? value) async {
+                  if (value != null) {
+                    await _changeLocale(value);
+                    if (!mounted) return;
+                    navigator.pop();
+                  }
+                },
+              ),
+              RadioListTile<Locale>(
+                title: const Text('Português'),
+                value: const Locale('pt', 'BR'),
+                groupValue: currentLocale,
+                onChanged: (Locale? value) async {
+                  if (value != null) {
+                    await _changeLocale(value);
+                    if (!mounted) return;
+                    navigator.pop();
+                  }
+                },
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  Future<void> _changeLocale(Locale locale) async {
+    // Guardar solo el código de idioma sin el país
+    await _settings.setLanguage(locale.languageCode);
+    if (!mounted) return;
+    
+    // Establecer el locale completo (con código de país si existe)
+    await context.setLocale(locale);
+    if (!mounted) return;
+    
+    // Actualizar la UI
+    setState(() {});
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Idioma cambiado a ${_getLanguageName(locale.languageCode)}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  String _getLanguageName(String languageCode) {
+    switch (languageCode) {
+      case 'es':
+        return 'Español';
+      case 'en':
+        return 'English';
+      case 'pt':
+        return 'Português';
+      default:
+        return languageCode;
+    }
+  }
+
   void _showCurrencyDialog() {
     final BuildContext dialogContext = context;
     final navigator = Navigator.of(dialogContext);
+    final currentCurrency = _settings.currency;
 
     showDialog(
       context: dialogContext,
@@ -80,19 +137,29 @@ class SettingsScreenState extends State<SettingsScreen> {
           width: double.maxFinite,
           child: ListView.builder(
             shrinkWrap: true,
-            itemCount: SettingsService.availableCurrencies.length,
+            itemCount: _settings.supportedCurrencies.length,
             itemBuilder: (BuildContext context, int index) {
-              final currency = SettingsService.availableCurrencies[index];
+              final currency = _settings.supportedCurrencies[index];
               return RadioListTile<String>(
-                title: Text(currency['name']),
-                value: currency['code'],
-                groupValue: _settings.currency,
+                title: Text('${currency.name} (${currency.symbol})'),
+                value: currency.code,
+                groupValue: currentCurrency,
                 onChanged: (String? value) async {
                   if (value != null) {
                     await _settings.setCurrency(value);
                     if (!mounted) return;
                     setState(() {});
                     navigator.pop();
+                    
+                    // Usar el contexto del diálogo para mostrar el mensaje
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Moneda cambiada a ${currency.name}'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
                   }
                 },
               );
@@ -224,7 +291,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       builder: (context, themeNotifier, _) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Configuración'),
+            title: Text('settings'.tr()),
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh),
@@ -236,9 +303,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     context: context,
                     builder: (BuildContext dialogContext) => AlertDialog(
                       title: const Text('Restaurar configuración'),
-                      content: const Text(
-                        '¿Estás seguro de que deseas restaurar la configuración predeterminada?',
-                      ),
+                      content: const Text('¿Estás seguro de que deseas restaurar la configuración predeterminada?'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(dialogContext),
@@ -254,9 +319,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                             navigator.pop();
                             if (!mounted) return;
                             scaffoldMessenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Configuración restaurada'),
-                              ),
+                              const SnackBar(content: Text('Configuración restaurada')),
                             );
                           },
                           child: const Text('Restaurar'),
@@ -283,23 +346,21 @@ class SettingsScreenState extends State<SettingsScreen> {
                   activeColor: Theme.of(context).primaryColor,
                 ),
               ),
-              _buildSettingItem(
-                icon: Icons.language,
-                title: 'Idioma',
-                subtitle: SettingsService.availableLanguages.firstWhere(
-                  (lang) => lang['code'] == _settings.language,
-                  orElse: () => {'name': 'Español'},
-                )['name'],
+              ListTile(
+                leading: const Icon(Icons.language),
+                title: Text('language'.tr()),
+                subtitle: Text({
+                  'es': 'Español',
+                  'en': 'English',
+                  'pt': 'Português',
+                }[context.locale.languageCode] ?? 'Español'),
                 onTap: _showLanguageDialog,
               ),
               _buildSectionTitle('PREFERENCIAS'),
               _buildSettingItem(
                 icon: Icons.attach_money,
                 title: 'Moneda',
-                subtitle: SettingsService.availableCurrencies.firstWhere(
-                  (curr) => curr['code'] == _settings.currency,
-                  orElse: () => {'name': 'Guaraní (₲)'},
-                )['name'],
+                subtitle: '${_settings.currentCurrency.name} (${_settings.currentCurrency.symbol})',
                 onTap: _showCurrencyDialog,
               ),
               _buildSettingItem(
@@ -391,7 +452,7 @@ class SettingsScreenState extends State<SettingsScreen> {
               _buildSectionTitle('CUENTA'),
               _buildSettingItem(
                 icon: Icons.logout,
-                title: 'Cerrar sesión',
+                title: 'logout'.tr(),
                 onTap: () {
                   // Cerrar sesión
                 },

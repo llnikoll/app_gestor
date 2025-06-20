@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/producto_model.dart'; // Asegúrate que esta ruta sea correcta
 import '../services/database_service.dart'; // Asegúrate que esta ruta sea correcta
 import '../services/product_notifier_service.dart'; // Asegúrate que esta ruta sea correcta
+import '../services/settings_service.dart';
 import '../widgets/primary_button.dart'; // Asegúrate que esta ruta sea correcta
 import 'home_screen.dart'; // Asegúrate que esta ruta sea correcta
 import 'product_form_screen.dart'; // Asegúrate que esta ruta sea correcta
@@ -18,11 +19,8 @@ class DashboardScreen extends StatefulWidget {
 class DashboardScreenState extends State<DashboardScreen> {
   ProductNotifierService? _productNotifier;
   late Future<Map<String, dynamic>> _dashboardData;
-  final currencyFormat = NumberFormat.currency(
-    symbol: 'Gs. ', // Símbolo de Guaraníes
-    decimalDigits: 0, // Sin decimales para Guaraníes
-    locale: 'es_PY', // Formato paraguayo
-  );
+  late NumberFormat currencyFormat;
+  late SettingsService _settingsService;
   final numberFormat = NumberFormat.decimalPattern(
     'es_PY',
   ); // Para números generales
@@ -41,6 +39,12 @@ class DashboardScreenState extends State<DashboardScreen> {
       _productNotifier = Provider.of<ProductNotifierService>(
         context,
         listen: false,
+      );
+      _settingsService = SettingsService();
+      currencyFormat = NumberFormat.currency(
+        symbol: '${_settingsService.currentCurrency.symbol} ',
+        decimalDigits: _settingsService.currentCurrency.decimalDigits,
+        locale: _settingsService.currentCurrency.locale,
       );
       _productNotifier!.notifier.addListener(_onProductUpdate);
       _loadDashboardData(); // Carga inicial de datos

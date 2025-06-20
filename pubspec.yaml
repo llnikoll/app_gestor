@@ -50,7 +50,6 @@ dependencies:
   path: ^1.8.3
   
   # UI y utilidades
-  intl: ^0.19.0
   provider: ^6.1.1
   shared_preferences: ^2.2.1
   file_picker: ^10.2.0
@@ -77,6 +76,12 @@ dependencies:
   
   # Información del paquete
   package_info_plus: ^4.2.0
+  
+  # Internacionalización
+  easy_localization: ^3.0.3
+  intl: ^0.20.2  # Required by flutter_localizations
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -88,6 +93,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^4.0.0
+  intl_utils: ^2.8.10
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -100,10 +106,14 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
+  # Assets
   assets:
     - assets/images/logo.svg
     - assets/icons/google.svg
+    - assets/translations/
+    
+  # Generate translations
+  generate: true
     # Si tienes más imágenes, puedes agregarlas aquí o usar un directorio completo:
     # - assets/images/
 

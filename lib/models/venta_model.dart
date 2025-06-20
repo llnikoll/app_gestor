@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import '../services/settings_service.dart';
 
 class Venta {
   int? id;
@@ -72,7 +73,11 @@ class Venta {
 
   // Formatear total como moneda
   String get totalFormateado {
-    return NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(total);
+    final settings = SettingsService();
+    return NumberFormat.currency(
+      symbol: '${settings.currentCurrency.symbol} ',
+      decimalDigits: settings.currentCurrency.decimalDigits,
+    ).format(total);
   }
   
   // Getter para compatibilidad con código existente

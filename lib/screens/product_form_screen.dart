@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../services/settings_service.dart';
 import '../models/categoria_model.dart';
 import '../services/product_notifier_service.dart';
 import '../models/producto_model.dart';
@@ -42,11 +43,15 @@ class ProductFormScreenState extends State<ProductFormScreen> {
   bool _isLoading = false;
   bool _isEditing = false;
   final ImagePicker _picker = ImagePicker();
+  late String _currencySymbol;
 
   @override
   void initState() {
     super.initState();
     _isEditing = widget.product != null;
+    _currencySymbol = Provider.of<SettingsService>(context, listen: false)
+        .currentCurrency
+        .symbol;
 
     // Inicializar controladores con datos del producto si existe
     if (widget.product != null) {
@@ -631,7 +636,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       ),
                     ),
                     filled: true,
-                    fillColor: Colors.grey.shade50,
+                    fillColor: Colors.transparent,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 16,
@@ -686,7 +691,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.amber.shade50,
+                color: const Color.fromARGB(0, 255, 248, 225),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.amber.shade200),
               ),
@@ -711,142 +716,183 @@ class ProductFormScreenState extends State<ProductFormScreen> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     final isTablet = screenWidth > 600;
-    final maxWidth = isTablet ? 800.0 : double.infinity;
+    final maxWidth = isTablet ? 800.0 : screenWidth;
+    final maxHeight = screenHeight * 0.95;
+    final padding = isTablet ? 32.0 : 20.0;
 
     return Dialog(
-      insetPadding: EdgeInsets.all(isTablet ? 40 : 16),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: EdgeInsets.zero,
       child: Container(
-        constraints: BoxConstraints(
-          maxWidth: maxWidth,
-          maxHeight: MediaQuery.of(context).size.height * 0.95,
+        width: maxWidth,
+        height: maxHeight,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header mejorado
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.deepPurple, Colors.deepPurple.shade400],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        child: Material(
+          color: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header con AppBar
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.deepPurple, Colors.deepPurple],
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
                 ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: AppBar(
-                title: Row(
-                  children: [
-                    Icon(
-                      _isEditing ? Icons.edit : Icons.add_shopping_cart,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _isEditing ? 'Editar Producto' : 'Nuevo Producto',
-                      style: const TextStyle(
+                child: AppBar(
+                  title: Row(
+                    children: [
+                      Icon(
+                        _isEditing ? Icons.edit : Icons.add_shopping_cart,
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isEditing ? 'Editar Producto' : 'Nuevo Producto',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  automaticallyImplyLeading: false,
+                  actions: [
+                    if (_isEditing)
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.white),
+                          onPressed: _confirmDeleteProduct,
+                          tooltip: 'Eliminar producto',
+                        ),
+                      ),
+                    Container(
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context, false),
+                        tooltip: 'Cerrar',
                       ),
                     ),
                   ],
                 ),
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                automaticallyImplyLeading: false,
-                actions: [
-                  if (_isEditing)
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.white),
-                        onPressed: _confirmDeleteProduct,
-                        tooltip: 'Eliminar producto',
-                      ),
-                    ),
-                  Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: () => Navigator.pop(context, false),
-                      tooltip: 'Cerrar',
-                    ),
-                  ),
-                ],
               ),
-            ),
 
-            // Contenido principal
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(isTablet ? 32 : 20),
-                child: _buildForm(),
-              ),
-            ),
-
-            // Footer con botón de guardar mejorado
-            Container(
-              padding: EdgeInsets.all(isTablet ? 32 : 20),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                border: Border(top: BorderSide(color: Colors.grey.shade200)),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _saveProduct,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 32,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                    shadowColor: Colors.deepPurple.withValues(alpha: 0.3),
+              // Contenido principal - Área desplazable
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
                   ),
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Icon(_isEditing ? Icons.update : Icons.save, size: 20),
-                  label: Text(
-                    _isLoading
-                        ? 'Guardando...'
-                        : _isEditing
-                        ? 'ACTUALIZAR PRODUCTO'
-                        : 'GUARDAR PRODUCTO',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.all(padding),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: maxHeight - 200, // Ajuste de altura
+                      ),
+                      child: _buildForm(),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+
+              // Footer con botón de guardar mejorado
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: padding,
+                  vertical: padding / 2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _saveProduct,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 32,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                      shadowColor: Colors.deepPurple.withValues(alpha: 0.3),
+                    ),
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Color.fromARGB(255, 255, 255, 255),
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Icon(_isEditing ? Icons.update : Icons.save,
+                            size: 20),
+                    label: Text(
+                      _isLoading
+                          ? 'Guardando...'
+                          : _isEditing
+                              ? 'ACTUALIZAR PRODUCTO'
+                              : 'GUARDAR PRODUCTO',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -981,14 +1027,14 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                                           fit: BoxFit.cover,
                                           errorBuilder:
                                               (context, error, stackTrace) {
-                                                return const Center(
-                                                  child: Icon(
-                                                    Icons.broken_image,
-                                                    size: 50,
-                                                    color: Colors.grey,
-                                                  ),
-                                                );
-                                              },
+                                            return const Center(
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                size: 50,
+                                                color: Colors.grey,
+                                              ),
+                                            );
+                                          },
                                         ),
                                       );
                                     },
@@ -1129,7 +1175,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                   Expanded(
                     child: CustomTextField(
                       controller: _precioCompraController,
-                      label: 'Precio de Compra (₲)',
+                      label: 'Precio de Compra ($_currencySymbol)',
                       hint: '0',
                       keyboardType: TextInputType.number,
                       isRequired: true,
@@ -1171,7 +1217,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                   Expanded(
                     child: CustomTextField(
                       controller: _precioVentaController,
-                      label: 'Precio de Venta (₲)',
+                      label: 'Precio de Venta ($_currencySymbol)',
                       hint: '0',
                       keyboardType: TextInputType.number,
                       isRequired: true,

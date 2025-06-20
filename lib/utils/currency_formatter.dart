@@ -17,30 +17,16 @@ class CurrencyFormatter {
 
   // Formatear un número como moneda
   static String format(double amount) {
-    final currency = _settings.currency;
+    final currency = _settings.currentCurrency;
     
     return NumberFormat.currency(
-      locale: 'es_PY', // Localización para Paraguay
-      symbol: _getCurrencySymbol(currency),
-      decimalDigits: 0, // Sin decimales para guaraníes
+      locale: currency.locale,
+      symbol: currency.symbol,
+      decimalDigits: currency.decimalDigits,
     ).format(amount);
   }
 
-  // Obtener el símbolo de moneda
-  static String _getCurrencySymbol(String currencyCode) {
-    switch (currencyCode) {
-      case 'PYG':
-        return '₲'; // Símbolo del guaraní
-      case 'USD':
-        return '\$'; // Símbolo del dólar
-      case 'BRL':
-        return 'R\$'; // Símbolo del real
-      case 'ARS':
-        return '\$'; // Símbolo del peso argentino
-      default:
-        return '₲'; // Por defecto guaraní
-    }
-  }
+
 }
 
 // Extensión para facilitar el uso

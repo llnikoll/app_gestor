@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/currency_model.dart';
 
-class SettingsService {
+class SettingsService with ChangeNotifier {
   static final SettingsService _instance = SettingsService._internal();
   static late SharedPreferences _prefs;
 
@@ -17,6 +19,8 @@ class SettingsService {
   static const String _defaultLanguage = 'es';
   static const String _defaultCurrency = 'PYG';
   static const String _defaultPrinter = 'Predeterminada';
+
+  Currency get currentCurrency => Currency.getByCode(currency);
 
   bool get isDarkMode => _prefs.getBool(_darkModeKey) ?? _defaultDarkMode;
   bool get notificationsEnabled => _prefs.getBool(_notificationsKey) ?? _defaultNotifications;
@@ -49,9 +53,18 @@ class SettingsService {
     await _prefs.setString(_languageKey, languageCode);
   }
 
-  Future<void> setCurrency(String currencyCode) async {
-    await _prefs.setString(_currencyKey, currencyCode);
+  Future<bool> updateCurrency(String newCurrency) async {
+    await _prefs.setString(_currencyKey, newCurrency);
+    notifyListeners(); // Notificar a los oyentes sobre el cambio
+    return true;
   }
+  
+  // Método alternativo para mantener compatibilidad
+  Future<void> setCurrency(String currencyCode) async {
+    await updateCurrency(currencyCode);
+  }
+
+  List<Currency> get supportedCurrencies => Currency.currencies;
 
   Future<void> setPrinter(String printerName) async {
     await _prefs.setString(_printerKey, printerName);

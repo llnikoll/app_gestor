@@ -27,21 +27,22 @@ class _CustomersScreenState extends State<CustomersScreen> {
   void initState() {
     super.initState();
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     // Obtener el notificador de productos solo una vez
-    _productNotifier ??= Provider.of<ProductNotifierService>(context, listen: false);
-    
+    _productNotifier ??=
+        Provider.of<ProductNotifierService>(context, listen: false);
+
     // Escuchar cambios en el notificador
     _productNotifier!.notifier.addListener(_onProductUpdate);
-    
+
     // Cargar clientes iniciales
     _loadClientes();
   }
-  
+
   @override
   void dispose() {
     // Limpiar el listener cuando el widget se destruya
@@ -50,15 +51,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
     _debounce?.cancel();
     super.dispose();
   }
-  
+
   // Método que se ejecuta cuando hay una actualización de productos
   void _onProductUpdate() {
     if (mounted) {
       _loadClientes();
     }
   }
-
-
 
   Future<void> _loadClientes() async {
     if (!mounted) return;
@@ -234,7 +233,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       children: [
                         Text(
                           cliente.nombre,
-                          style: Theme.of(context).textTheme.titleMedium
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         if (cliente.email != null && cliente.email!.isNotEmpty)
@@ -355,7 +356,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]!.withValues(alpha: 0.7)
+                    : Colors.grey[100],
+                hintStyle: TextStyle(
+                  color: Theme.of(context).hintColor,
+                ),
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: 0,
                   horizontal: 16,
@@ -374,18 +380,18 @@ class _CustomersScreenState extends State<CustomersScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _clientes.isEmpty
-                ? _buildEmptyState()
-                : RefreshIndicator(
-                    onRefresh: _loadClientes,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      itemCount: _filteredClientes.length,
-                      itemBuilder: (context, index) {
-                        final cliente = _filteredClientes[index];
-                        return _buildCustomerCard(cliente);
-                      },
-                    ),
-                  ),
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                        onRefresh: _loadClientes,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          itemCount: _filteredClientes.length,
+                          itemBuilder: (context, index) {
+                            final cliente = _filteredClientes[index];
+                            return _buildCustomerCard(cliente);
+                          },
+                        ),
+                      ),
           ),
         ],
       ),

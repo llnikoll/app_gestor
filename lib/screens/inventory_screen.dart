@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import '../utils/currency_formatter.dart';
 import 'package:provider/provider.dart';
 import 'inventory_entries_screen.dart';
 import 'product_form_screen.dart';
@@ -332,11 +332,7 @@ class InventoryScreenState extends State<InventoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(
-      symbol: '₲ ',
-      decimalDigits: 0,
-      locale: 'es_PY',
-    );
+    // CurrencyFormatter ya está configurado globalmente
 
     return Scaffold(
       appBar: AppBar(
@@ -436,7 +432,7 @@ class InventoryScreenState extends State<InventoryScreen>
                                     children: [
                                       const SizedBox(height: 6),
                                       Text(
-                                        'Precio: ${currencyFormat.format(producto.precioVenta)}',
+                                        'Precio: ${producto.precioVenta.formattedCurrency}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w500,
                                         ),

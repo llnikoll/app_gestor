@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../utils/currency_formatter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
@@ -425,8 +426,7 @@ class SalesScreenState extends State<SalesScreen>
   }
 
   String _formatoMoneda(double valor) {
-    final formatter = NumberFormat('#,##0', 'es_PY');
-    return 'Gs. ${formatter.format(valor)}';
+    return valor.formattedCurrency;
   }
 
   // Método para manejar el resultado del diálogo de pago

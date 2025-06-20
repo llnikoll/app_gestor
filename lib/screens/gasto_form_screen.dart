@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/gasto_model.dart';
+import '../models/currency_model.dart';
 import '../services/database_service.dart';
+import '../services/settings_service.dart';
 
 class GastoFormScreen extends StatefulWidget {
   final Gasto? gasto;
@@ -46,11 +49,16 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
     _notasController.dispose();
     super.dispose();
   }
-  
-  // Función para formatear montos en guaraníes
+
+  // Función para formatear montos según la moneda configurada
   String _formatearMoneda(double monto) {
-    // Formatear el número con separadores de miles
-    final formatter = NumberFormat('#,##0', 'es_PY');
+    final settings = Provider.of<SettingsService>(context, listen: false);
+    final currency = Currency.getByCode(settings.currency);
+    final formatter = NumberFormat.currency(
+      locale: 'es_PY',
+      symbol: currency.symbol,
+      decimalDigits: 0,
+    );
     return formatter.format(monto);
   }
 
@@ -82,11 +90,8 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
             )
           : fechaActual;
 
-      // Obtener el valor numérico del monto (eliminar puntos de miles y prefijo/sufijo)
-      final valorMonto = _montoController.text
-          .replaceAll('Gs.', '')
-          .replaceAll('.', '')
-          .trim();
+      // Obtener el valor numérico del monto (eliminar puntos de miles)
+      final valorMonto = _montoController.text.replaceAll('.', '').trim();
       final monto = double.parse(valorMonto);
 
       final gasto = Gasto(
@@ -97,9 +102,10 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
         fecha: fechaGasto,
         notas: _notasController.text.isNotEmpty ? _notasController.text : null,
       );
-      
+
       if (kDebugMode) {
-        debugPrint('Guardando gasto con fecha: ${fechaGasto.toIso8601String()}');
+        debugPrint(
+            'Guardando gasto con fecha: ${fechaGasto.toIso8601String()}');
       }
 
       final db = DatabaseService();
@@ -156,6 +162,10 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = Provider.of<SettingsService>(context);
+    final currency = Currency.getByCode(settings.currency);
+    final currencySymbol = currency.symbol;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.gasto == null ? 'Nuevo Gasto' : 'Editar Gasto'),
@@ -191,11 +201,11 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _montoController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Monto',
-                        prefixText: 'Gs. ',
-                        border: OutlineInputBorder(),
-                        suffixText: 'Gs.',
+                        prefixText: '$currencySymbol ',
+                        border: const OutlineInputBorder(),
+                        hintText: '0',
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {
@@ -203,7 +213,7 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                           return 'Por favor ingrese un monto';
                         }
                         // Eliminar puntos de separación de miles para validar
-                        final valorSinPuntos = value.replaceAll('.', '').replaceAll('Gs', '').trim();
+                        final valorSinPuntos = value.replaceAll('.', '').trim();
                         final monto = int.tryParse(valorSinPuntos);
                         if (monto == null || monto <= 0) {
                           return 'Ingrese un monto válido';
@@ -211,20 +221,39 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                         return null;
                       },
                       onChanged: (value) {
-                        // Formatear el número mientras se escribe
-                        if (value.isNotEmpty) {
-                          // Eliminar todo lo que no sea dígito
-                          final soloNumeros = value.replaceAll(RegExp(r'[^0-9]'), '');
-                          final monto = int.tryParse(soloNumeros) ?? 0;
-                          final formateado = _formatearMoneda(monto.toDouble());
-                          
-                          // Actualizar el controlador solo si el valor formateado es diferente
-                          if (formateado != value) {
-                            _montoController.value = TextEditingValue(
-                              text: formateado,
-                              selection: TextSelection.collapsed(offset: formateado.length),
-                            );
-                          }
+                        if (value.isEmpty) return;
+
+                        // Guardar la posición del cursor
+                        final cursorPosition =
+                            _montoController.selection.base.offset;
+
+                        // Eliminar todo lo que no sea dígito
+                        final soloNumeros =
+                            value.replaceAll(RegExp(r'[^0-9]'), '');
+                        final monto = int.tryParse(
+                                soloNumeros.isEmpty ? '0' : soloNumeros) ??
+                            0;
+
+                        // Formatear el número
+                        final formateado = _formatearMoneda(monto.toDouble());
+
+                        // Calcular la nueva posición del cursor
+                        int newCursorPosition = cursorPosition;
+                        if (cursorPosition > formateado.length) {
+                          newCursorPosition = formateado.length;
+                        } else if (cursorPosition < formateado.length - 1 &&
+                            formateado.length > value.length) {
+                          // Ajustar la posición cuando se inserta un separador de miles
+                          newCursorPosition++;
+                        }
+
+                        // Actualizar el controlador solo si el valor formateado es diferente
+                        if (formateado != value) {
+                          _montoController.value = TextEditingValue(
+                            text: formateado,
+                            selection: TextSelection.collapsed(
+                                offset: newCursorPosition),
+                          );
                         }
                       },
                     ),
@@ -280,9 +309,8 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                     if (widget.gasto == null) ...[
                       const SizedBox(height: 16),
                       TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.pop(context),
+                        onPressed:
+                            _isLoading ? null : () => Navigator.pop(context),
                         child: const Text('Cancelar'),
                       ),
                     ],

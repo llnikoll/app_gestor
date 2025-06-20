@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/entrada_inventario_model.dart';
 import '../services/database_service.dart';
+import '../utils/currency_formatter.dart';
 
 class InventoryEntriesScreen extends StatefulWidget {
   const InventoryEntriesScreen({super.key});
@@ -17,7 +17,7 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
     start: DateTime.now().subtract(const Duration(days: 30)),
     end: DateTime.now(),
   );
-  final NumberFormat _currencyFormat = NumberFormat.currency(symbol: '\$');
+  // CurrencyFormatter ya está configurado globalmente
 
   @override
   void initState() {
@@ -63,7 +63,7 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${DateFormat('dd/MM/yyyy').format(_dateRange.start)} - ${DateFormat('dd/MM/yyyy').format(_dateRange.end)}',
+                  '${_dateRange.start.year}-${_dateRange.start.month.toString().padLeft(2, '0')}-${_dateRange.start.day.toString().padLeft(2, '0')} - ${_dateRange.end.year}-${_dateRange.end.month.toString().padLeft(2, '0')}-${_dateRange.end.day.toString().padLeft(2, '0')}',
                   style: const TextStyle(fontSize: 16),
                 ),
                 TextButton.icon(
@@ -117,7 +117,7 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       trailing: Text(
-                        _currencyFormat.format(totalGastado),
+                        totalGastado.formattedCurrency,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -140,10 +140,10 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
                           child: ListTile(
                             title: Text(entrada.productoNombre),
                             subtitle: Text(
-                              '${entrada.cantidad} x ${_currencyFormat.format(entrada.precioUnitario)}',
+                              '${entrada.cantidad} x ${entrada.precioUnitario.formattedCurrency}',
                             ),
                             trailing: Text(
-                              _currencyFormat.format(entrada.total),
+                              entrada.total.formattedCurrency,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green,
@@ -297,17 +297,17 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
                 _buildDetailRow('Cantidad', '${entrada.cantidad} unidades'),
                 _buildDetailRow(
                   'Precio Unitario',
-                  _currencyFormat.format(entrada.precioUnitario),
+                  entrada.precioUnitario.formattedCurrency,
                 ),
                 _buildDetailRow(
                   'Total',
-                  _currencyFormat.format(entrada.total),
+                  entrada.total.formattedCurrency,
                   isBold: true,
                 ),
                 if (entrada.productoPrecioVenta != null)
                   _buildDetailRow(
                     'Precio de Venta',
-                    _currencyFormat.format(entrada.productoPrecioVenta!),
+                    entrada.productoPrecioVenta!.formattedCurrency,
                   ),
                 _buildDetailRow(
                   'Stock Actual',
@@ -317,7 +317,7 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
                   _buildDetailRow('Proveedor', entrada.proveedorNombre!),
                 _buildDetailRow(
                   'Fecha',
-                  DateFormat('dd/MM/yyyy HH:mm').format(entrada.fecha),
+                  '${entrada.fecha.day.toString().padLeft(2, '0')}/${entrada.fecha.month.toString().padLeft(2, '0')}/${entrada.fecha.year} ${entrada.fecha.hour.toString().padLeft(2, '0')}:${entrada.fecha.minute.toString().padLeft(2, '0')}',
                 ),
                 if (entrada.notas != null && entrada.notas!.isNotEmpty) ...[
                   const SizedBox(height: 8),

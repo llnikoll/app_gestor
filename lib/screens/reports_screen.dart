@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../utils/currency_formatter.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:app_gestor_ventas/services/database_service.dart';
 import 'package:app_gestor_ventas/services/transaction_notifier_service.dart';
+import 'package:app_gestor_ventas/services/settings_service.dart';
 
 // Extensión para capitalizar la primera letra de un String
 extension StringExtension on String {
@@ -61,13 +63,17 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen>
     with SingleTickerProviderStateMixin {
-  // Función para formatear montos en guaraníes
+  // Servicio de configuración
+  late final SettingsService _settingsService;
+  
+  // Función para formatear montos según la moneda configurada
   String _formatearMoneda(double monto) {
-    return NumberFormat.currency(
-      symbol: 'Gs. ',
-      decimalDigits: 0,
-      locale: 'es_PY',
-    ).format(monto).replaceAll(',', '.');
+    return monto.formattedCurrency;
+  }
+  
+  // Obtener el símbolo de moneda actual
+  String get _currencySymbol {
+    return _settingsService.currentCurrency.symbol;
   }
 
   // Controlador para las pestañas
@@ -136,8 +142,9 @@ class _ReportsScreenState extends State<ReportsScreen>
   @override
   void initState() {
     super.initState();
+    _settingsService = SettingsService();
     _tabController = TabController(length: 3, vsync: this);
-
+    
     // Configurar el listener para actualizar los datos cuando haya cambios en las transacciones
     _onTransactionUpdated = () {
       if (mounted) {
@@ -154,11 +161,10 @@ class _ReportsScreenState extends State<ReportsScreen>
       _onTransactionUpdated,
     );
     debugPrint('Listener de transacciones registrado en ReportsScreen');
-
+    
     // Cargar los datos iniciales
     _cargarTodo();
   }
-
   Future<void> _cargarTodo() async {
     await _cargarDatos();
     await _cargarVentas();
@@ -252,8 +258,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                 primary: Theme.of(context).primaryColor,
                 onPrimary: Colors.white,
                 surface: Theme.of(context).scaffoldBackgroundColor,
-                onSurface:
-                    Theme.of(context).textTheme.bodyLarge?.color ??
+                onSurface: Theme.of(context).textTheme.bodyLarge?.color ??
                     Colors.black,
               ),
               dialogTheme: DialogThemeData(
@@ -357,8 +362,8 @@ class _ReportsScreenState extends State<ReportsScreen>
               }
               productosMap[productoId]!['cantidad'] +=
                   detalle['cantidad'] as int;
-              productosMap[productoId]!['total'] += (detalle['subtotal'] as num)
-                  .toDouble();
+              productosMap[productoId]!['total'] +=
+                  (detalle['subtotal'] as num).toDouble();
             }
           }
 
@@ -718,15 +723,28 @@ class _ReportsScreenState extends State<ReportsScreen>
       builder: (context, value, _) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Informes'),
+            toolbarHeight: 0,
             bottom: TabBar(
               controller: _tabController,
-              isScrollable: true,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 24.0),
+              isScrollable: false,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicatorWeight: 3.0,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+              unselectedLabelStyle:
+                  const TextStyle(fontWeight: FontWeight.normal),
               tabs: const [
-                Tab(icon: Icon(Icons.summarize), text: 'Resumen'),
-                Tab(icon: Icon(Icons.shopping_cart), text: 'Ventas'),
-                Tab(icon: Icon(Icons.money_off), text: 'Gastos'),
+                Tab(
+                  icon: Icon(Icons.summarize),
+                  text: 'Resumen',
+                ),
+                Tab(
+                  icon: Icon(Icons.shopping_cart),
+                  text: 'Ventas',
+                ),
+                Tab(
+                  icon: Icon(Icons.money_off),
+                  text: 'Gastos',
+                ),
               ],
             ),
             actions: const [],
@@ -734,15 +752,15 @@ class _ReportsScreenState extends State<ReportsScreen>
           body: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _errorMessage.isNotEmpty
-              ? Center(child: Text(_errorMessage))
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildResumenTab(),
-                    _buildVentasTab(),
-                    _buildGastosTab(),
-                  ],
-                ),
+                  ? Center(child: Text(_errorMessage))
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildResumenTab(),
+                        _buildVentasTab(),
+                        _buildGastosTab(),
+                      ],
+                    ),
         );
       },
     );
@@ -1020,7 +1038,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                       ),
                       primaryYAxis: NumericAxis(
                         numberFormat: NumberFormat.currency(
-                          symbol: 'Gs. ',
+                          symbol: '$_currencySymbol ',
                           decimalDigits: 0,
                         ),
                       ),
@@ -1227,8 +1245,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                         labelStyle: TextStyle(fontSize: 10),
                       ),
                       primaryYAxis: NumericAxis(
-                        numberFormat: NumberFormat.compactCurrency(
-                          symbol: 'Gs. ',
+                        numberFormat: NumberFormat.currency(
+                          symbol: '$_currencySymbol ',
                           decimalDigits: 0,
                         ),
                       ),
