@@ -1483,29 +1483,14 @@ class CajaScreenState extends State<CajaScreen>
                   ? const Center(child: CircularProgressIndicator())
                   : _productosFiltrados.isEmpty
                       ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.search_off_rounded,
-                                size: 64,
-                                color: Color.fromRGBO(
-                                  (colorScheme.onSurfaceVariant.r * 255.0)
-                                          .round() &
-                                      0xff,
-                                  (colorScheme.onSurfaceVariant.g * 255.0)
-                                          .round() &
-                                      0xff,
-                                  (colorScheme.onSurfaceVariant.b * 255.0)
-                                          .round() &
-                                      0xff,
-                                  0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No se encontraron productos',
-                                style: textTheme.titleMedium?.copyWith(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.search_off_rounded,
+                                  size: 64,
                                   color: Color.fromRGBO(
                                     (colorScheme.onSurfaceVariant.r * 255.0)
                                             .round() &
@@ -1516,11 +1501,29 @@ class CajaScreenState extends State<CajaScreen>
                                     (colorScheme.onSurfaceVariant.b * 255.0)
                                             .round() &
                                         0xff,
-                                    0.7,
+                                    0.5,
                                   ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No se encontraron productos',
+                                  style: textTheme.titleMedium?.copyWith(
+                                    color: Color.fromRGBO(
+                                      (colorScheme.onSurfaceVariant.r * 255.0)
+                                              .round() &
+                                          0xff,
+                                      (colorScheme.onSurfaceVariant.g * 255.0)
+                                              .round() &
+                                          0xff,
+                                      (colorScheme.onSurfaceVariant.b * 255.0)
+                                              .round() &
+                                          0xff,
+                                      0.7,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         )
                       : ListView.builder(
@@ -2266,32 +2269,104 @@ class CajaScreenState extends State<CajaScreen>
     );
   }
 
+  // Método para manejar el botón atrás
+  Future<bool> _onWillPop() async {
+    // En dispositivos móviles, mostrar diálogo de confirmación
+    if (MediaQuery.of(context).size.width < 600) {
+      final bool? shouldPop = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext dialogContext) => AlertDialog(
+          title: const Text('Volver al menú principal'),
+          content: const Text('¿Estás seguro de que quieres volver al menú principal?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Aceptar'),
+            ),
+          ],
+        ),
+      );
+      return shouldPop ?? false;
+    } else {
+      // En escritorio, simplemente volver sin diálogo de confirmación
+      return true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
 
-    return Scaffold(
-      extendBodyBehindAppBar: false,
-      appBar: AppBar(
-        toolbarHeight: 0,
-        centerTitle: true,
-        elevation: 2,
-        shadowColor: colorScheme.shadow.withValues(alpha: 0.1),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.primary,
-                colorScheme.primary.withValues(alpha: 0.9),
-              ],
+    // Usar PopScope para manejar el botón de retroceso del dispositivo
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, _) async {
+        if (didPop) return;
+        
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        extendBodyBehindAppBar: false,
+        appBar: isDesktop 
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  _onWillPop().then((shouldPop) {
+                    if (shouldPop && context.mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  });
+                },
+              ),
+              title: const Text('Modo Caja'),
+              centerTitle: true,
+              elevation: 2,
+              shadowColor: colorScheme.shadow.withValues(alpha: 0.1),
+              flexibleSpace: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.primary.withValues(alpha: 0.8),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          : AppBar(
+              toolbarHeight: 0,
+              centerTitle: true,
+              elevation: 2,
+              shadowColor: colorScheme.shadow.withValues(alpha: 0.1),
+              flexibleSpace: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.primary.withValues(alpha: 0.9),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-        bottom: TabBar(
+        bottomNavigationBar: TabBar(
           controller: _tabController,
           labelColor: colorScheme.onPrimary,
           unselectedLabelColor: Color.fromRGBO(
@@ -2326,115 +2401,115 @@ class CajaScreenState extends State<CajaScreen>
             ),
           ],
         ),
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color.fromRGBO(
-                (colorScheme.surface.r * 255.0).round() & 0xff,
-                (colorScheme.surface.g * 255.0).round() & 0xff,
-                (colorScheme.surface.b * 255.0).round() & 0xff,
-                0.5,
-              ),
-              Color.fromRGBO(
-                (colorScheme.surfaceContainerHighest.r * 255.0).round() & 0xff,
-                (colorScheme.surfaceContainerHighest.g * 255.0).round() & 0xff,
-                (colorScheme.surfaceContainerHighest.b * 255.0).round() & 0xff,
-                0.3,
-              ),
-            ],
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color.fromRGBO(
+                  (colorScheme.surface.r * 255.0).round() & 0xff,
+                  (colorScheme.surface.g * 255.0).round() & 0xff,
+                  (colorScheme.surface.b * 255.0).round() & 0xff,
+                  0.5,
+                ),
+                Color.fromRGBO(
+                  (colorScheme.surfaceContainerHighest.r * 255.0).round() & 0xff,
+                  (colorScheme.surfaceContainerHighest.g * 255.0).round() & 0xff,
+                  (colorScheme.surfaceContainerHighest.b * 255.0).round() & 0xff,
+                  0.3,
+                ),
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                RefreshIndicator(
+                  onRefresh: _cargarProductos,
+                  color: colorScheme.primary,
+                  backgroundColor: colorScheme.surface,
+                  strokeWidth: 2.5,
+                  edgeOffset: 20,
+                  child: _buildNuevaVentaTab(),
+                ),
+                RefreshIndicator(
+                  onRefresh: _cargarVentas,
+                  color: colorScheme.primary,
+                  backgroundColor: colorScheme.surface,
+                  strokeWidth: 2.5,
+                  edgeOffset: 20,
+                  child: _buildHistorialTab(),
+                ),
+              ],
+            ),
           ),
         ),
-        child: SafeArea(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              RefreshIndicator(
-                onRefresh: _cargarProductos,
-                color: colorScheme.primary,
-                backgroundColor: colorScheme.surface,
-                strokeWidth: 2.5,
-                edgeOffset: 20,
-                child: _buildNuevaVentaTab(),
-              ),
-              RefreshIndicator(
-                onRefresh: _cargarVentas,
-                color: colorScheme.primary,
-                backgroundColor: colorScheme.surface,
-                strokeWidth: 2.5,
-                edgeOffset: 20,
-                child: _buildHistorialTab(),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: _carrito.isNotEmpty
-          ? FloatingActionButton.extended(
-              heroTag: 'sales_fab',
-              onPressed: _carrito.isEmpty ? null : _mostrarDialogoCarrito,
-              backgroundColor:
-                  _carrito.isEmpty ? Colors.grey[400] : colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              elevation: 4.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Stack(
-                    children: [
-                      const Icon(Icons.shopping_cart),
-                      if (_carrito.isNotEmpty)
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: colorScheme.error,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              '${_carrito.fold(0, (sum, item) => sum + item.cantidad)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+        floatingActionButton: _carrito.isNotEmpty
+            ? FloatingActionButton.extended(
+                heroTag: 'sales_fab',
+                onPressed: _carrito.isEmpty ? null : _mostrarDialogoCarrito,
+                backgroundColor:
+                    _carrito.isEmpty ? Colors.grey[400] : colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                elevation: 4.0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Stack(
+                      children: [
+                        const Icon(Icons.shopping_cart),
+                        if (_carrito.isNotEmpty)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: colorScheme.error,
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              textAlign: TextAlign.center,
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                '${_carrito.fold(0, (sum, item) => sum + item.cantidad)}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _carrito.isEmpty
-                        ? 'Carrito vacío'
-                        : _formatoMoneda(
-                            _carrito.fold(
-                              0.0,
-                              (sum, item) => sum + item.subtotal,
-                            ),
-                          ),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            )
-          : null,
+                    const SizedBox(width: 8),
+                    Text(
+                      _carrito.isEmpty
+                          ? 'Carrito vacío'
+                          : _formatoMoneda(
+                              _carrito.fold(
+                                0.0,
+                                (sum, item) => sum + item.subtotal,
+                              ),
+                            ),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : null,
+      ),
     );
   }
 }

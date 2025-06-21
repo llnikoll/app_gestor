@@ -121,7 +121,18 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       locale: context.locale,
-      home: const ModeSelectionScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const ModeSelectionScreen(),
+        '/mode_selection': (context) => const ModeSelectionScreen(),
+        // Agrega aquí otras rutas según sea necesario
+      },
+      onGenerateRoute: (settings) {
+        // Maneja rutas no definidas
+        return MaterialPageRoute(
+          builder: (context) => const ModeSelectionScreen(),
+        );
+      },
     );
   }
 }

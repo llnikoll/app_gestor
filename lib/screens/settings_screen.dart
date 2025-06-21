@@ -1,10 +1,199 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import '../main.dart';
 import '../services/settings_service.dart';
+
+class ChangeAdminPasswordDialog extends StatefulWidget {
+  const ChangeAdminPasswordDialog({super.key});
+
+  @override
+  State<ChangeAdminPasswordDialog> createState() => _ChangeAdminPasswordDialogState();
+}
+
+class _ChangeAdminPasswordDialogState extends State<ChangeAdminPasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _obscureCurrentPassword = true;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _changePassword() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final settings = Provider.of<SettingsService>(context, listen: false);
+      
+      // Verificar la contraseña actual
+      final isCurrentValid = await settings.verifyAdminPassword(_currentPasswordController.text);
+      if (!isCurrentValid) {
+        setState(() {
+          _errorMessage = 'La contraseña actual es incorrecta';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Actualizar la contraseña
+      await settings.setAdminPassword(_newPasswordController.text);
+      
+      if (!mounted) return;
+      
+      // Mostrar mensaje de éxito y cerrar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Contraseña actualizada correctamente')),
+      );
+      
+      Navigator.of(context).pop();
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error al cambiar la contraseña: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Cambiar contraseña de administrador'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 14),
+                  ),
+                ),
+              TextFormField(
+                controller: _currentPasswordController,
+                obscureText: _obscureCurrentPassword,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña actual',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureCurrentPassword ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureCurrentPassword = !_obscureCurrentPassword;
+                      });
+                    },
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor ingrese su contraseña actual';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _newPasswordController,
+                obscureText: _obscureNewPassword,
+                decoration: InputDecoration(
+                  labelText: 'Nueva contraseña',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureNewPassword ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureNewPassword = !_obscureNewPassword;
+                      });
+                    },
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor ingrese una nueva contraseña';
+                  }
+                  if (value.length < 4) {
+                    return 'La contraseña debe tener al menos 4 caracteres';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: _obscureConfirmPassword,
+                decoration: InputDecoration(
+                  labelText: 'Confirmar nueva contraseña',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor confirme la nueva contraseña';
+                  }
+                  if (value != _newPasswordController.text) {
+                    return 'Las contraseñas no coinciden';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _changePassword,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Cambiar contraseña'),
+        ),
+      ],
+    );
+  }
+}
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,24 +204,14 @@ class SettingsScreen extends StatefulWidget {
 
 class SettingsScreenState extends State<SettingsScreen> {
   late final SettingsService _settings;
-  String _appVersion = '1.0.0';
-  PackageInfo? _packageInfo;
 
   @override
   void initState() {
     super.initState();
     _settings = SettingsService();
-    _initPackageInfo();
-    _appVersion = 'Cargando...';
   }
 
-  Future<void> _initPackageInfo() async {
-    final packageInfo = await PackageInfo.fromPlatform();
-    setState(() {
-      _packageInfo = packageInfo;
-      _appVersion = '${packageInfo.version} (${packageInfo.buildNumber})';
-    });
-  }
+
 
   void _showLanguageDialog() {
     final BuildContext dialogContext = context;
@@ -168,40 +347,6 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showPrinterDialog() {
-    final BuildContext dialogContext = context;
-    final navigator = Navigator.of(dialogContext);
-
-    showDialog(
-      context: dialogContext,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Seleccionar impresora'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: SettingsService.availablePrinters.length,
-            itemBuilder: (BuildContext context, int index) {
-              final printer = SettingsService.availablePrinters[index];
-              return RadioListTile<String>(
-                title: Text(printer),
-                value: printer,
-                groupValue: _settings.printer,
-                onChanged: (String? value) async {
-                  if (value != null) {
-                    await _settings.setPrinter(value);
-                    if (!mounted) return;
-                    setState(() {});
-                    navigator.pop();
-                  }
-                },
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildSettingItem({
     required IconData icon,
@@ -255,18 +400,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<bool> _isBiometricAvailable() async {
-    try {
-      final bool isMobile =
-          Theme.of(context).platform == TargetPlatform.android ||
-          Theme.of(context).platform == TargetPlatform.iOS;
-      if (!isMobile) return false;
-      return true;
-    } catch (e) {
-      debugPrint('Error checking biometric availability: $e');
-      return false;
-    }
-  }
+
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -290,45 +424,6 @@ class SettingsScreenState extends State<SettingsScreen> {
         return Scaffold(
           appBar: AppBar(
             title: Text('settings'.tr()),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: () {
-                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-                  final navigator = Navigator.of(context);
-
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext dialogContext) => AlertDialog(
-                      title: const Text('Restaurar configuración'),
-                      content: const Text('¿Estás seguro de que deseas restaurar la configuración predeterminada?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: const Text('Cancelar'),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            await _settings.resetToDefault();
-                            if (!mounted) return;
-                            setState(() {});
-                            themeNotifier.toggleTheme();
-                            if (!mounted) return;
-                            navigator.pop();
-                            if (!mounted) return;
-                            scaffoldMessenger.showSnackBar(
-                              const SnackBar(content: Text('Configuración restaurada')),
-                            );
-                          },
-                          child: const Text('Restaurar'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                tooltip: 'Restaurar valores por defecto',
-              ),
-            ],
           ),
           body: ListView(
             children: [
@@ -344,14 +439,14 @@ class SettingsScreenState extends State<SettingsScreen> {
                   activeColor: Theme.of(context).primaryColor,
                 ),
               ),
-              ListTile(
-                leading: const Icon(Icons.language),
-                title: Text('language'.tr()),
-                subtitle: Text({
+              _buildSettingItem(
+                icon: Icons.language,
+                title: 'Idioma',
+                subtitle: {
                   'es': 'Español',
                   'en': 'English',
                   'pt': 'Português',
-                }[context.locale.languageCode] ?? 'Español'),
+                }[context.locale.languageCode] ?? 'Español',
                 onTap: _showLanguageDialog,
               ),
               _buildSectionTitle('PREFERENCIAS'),
@@ -365,109 +460,18 @@ class SettingsScreenState extends State<SettingsScreen> {
                   );
                 },
               ),
+              _buildSectionTitle('SEGURIDAD'),
               _buildSettingItem(
-                icon: Icons.print,
-                title: 'Impresora',
-                subtitle: _settings.printer,
-                onTap: _showPrinterDialog,
-              ),
-              _buildSettingItem(
-                icon: Icons.notifications,
-                title: 'Notificaciones',
-                trailing: Switch(
-                  value: _settings.notificationsEnabled,
-                  onChanged: (value) async {
-                    await _settings.setNotificationsEnabled(value);
-                    if (mounted) {
-                      setState(() {});
-                    }
-                  },
-                  activeColor: Theme.of(context).primaryColor,
-                ),
-              ),
-              _buildSettingItem(
-                icon: Icons.fingerprint,
-                title: 'Autenticación biométrica',
-                trailing: FutureBuilder<bool>(
-                  future: _isBiometricAvailable(),
-                  builder: (context, snapshot) {
-                    final isAvailable = snapshot.data ?? false;
-                    return Switch(
-                      value: _settings.biometricAuthEnabled && isAvailable,
-                      onChanged: isAvailable
-                          ? (bool value) async {
-                              await _settings.setBiometricAuthEnabled(value);
-                              if (mounted) {
-                                setState(() {});
-                              }
-                            }
-                          : null,
-                      activeColor: isAvailable
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey,
-                    );
-                  },
-                ),
-                subtitle: _settings.biometricAuthEnabled
-                    ? 'Activado'
-                    : 'Desactivado',
-              ),
-              _buildSectionTitle('INFORMACIÓN'),
-              _buildSettingItem(
-                icon: Icons.info_outline,
-                title: 'Versión de la aplicación',
-                subtitle: _packageInfo != null 
-                    ? 'Versión $_appVersion\n${_packageInfo!.packageName}'
-                    : 'Cargando...',
-                isLoading: _packageInfo == null,
-                onTap: _packageInfo != null ? () {
-                  // Verificar actualizaciones
-                } : null,
-              ),
-              _buildSettingItem(
-                icon: Icons.help_outline,
-                title: 'Ayuda y soporte',
+                icon: Icons.lock_outline,
+                title: 'Cambiar contraseña de administrador',
                 onTap: () {
-                  // Navegar a la pantalla de ayuda
-                },
-              ),
-              _buildSettingItem(
-                icon: Icons.privacy_tip_outlined,
-                title: 'Política de privacidad',
-                onTap: () async {
-                  final url = Uri.parse('https://tudominio.com/privacidad');
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url);
-                  }
-                },
-              ),
-              _buildSettingItem(
-                icon: Icons.description_outlined,
-                title: 'Términos y condiciones',
-                onTap: () async {
-                  final url = Uri.parse('https://tudominio.com/terminos');
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url);
-                  }
-                },
-              ),
-              _buildSectionTitle('CUENTA'),
-              _buildSettingItem(
-                icon: Icons.logout,
-                title: 'logout'.tr(),
-                onTap: () {
-                  // Cerrar sesión
+                  showDialog(
+                    context: context,
+                    builder: (context) => const ChangeAdminPasswordDialog(),
+                  );
                 },
               ),
               const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Text(
-                  '© 2023 Tu Empresa. Todos los derechos reservados.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ),
             ],
           ),
         );

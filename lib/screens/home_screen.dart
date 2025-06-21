@@ -213,7 +213,10 @@ class _HomeScreenContent extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 onTap: () {
-                  // Lógica para Cerrar sesión
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/mode_selection',
+                    (route) => false,
+                  );
                 },
               ),
             ),
@@ -473,7 +476,10 @@ class HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 12),
                         InkWell(
                           onTap: () {
-                            // Lógica para Cerrar sesión
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              '/mode_selection',
+                              (route) => false,
+                            );
                           },
                           borderRadius: BorderRadius.circular(8),
                           child: Container(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemNavigator;
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../services/settings_service.dart';
 import 'home_screen.dart';
@@ -194,65 +196,131 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     );
   }
 
+  // Método para manejar el botón atrás
+  Future<bool> _onWillPop() async {
+    // En dispositivos móviles, mostrar diálogo de confirmación
+    if (MediaQuery.of(context).size.width < 600) {
+      final bool? shouldPop = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('Salir de la aplicación'),
+          content: const Text('¿Estás seguro de que quieres salir de la aplicación?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Salir'),
+            ),
+          ],
+        ),
+      );
+      return shouldPop ?? false;
+    } else {
+      // En escritorio, simplemente salir sin diálogo de confirmación
+      return true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Spacer(),
-            const Text(
-              'SELECCIONE EL MODO',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
+    // Determinar si estamos en un dispositivo de escritorio
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
+    
+    // Usar WillPopScope con comentario para ignorar la advertencia de deprecación
+    // ignore: deprecated_member_use
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        appBar: isDesktop 
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => _onWillPop().then((shouldPop) {
+                  if (shouldPop) {
+                    SystemNavigator.pop(animated: true);
+                  }
+                }),
+              ),
+              title: const Text('Selección de Modo'),
+            )
+          : null,
+        body: SingleChildScrollView(
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 40),
+                  // Logo de la aplicación
+                  SvgPicture.asset(
+                    'assets/images/logo.svg',
+                    height: 150,
+                    width: 150,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'SELECCIONE EL MODO',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  _ModeCard(
+                    icon: Icons.admin_panel_settings,
+                    title: 'MODO ADMINISTRADOR',
+                    subtitle: 'Acceso completo al sistema',
+                    onTap: () async {
+                      final settings =
+                          Provider.of<SettingsService>(context, listen: false);
+                      final navigator = Navigator.of(context);
+
+                      if (settings.hasAdminPassword) {
+                        final result = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => const AdminPasswordDialog(),
+                        );
+                        if (!mounted) return;
+                        if (result == true) {
+                          navigator.pushReplacement(
+                            MaterialPageRoute(
+                                builder: (context) => const HomeScreen()),
+                          );
+                        }
+                      } else {
+                        if (!mounted) return;
+                        navigator.pushReplacement(
+                          MaterialPageRoute(builder: (context) => const HomeScreen()),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 40),
+                  _ModeCard(
+                    icon: Icons.point_of_sale,
+                    title: 'MODO CAJA',
+                    subtitle: 'Atención al cliente',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const CajaScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 80),
+                ],
               ),
             ),
-            const SizedBox(height: 48),
-            _ModeCard(
-              icon: Icons.admin_panel_settings,
-              title: 'MODO ADMINISTRADOR',
-              subtitle: 'Acceso completo al sistema',
-              onTap: () async {
-                final settings =
-                    Provider.of<SettingsService>(context, listen: false);
-                final navigator = Navigator.of(context);
-
-                if (settings.hasAdminPassword) {
-                  final result = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => const AdminPasswordDialog(),
-                  );
-                  if (!mounted) return;
-                  if (result == true) {
-                    navigator.pushReplacement(
-                      MaterialPageRoute(
-                          builder: (context) => const HomeScreen()),
-                    );
-                  }
-                } else {
-                  if (!mounted) return;
-                  navigator.pushReplacement(
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
-                  );
-                }
-              },
-            ),
-            const Spacer(),
-            _ModeCard(
-              icon: Icons.point_of_sale,
-              title: 'MODO CAJA',
-              subtitle: 'Atención al cliente',
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const CajaScreen()),
-                );
-              },
-            ),
-            const Spacer(flex: 2),
-          ],
+          ),
         ),
       ),
     );
