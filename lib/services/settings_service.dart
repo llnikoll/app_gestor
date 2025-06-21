@@ -12,6 +12,22 @@ class SettingsService with ChangeNotifier {
   static const String _languageKey = 'language';
   static const String _currencyKey = 'currency';
   static const String _printerKey = 'printer';
+  static const String _adminPasswordKey = 'adminPassword';
+  static const String _firstRunKey = 'firstRun';
+
+  bool get isFirstRun => _prefs.getBool(_firstRunKey) ?? true;
+  bool get hasAdminPassword => _prefs.getString(_adminPasswordKey)?.isNotEmpty ?? false;
+
+  Future<bool> verifyAdminPassword(String password) async {
+    final storedPassword = _prefs.getString(_adminPasswordKey);
+    return storedPassword == password;
+  }
+
+  Future<void> setAdminPassword(String password) async {
+    await _prefs.setString(_adminPasswordKey, password);
+    await _prefs.setBool(_firstRunKey, false);
+    notifyListeners();
+  }
 
   static const bool _defaultDarkMode = false;
   static const bool _defaultNotifications = true;

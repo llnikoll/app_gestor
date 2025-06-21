@@ -6,7 +6,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 import 'theme/app_theme.dart';
 import 'services/settings_service.dart';
 import 'services/product_notifier_service.dart';
-import 'screens/home_screen.dart';
+import 'screens/mode_selection_screen.dart';
 
 class LoadingApp extends StatelessWidget {
   const LoadingApp({super.key});
@@ -121,7 +121,7 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       locale: context.locale,
-      home: const HomeScreen(),
+      home: const ModeSelectionScreen(),
     );
   }
 }
