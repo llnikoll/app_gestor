@@ -17,7 +17,10 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
     start: DateTime.now().subtract(const Duration(days: 30)),
     end: DateTime.now(),
   );
-  // CurrencyFormatter ya está configurado globalmente
+  // Función para formatear montos según la moneda configurada
+  String _formatearMoneda(double monto) {
+    return context.formattedCurrency(monto);
+  }
 
   @override
   void initState() {
@@ -30,7 +33,11 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
       _entradasFuture = _databaseService.getEntradasInventario(
         fechaInicio: _dateRange.start,
         fechaFin: _dateRange.end,
-      );
+      ).then((entradas) {
+        // Ordenar por fecha descendente
+        entradas.sort((a, b) => b.fecha.compareTo(a.fecha));
+        return entradas;
+      });
     });
   }
 
@@ -52,118 +59,128 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Filtro de fechas
-        Card(
-          margin: const EdgeInsets.all(8.0),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${_dateRange.start.year}-${_dateRange.start.month.toString().padLeft(2, '0')}-${_dateRange.start.day.toString().padLeft(2, '0')} - ${_dateRange.end.year}-${_dateRange.end.month.toString().padLeft(2, '0')}-${_dateRange.end.day.toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                TextButton.icon(
-                  onPressed: _selectDateRange,
-                  icon: const Icon(Icons.calendar_today),
-                  label: const Text('Cambiar rango'),
-                ),
-              ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Entradas de Inventario'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: _selectDateRange,
+            tooltip: 'Seleccionar rango de fechas',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Filtro de fechas
+          Card(
+            margin: const EdgeInsets.all(8.0),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${_dateRange.start.year}-${_dateRange.start.month.toString().padLeft(2, '0')}-${_dateRange.start.day.toString().padLeft(2, '0')} - ${_dateRange.end.year}-${_dateRange.end.month.toString().padLeft(2, '0')}-${_dateRange.end.day.toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  TextButton.icon(
+                    onPressed: _selectDateRange,
+                    icon: const Icon(Icons.calendar_today),
+                    label: const Text('Cambiar rango'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        // Lista de entradas
-        Expanded(
-          child: FutureBuilder<List<EntradaInventario>>(
-            future: _entradasFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+          // Lista de entradas
+          Expanded(
+            child: FutureBuilder<List<EntradaInventario>>(
+              future: _entradasFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text('Error: ${snapshot.error}'),
-                );
-              }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
 
+                final entradas = snapshot.data ?? [];
 
-              final entradas = snapshot.data ?? [];
+                if (entradas.isEmpty) {
+                  return const Center(
+                    child: Text('No hay entradas registradas'),
+                  );
+                }
 
-              if (entradas.isEmpty) {
-                return const Center(
-                  child: Text('No hay entradas registradas'),
-                );
-              }
+                // Calcular total gastado
+                double totalGastado = 0;
+                for (var entrada in entradas) {
+                  totalGastado += entrada.total;
+                }
 
-
-              // Calcular total gastado
-              double totalGastado = 0;
-              for (var entrada in entradas) {
-                totalGastado += entrada.total;
-              }
-
-              return Column(
-                children: [
-                  // Resumen
-                  Card(
-                    margin: const EdgeInsets.all(8.0),
-                    child: ListTile(
-                      title: const Text(
-                        'Total Gastado',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      trailing: Text(
-                        totalGastado.formattedCurrency,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                return Column(
+                  children: [
+                    // Resumen
+                    Card(
+                      margin: const EdgeInsets.all(8.0),
+                      child: ListTile(
+                        title: const Text(
+                          'Total Gastado',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        trailing: Text(
+                          'Total: ${_formatearMoneda(totalGastado)}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // Lista de entradas
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: entradas.length,
-                      itemBuilder: (context, index) {
-                        final entrada = entradas[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 8.0,
-                            vertical: 4.0,
-                          ),
-                          child: ListTile(
-                            title: Text(entrada.productoNombre),
-                            subtitle: Text(
-                              '${entrada.cantidad} x ${entrada.precioUnitario.formattedCurrency}',
+                    // Lista de entradas
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: entradas.length,
+                        itemBuilder: (context, index) {
+                          final entrada = entradas[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                              vertical: 4.0,
                             ),
-                            trailing: Text(
-                              entrada.total.formattedCurrency,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
+                            child: ListTile(
+                              title: Text(entrada.productoNombre),
+                              subtitle: Text(
+                                'Cantidad: ${entrada.cantidad}\nPrecio Unitario: ${_formatearMoneda(entrada.precioUnitario)}\nTotal: ${_formatearMoneda(entrada.cantidad * entrada.precioUnitario)}',
                               ),
+                              trailing: Text(
+                                _formatearMoneda(entrada.total),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                              onTap: () {
+                                // Mostrar detalles de la entrada
+                                _showEntryDetails(entrada);
+                              },
                             ),
-                            onTap: () {
-                              // Mostrar detalles de la entrada
-                              _showEntryDetails(entrada);
-                            },
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -297,17 +314,17 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
                 _buildDetailRow('Cantidad', '${entrada.cantidad} unidades'),
                 _buildDetailRow(
                   'Precio Unitario',
-                  entrada.precioUnitario.formattedCurrency,
+                  _formatearMoneda(entrada.precioUnitario),
                 ),
                 _buildDetailRow(
                   'Total',
-                  entrada.total.formattedCurrency,
+                  _formatearMoneda(entrada.total),
                   isBold: true,
                 ),
                 if (entrada.productoPrecioVenta != null)
                   _buildDetailRow(
                     'Precio de Venta',
-                    entrada.productoPrecioVenta!.formattedCurrency,
+                    _formatearMoneda(entrada.productoPrecioVenta!),
                   ),
                 _buildDetailRow(
                   'Stock Actual',

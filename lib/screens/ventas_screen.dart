@@ -13,6 +13,7 @@ import '../models/cliente_model.dart';
 import '../models/carrito_item_model.dart';
 import '../services/database_service.dart';
 import '../services/product_notifier_service.dart';
+import '../services/settings_service.dart';
 import '../widgets/primary_button.dart';
 
 class SalesScreen extends StatefulWidget {
@@ -426,7 +427,7 @@ class SalesScreenState extends State<SalesScreen>
   }
 
   String _formatoMoneda(double valor) {
-    return valor.formattedCurrency;
+    return context.formattedCurrency(valor);
   }
 
   // Método para manejar el resultado del diálogo de pago
@@ -472,6 +473,10 @@ class SalesScreenState extends State<SalesScreen>
     _montoRecibido = total;
     _montoRecibidoController.text = total.toStringAsFixed(0);
 
+    // Obtener el símbolo de moneda actual
+    final settingsService = Provider.of<SettingsService>(context, listen: false);
+    final currencySymbol = settingsService.currentCurrency.symbol;
+
     // Create a local TextEditingController for the dialog
     final dialogMontoController = TextEditingController(
       text: _montoRecibido.toStringAsFixed(0),
@@ -494,10 +499,10 @@ class SalesScreenState extends State<SalesScreen>
                   const SizedBox(height: 16),
                   TextField(
                     controller: dialogMontoController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Monto Recibido',
-                      border: OutlineInputBorder(),
-                      prefixText: '\$ ',
+                      border: const OutlineInputBorder(),
+prefixText: '$currencySymbol ',
                     ),
                     keyboardType: TextInputType.number,
                     onChanged: (value) {
@@ -884,6 +889,11 @@ class SalesScreenState extends State<SalesScreen>
     final descripcionController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     if (!mounted) return;
+    
+    // Obtener el símbolo de moneda actual
+    final settingsService = Provider.of<SettingsService>(context, listen: false);
+    final currencySymbol = settingsService.currentCurrency.symbol;
+    
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -897,10 +907,10 @@ class SalesScreenState extends State<SalesScreen>
               children: [
                 TextFormField(
                   controller: montoController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Monto',
-                    prefixText: 'Gs. ',
-                    border: OutlineInputBorder(),
+                    prefixText: '$currencySymbol ',
+                    border: const OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
                   autofocus: true,

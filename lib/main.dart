@@ -6,7 +6,6 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 import 'theme/app_theme.dart';
 import 'services/settings_service.dart';
 import 'services/product_notifier_service.dart';
-import 'utils/currency_formatter.dart';
 import 'screens/home_screen.dart';
 
 class LoadingApp extends StatelessWidget {
@@ -38,7 +37,6 @@ void main() async {
   await SettingsService.init(); // Asegura que _prefs se inicialice
 
   final settings = SettingsService(); // Obtiene la instancia del singleton
-  CurrencyFormatter.init(settings);
   
   // El tema se inicializará directamente en el ChangeNotifierProvider
 

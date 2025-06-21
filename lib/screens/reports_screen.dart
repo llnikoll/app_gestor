@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../utils/currency_formatter.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
-import 'package:app_gestor_ventas/services/database_service.dart';
-import 'package:app_gestor_ventas/services/transaction_notifier_service.dart';
-import 'package:app_gestor_ventas/services/settings_service.dart';
+import 'package:intl/intl.dart';
+import '../services/database_service.dart';
+import '../services/transaction_notifier_service.dart';
+import '../services/settings_service.dart';
+import '../utils/currency_formatter.dart';
 
 // Extensión para capitalizar la primera letra de un String
 extension StringExtension on String {
@@ -68,7 +68,7 @@ class _ReportsScreenState extends State<ReportsScreen>
   
   // Función para formatear montos según la moneda configurada
   String _formatearMoneda(double monto) {
-    return monto.formattedCurrency;
+    return context.formattedCurrency(monto);
   }
   
   // Obtener el símbolo de moneda actual

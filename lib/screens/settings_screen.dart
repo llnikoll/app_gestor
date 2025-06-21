@@ -131,42 +131,40 @@ class SettingsScreenState extends State<SettingsScreen> {
 
     showDialog(
       context: dialogContext,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Seleccionar moneda'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _settings.supportedCurrencies.length,
-            itemBuilder: (BuildContext context, int index) {
-              final currency = _settings.supportedCurrencies[index];
-              return RadioListTile<String>(
-                title: Text('${currency.name} (${currency.symbol})'),
-                value: currency.code,
-                groupValue: currentCurrency,
-                onChanged: (String? value) async {
-                  if (value != null) {
-                    await _settings.setCurrency(value);
-                    if (!mounted) return;
-                    setState(() {});
-                    navigator.pop();
-                    
-                    // Usar el contexto del diálogo para mostrar el mensaje
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Moneda cambiada a ${currency.name}'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Seleccionar moneda'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _settings.supportedCurrencies.length,
+              itemBuilder: (BuildContext context, int index) {
+                final currency = _settings.supportedCurrencies[index];
+                return RadioListTile<String>(
+                  title: Text('${currency.name} (${currency.symbol})'),
+                  value: currency.code,
+                  groupValue: currentCurrency,
+                  onChanged: (String? value) async {
+                    if (value != null) {
+                      await _settings.setCurrency(value);
+                      if (context.mounted) {
+                        navigator.pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Moneda cambiada a ${currency.name}'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
                     }
-                  }
-                },
-              );
-            },
+                  },
+                );
+              },
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -357,11 +355,15 @@ class SettingsScreenState extends State<SettingsScreen> {
                 onTap: _showLanguageDialog,
               ),
               _buildSectionTitle('PREFERENCIAS'),
-              _buildSettingItem(
-                icon: Icons.attach_money,
-                title: 'Moneda',
-                subtitle: '${_settings.currentCurrency.name} (${_settings.currentCurrency.symbol})',
-                onTap: _showCurrencyDialog,
+              Consumer<SettingsService>(
+                builder: (context, settings, child) {
+                  return _buildSettingItem(
+                    icon: Icons.attach_money,
+                    title: 'Moneda',
+                    subtitle: '${settings.currentCurrency.name} (${settings.currentCurrency.symbol})',
+                    onTap: _showCurrencyDialog,
+                  );
+                },
               ),
               _buildSettingItem(
                 icon: Icons.print,

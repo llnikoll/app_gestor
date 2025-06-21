@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../utils/currency_formatter.dart';
 import '../services/database_service.dart';
 import '../services/settings_service.dart';
 import '../models/gasto_model.dart';
@@ -10,6 +9,7 @@ import '../models/producto_model.dart';
 import '../models/categoria_model.dart';
 import 'gasto_form_screen.dart';
 import '../services/product_notifier_service.dart';
+import '../utils/currency_formatter.dart';
 
 class GastosScreen extends StatefulWidget {
   const GastosScreen({super.key});
@@ -51,7 +51,7 @@ class _GastosScreenState extends State<GastosScreen> {
 
   // Función para formatear montos según la moneda configurada
   String _formatearMoneda(double monto) {
-    return monto.formattedCurrency;
+    return context.formattedCurrency(monto);
   }
 
   // Función para calcular el total de gastos

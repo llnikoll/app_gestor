@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import '../utils/currency_formatter.dart';
 import 'package:provider/provider.dart';
 import 'inventory_entries_screen.dart';
 import 'product_form_screen.dart';
 import '../models/producto_model.dart';
 import '../services/database_service.dart';
 import '../services/product_notifier_service.dart';
+import '../utils/currency_formatter.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -432,7 +432,7 @@ class InventoryScreenState extends State<InventoryScreen>
                                     children: [
                                       const SizedBox(height: 6),
                                       Text(
-                                        'Precio: ${producto.precioVenta.formattedCurrency}',
+                                        'Precio: ${context.formattedCurrency(producto.precioVenta)}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w500,
                                         ),
