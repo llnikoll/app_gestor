@@ -134,21 +134,66 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
       builder: (context) {
         double monto = 0.0;
         String descripcion = '';
+        final settingsService = Provider.of<SettingsService>(context, listen: false);
+        final currencySymbol = settingsService.currentCurrency.symbol;
+        final formatter = NumberFormat.currency(
+          symbol: '',
+          decimalDigits: settingsService.currentCurrency.decimalDigits,
+          locale: settingsService.currentCurrency.locale,
+        );
+        
+        // Controlador para el campo de monto con formato
+        final montoController = TextEditingController();
+        
+        void actualizarMonto(String value) {
+          // Remover todos los caracteres que no sean dígitos o el separador decimal
+          final cleanValue = value.replaceAll(RegExp(r'[^\d,]'), '');
+          
+          // Convertir a número
+          final parsedValue = double.tryParse(cleanValue.replaceAll('.', '').replaceAll(',', '.')) ?? 0.0;
+          monto = parsedValue;
+          
+          // Actualizar el texto con formato
+          if (cleanValue.isNotEmpty) {
+            final newText = formatter.format(parsedValue);
+            if (newText != montoController.text) {
+              montoController.text = newText;
+              montoController.selection = TextSelection.collapsed(offset: montoController.text.length);
+            }
+          }
+        }
+        
         return AlertDialog(
           title: const Text('Venta Casual'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: const InputDecoration(labelText: 'Monto'),
-                keyboardType: TextInputType.number,
-                onChanged: (value) => monto = double.tryParse(value) ?? 0.0,
-              ),
-              TextField(
-                decoration: const InputDecoration(labelText: 'Descripción'),
-                onChanged: (value) => descripcion = value,
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: montoController,
+                  decoration: InputDecoration(
+                    labelText: 'Monto',
+                    border: const OutlineInputBorder(),
+                    prefixText: '$currencySymbol ',
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: actualizarMonto,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d,]')),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Descripción',
+                    border: OutlineInputBorder(),
+                    hintText: 'Ingrese una descripción para esta venta',
+                  ),
+                  maxLines: 3,
+                  onChanged: (value) => descripcion = value.trim(),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -163,8 +208,8 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                       'producto': null,
                       'cantidad': 1,
                       'monto': monto,
-                      'descripcion':
-                          descripcion.isEmpty ? 'Venta Casual' : descripcion,
+                      'descripcion': descripcion.isEmpty ? 'Venta Casual' : descripcion,
+                      'notas': descripcion.isEmpty ? 'Venta Casual' : descripcion,
                     });
                   });
                   Navigator.pop(context);
@@ -184,9 +229,19 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
           .showSnackBar(const SnackBar(content: Text('El carrito está vacío')));
       return;
     }
+    
+    // Obtener la configuración de moneda actual
+    final settingsService = Provider.of<SettingsService>(context, listen: false);
+    final currencySymbol = settingsService.currentCurrency.symbol;
+    final formatter = NumberFormat.currency(
+      symbol: currencySymbol,
+      decimalDigits: settingsService.currentCurrency.decimalDigits,
+      locale: settingsService.currentCurrency.locale,
+    );
+    
     // Resetear el controlador al abrir el diálogo
     _montoRecibidoController.text =
-        _montoRecibido > 0 ? _montoRecibido.toString() : '';
+        _montoRecibido > 0 ? _montoRecibido.toStringAsFixed(settingsService.currentCurrency.decimalDigits) : '';
 
     showDialog(
       context: context,
@@ -211,7 +266,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                       title:
                           Text(item['producto']?.nombre ?? item['descripcion']),
                       subtitle: Text(
-                          'Cantidad: ${item['cantidad']} - Subtotal: ${NumberFormat.currency(symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol).format(item['producto'] != null ? item['producto'].precioVenta * item['cantidad'] : item['monto'])}'),
+                          'Cantidad: ${item['cantidad']} - Subtotal: ${formatter.format(item['producto'] != null ? item['producto'].precioVenta * item['cantidad'] : item['monto'])}'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -274,16 +329,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 18)),
                     trailing: Text(
-                      NumberFormat.currency(
-                        symbol:
-                            Provider.of<SettingsService>(context, listen: false)
-                                .currentCurrency
-                                .symbol,
-                        decimalDigits:
-                            Provider.of<SettingsService>(context, listen: false)
-                                .currentCurrency
-                                .decimalDigits,
-                      ).format(total),
+                      formatter.format(total),
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 18),
                     ),
@@ -302,16 +348,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                           ),
                         ),
                         trailing: Text(
-                          NumberFormat.currency(
-                            symbol: Provider.of<SettingsService>(context,
-                                    listen: false)
-                                .currentCurrency
-                                .symbol,
-                            decimalDigits: Provider.of<SettingsService>(context,
-                                    listen: false)
-                                .currentCurrency
-                                .decimalDigits,
-                          ).format((_montoRecibido - total).abs()),
+                          formatter.format((_montoRecibido - total).abs()),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: _montoRecibido >= total
@@ -324,19 +361,53 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                     ],
                     const SizedBox(height: 8),
                     TextField(
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Monto Recibido',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
+                        prefixText: '$currencySymbol ',
                       ),
                       keyboardType: TextInputType.number,
                       controller: _montoRecibidoController,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[\d,]')),
+                      ],
                       onChanged: (value) {
-                        final monto = double.tryParse(value) ?? 0.0;
-                        // Actualizamos el estado del widget padre
+                        // Si el campo está vacío, establecer monto en 0 y salir
+                        if (value.isEmpty) {
+                          setState(() => _montoRecibido = 0.0);
+                          setDialogState(() {});
+                          return;
+                        }
+                        
+                        // Remover todos los caracteres que no sean dígitos o comas
+                        final cleanValue = value.replaceAll(RegExp(r'[^\d,]'), '');
+                        
+                        // Convertir a número, reemplazando la coma por punto si es necesario
+                        final monto = double.tryParse(cleanValue.replaceAll('.', '').replaceAll(',', '.')) ?? 0.0;
+                        
+                        // Actualizar el estado con el valor numérico
                         setState(() {
                           _montoRecibido = monto;
                         });
-                        // Forzamos la actualización del diálogo
+                        
+                        // Formatear el valor mostrado con separadores de miles
+                        if (cleanValue.isNotEmpty) {
+                          final formatter = NumberFormat.currency(
+                            symbol: '',
+                            decimalDigits: settingsService.currentCurrency.decimalDigits,
+                            locale: settingsService.currentCurrency.locale,
+                          );
+                          
+                          final newText = formatter.format(monto);
+                          
+                          // Solo actualizar el texto si es diferente para evitar bucles infinitos
+                          if (newText != _montoRecibidoController.text.replaceAll(RegExp(r'[^\d,]'), '')) {
+                            _montoRecibidoController.text = newText;
+                            _montoRecibidoController.selection = TextSelection.collapsed(offset: _montoRecibidoController.text.length);
+                          }
+                        }
+                        
+                        // Forzar la actualización del diálogo
                         setDialogState(() {});
                       },
                     ),
@@ -837,7 +908,11 @@ class HistorialTabState extends State<HistorialTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                          '${venta.totalFormateado} • ${venta.fechaFormateada}'),
+                        '${NumberFormat.currency(
+                          symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol,
+                          decimalDigits: Provider.of<SettingsService>(context, listen: false).currentCurrency.decimalDigits,
+                          locale: Provider.of<SettingsService>(context, listen: false).currentCurrency.locale,
+                        ).format(venta.total)} • ${venta.fechaFormateada}'),
                       Text(
                         metodoPagoText,
                         style: TextStyle(
@@ -868,24 +943,11 @@ class HistorialTabState extends State<HistorialTab> {
                                   '${venta.metodoPago}${venta.referenciaPago != null ? ' #${venta.referenciaPago}' : ''}'),
 
                               // Mostrar descripción de la venta casual si existe
-                              ...(venta.clienteNombre == null &&
-                                      venta.items.isNotEmpty
-                                  ? (() {
-                                      final item = venta.items.first;
-                                      final descripcion = item['descripcion'] ??
-                                          item['notas'] ??
-                                          item['nombre_producto'];
-
-                                      if (descripcion != null &&
-                                          descripcion != 'Venta Casual') {
-                                        return [
-                                          _buildInfoRow('Descripción:',
-                                              descripcion.toString())
-                                        ];
-                                      }
-                                      return <Widget>[];
-                                    })()
-                                  : <Widget>[]),
+                              if (venta.clienteNombre == null && venta.items.isNotEmpty)
+                                for (final item in venta.items)
+                                  if (item['descripcion'] != null && item['descripcion'] != 'Venta Casual')
+                                    _buildInfoRow('Descripción:', item['descripcion'].toString()),
+                              const SizedBox(height: 8),
 
                               const SizedBox(height: 16),
                               const Text('Productos:',
@@ -900,15 +962,18 @@ class HistorialTabState extends State<HistorialTab> {
                                     'Venta Casual';
                                 final cantidad = item['cantidad'];
                                 final subtotal = item['subtotal'];
-                                final currencySymbol =
-                                    Provider.of<SettingsService>(context,
-                                            listen: false)
-                                        .currentCurrency
-                                        .symbol;
+                                final settingsService = Provider.of<SettingsService>(context, listen: false);
+                                final currencySymbol = settingsService.currentCurrency.symbol;
+                                final formatter = NumberFormat.currency(
+                                  symbol: currencySymbol,
+                                  decimalDigits: settingsService.currentCurrency.decimalDigits,
+                                  locale: settingsService.currentCurrency.locale,
+                                );
 
                                 // Determinar el texto a mostrar como título del ítem
-                                String tituloItem =
-                                    productoNombre ?? descripcion;
+                                String tituloItem = productoNombre ?? descripcion;
+                                bool mostrarDescripcion = descripcion != 'Venta Casual' && 
+                                                       (productoNombre == null || descripcion != productoNombre);
 
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -920,16 +985,13 @@ class HistorialTabState extends State<HistorialTab> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '$cantidad x ${NumberFormat.currency(symbol: currencySymbol).format(subtotal / cantidad)} = ${NumberFormat.currency(symbol: currencySymbol).format(subtotal)}',
+                                      '$cantidad x ${formatter.format(subtotal / cantidad)} = ${formatter.format(subtotal)}',
                                       style: TextStyle(color: Colors.grey[600]),
                                     ),
-                                    // Mostrar notas adicionales si existen y son diferentes al nombre
-                                    if (descripcion != 'Venta Casual' &&
-                                        productoNombre != null &&
-                                        descripcion != productoNombre)
+                                    // Mostrar descripción si es diferente a 'Venta Casual' y al nombre del producto
+                                    if (mostrarDescripcion)
                                       Padding(
-                                        padding: const EdgeInsets.only(
-                                            top: 4.0, left: 8.0),
+                                        padding: const EdgeInsets.only(top: 4.0, left: 8.0),
                                         child: Text(
                                           descripcion,
                                           style: TextStyle(
@@ -954,7 +1016,11 @@ class HistorialTabState extends State<HistorialTab> {
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16)),
                                   Text(
-                                    venta.totalFormateado,
+                                    NumberFormat.currency(
+                                      symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol,
+                                      decimalDigits: Provider.of<SettingsService>(context, listen: false).currentCurrency.decimalDigits,
+                                      locale: Provider.of<SettingsService>(context, listen: false).currentCurrency.locale,
+                                    ).format(venta.total),
                                     style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16),
