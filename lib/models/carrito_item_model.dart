@@ -51,4 +51,24 @@ class CarritoItem {
       };
     }
   }
+
+  CarritoItem copyWith({
+    int? cantidad,
+    Producto? producto,
+    String? descripcionVentaCasual,
+    double? montoVentaCasual,
+  }) {
+    if (esVentaCasual) {
+      return CarritoItem.ventaCasual(
+        descripcion: descripcionVentaCasual ?? this.descripcionVentaCasual!,
+        monto: montoVentaCasual ?? this.montoVentaCasual!,
+        cantidad: cantidad ?? this.cantidad,
+      );
+    } else {
+      return CarritoItem.producto(
+        producto: producto ?? this.producto!,
+        cantidad: cantidad ?? this.cantidad,
+      );
+    }
+  }
 }

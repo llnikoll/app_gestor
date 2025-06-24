@@ -39,13 +39,19 @@ class AppTheme {
     ),
 
     // TabBar
-    tabBarTheme: const TabBarThemeData(
-      labelColor: Colors.white,
-      unselectedLabelColor: Colors.white70,
-      indicatorColor: Colors.white,
+    tabBarTheme: TabBarThemeData(
+      labelColor: AppColors.textOnPrimary,
+      unselectedLabelColor: AppColors.textOnPrimary.withValues(alpha: 0.7),
+      indicatorColor: AppColors.textOnPrimary,
       indicatorSize: TabBarIndicatorSize.tab,
-      labelStyle: TextStyle(fontWeight: FontWeight.w500),
-      unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
+      overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return Colors.white.withValues(alpha: 0.1);
+        }
+        return Colors.transparent;
+      }),
     ),
 
     // Textos
@@ -133,20 +139,20 @@ class AppTheme {
 
     // Tarjetas
     cardTheme: ThemeData.light().cardTheme.copyWith(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      color: AppColors.surface,
-      shadowColor: Colors.black.withAlpha(26), // 0.1 * 255 ≈ 26
-      surfaceTintColor: AppColors.surface,
-    ),
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          color: AppColors.surface,
+          shadowColor: Colors.black.withAlpha(26), // 0.1 * 255 ≈ 26
+          surfaceTintColor: AppColors.surface,
+        ),
 
     // Diálogos
     dialogTheme: ThemeData.light().dialogTheme.copyWith(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      elevation: 4,
-      backgroundColor: AppColors.surface,
-      surfaceTintColor: AppColors.surface,
-    ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 4,
+          backgroundColor: AppColors.surface,
+          surfaceTintColor: AppColors.surface,
+        ),
 
     // SnackBar
     snackBarTheme: const SnackBarThemeData(

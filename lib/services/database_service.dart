@@ -9,7 +9,7 @@ import '../models/entrada_inventario_model.dart';
 import '../models/gasto_model.dart';
 import 'transaction_notifier_service.dart';
 
-class DatabaseService {
+class DatabaseService extends ChangeNotifier {
   // Singleton instance
   static final DatabaseService _instance = DatabaseService._internal();
   static Database? _database;
@@ -33,6 +33,11 @@ class DatabaseService {
 
   // Factory constructor to return the same instance
   factory DatabaseService() => _instance;
+
+  // Notificar a los listeners que ha habido un cambio en los datos
+  void notifyDataChanged() {
+    notifyListeners();
+  }
 
   // Get database instance
   Future<Database> get database async {
@@ -656,6 +661,7 @@ class DatabaseService {
               'cantidad': item['cantidad'],
               'precio_unitario': item['precio_unitario'] ?? 0.0,
               'subtotal': item['subtotal'],
+              'notas': item['notas'], // Incluir las notas en el detalle de venta
             });
 
             debugPrint('Detalle de venta insertado para el producto ${item['producto_id']}');

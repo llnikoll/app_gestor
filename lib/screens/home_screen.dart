@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/navigation_item.dart';
 import 'dashboard_screen.dart';
-import 'ventas_screen.dart';
+import 'caja_screen.dart';
 import 'inventory_screen.dart';
 import 'clientes_screen.dart';
 import 'reports_screen.dart';
@@ -247,7 +247,7 @@ class HomeScreenState extends State<HomeScreen> {
     if (_isInitialized) return;
     _screens = [
       const DashboardScreen(),
-      const SalesScreen(), // O VentasScreen si ese es el nombre de tu clase
+      const CajaScreen(),
       const InventoryScreen(),
       const CustomersScreen(),
       const ReportsScreen(),

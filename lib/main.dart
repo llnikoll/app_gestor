@@ -6,6 +6,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 import 'theme/app_theme.dart';
 import 'services/settings_service.dart';
 import 'services/product_notifier_service.dart';
+import 'services/database_service.dart';
 import 'screens/mode_selection_screen.dart';
 
 class LoadingApp extends StatelessWidget {
@@ -68,6 +69,7 @@ void main() async {
           ),
         ),
         Provider(create: (_) => ProductNotifierService()),
+        ChangeNotifierProvider(create: (_) => DatabaseService()),
       ],
       child: EasyLocalization(
         supportedLocales: const [
