@@ -172,36 +172,34 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
             montoController.text = '';
             return;
           }
-
+          
           // Obtener solo números y comas
           String cleanValue = value.replaceAll(RegExp(r'[^\d,]'), '');
-
+          
           // Validar que no haya más de una coma
           final parts = cleanValue.split(',');
           if (parts.length > 2) {
             // Si hay más de una coma, mantener solo la primera
             cleanValue = '${parts[0]},${parts[1]}';
           }
-
+          
           // Limitar a 2 decimales después de la coma
           if (parts.length == 2 && parts[1].length > 2) {
             cleanValue = '${parts[0]},${parts[1].substring(0, 2)}';
           }
-
+          
           // Formatear el número con puntos de miles
           String formattedValue = formatearNumero(cleanValue);
-
+          
           // Actualizar el controlador con el cursor al final
           montoController.value = TextEditingValue(
             text: formattedValue,
             selection: TextSelection.collapsed(offset: formattedValue.length),
           );
-
+          
           // Actualizar el valor numérico
           if (cleanValue.isNotEmpty) {
-            monto = double.tryParse(
-                    cleanValue.replaceAll('.', '').replaceAll(',', '.')) ??
-                0.0;
+            monto = double.tryParse(cleanValue.replaceAll('.', '').replaceAll(',', '.')) ?? 0.0;
           } else {
             monto = 0.0;
           }
@@ -220,8 +218,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                     border: const OutlineInputBorder(),
                     prefixText: '$currencySymbol ',
                   ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   onChanged: actualizarMonto,
                   inputFormatters: [
                     // Permitir solo números y comas
@@ -232,21 +229,21 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                       if (newValue.text.length < oldValue.text.length) {
                         return newValue;
                       }
-
+                      
                       final text = newValue.text;
-
+                      
                       // No permitir comenzar con coma
                       if (text.startsWith(',')) return oldValue;
-
+                      
                       // No permitir múltiples comas
                       if ((text.split(',').length - 1) > 1) return oldValue;
-
+                      
                       // Limitar a 2 decimales después de la coma
                       final parts = text.split(',');
                       if (parts.length == 2 && parts[1].length > 2) {
                         return oldValue;
                       }
-
+                      
                       return newValue;
                     }),
                   ],
@@ -277,7 +274,10 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                       'producto': null,
                       'cantidad': 1,
                       'monto': monto,
-                      'descripcion': descripcion.isEmpty ? 'Venta Casual' : descripcion,
+                      'descripcion':
+                          descripcion.isEmpty ? 'Venta Casual' : descripcion,
+                      'notas':
+                          descripcion.isEmpty ? 'Venta Casual' : descripcion,
                     });
                   });
                   Navigator.pop(context);
@@ -437,8 +437,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                         border: const OutlineInputBorder(),
                         prefixText: '$currencySymbol ',
                       ),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       controller: _montoRecibidoController,
                       onChanged: (value) {
                         // Si el valor está vacío, limpiar todo
@@ -452,42 +451,36 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                         }
 
                         // Obtener solo números y comas
-                        String cleanValue =
-                            value.replaceAll(RegExp(r'[^\d,]'), '');
-
+                        String cleanValue = value.replaceAll(RegExp(r'[^\d,]'), '');
+                        
                         // Validar que no haya más de una coma
                         final parts = cleanValue.split(',');
                         if (parts.length > 2) {
                           // Si hay más de una coma, mantener solo la primera
                           cleanValue = '${parts[0]},${parts[1]}';
                         }
-
+                        
                         // Limitar a 2 decimales después de la coma
                         if (parts.length == 2 && parts[1].length > 2) {
-                          cleanValue =
-                              '${parts[0]},${parts[1].substring(0, 2)}';
+                          cleanValue = '${parts[0]},${parts[1].substring(0, 2)}';
                         }
-
+                        
                         // Formatear el número con puntos de miles
                         String formattedValue = formatearNumero(cleanValue);
-
+                        
                         // Actualizar el controlador
                         _montoRecibidoController.value = TextEditingValue(
                           text: formattedValue,
-                          selection: TextSelection.collapsed(
-                              offset: formattedValue.length),
+                          selection: TextSelection.collapsed(offset: formattedValue.length),
                         );
-
+                        
                         // Actualizar el valor numérico
                         if (cleanValue.isNotEmpty) {
-                          _montoRecibido = double.tryParse(cleanValue
-                                  .replaceAll('.', '')
-                                  .replaceAll(',', '.')) ??
-                              0.0;
+                          _montoRecibido = double.tryParse(cleanValue.replaceAll('.', '').replaceAll(',', '.')) ?? 0.0;
                         } else {
                           _montoRecibido = 0.0;
                         }
-
+                        
                         // Forzar la actualización del diálogo
                         setDialogState(() {});
                       },
@@ -500,21 +493,21 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                           if (newValue.text.length < oldValue.text.length) {
                             return newValue;
                           }
-
+                          
                           final text = newValue.text;
-
+                          
                           // No permitir comenzar con coma
                           if (text.startsWith(',')) return oldValue;
-
+                          
                           // No permitir múltiples comas
                           if ((text.split(',').length - 1) > 1) return oldValue;
-
+                          
                           // Limitar a 2 decimales después de la coma
                           final parts = text.split(',');
                           if (parts.length == 2 && parts[1].length > 2) {
                             return oldValue;
                           }
-
+                          
                           return newValue;
                         }),
                       ],
@@ -620,6 +613,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
         final cantidad = item['cantidad'] as int;
         final monto = item['monto'] as double?;
         final descripcion = item['descripcion'] as String?;
+        final esVentaCasual = producto == null && descripcion != null;
 
         return {
           'producto_id': producto?.id,
@@ -628,7 +622,9 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
           'subtotal': producto != null
               ? producto.precioVenta * cantidad
               : (monto ?? 0.0) * cantidad,
-          'descripcion': descripcion  // Guardar solo en 'descripcion'
+          'nombre_producto': esVentaCasual ? descripcion : producto?.nombre,
+          'descripcion': descripcion,
+          'notas': descripcion,
         };
       }).toList(),
     );
@@ -850,8 +846,7 @@ class HistorialTabState extends State<HistorialTab> {
   }
 
   // Método auxiliar para construir filas de información en el diálogo
-  Widget _buildInfoRow(String label, String value,
-      {bool isBold = false, bool isTotal = false}) {
+  Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -859,22 +854,13 @@ class HistorialTabState extends State<HistorialTab> {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              fontSize: isTotal ? 16 : 14,
-              color: isTotal ? Theme.of(context).primaryColor : null,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: isTotal ? 16 : 14,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                color: isTotal ? Theme.of(context).primaryColor : null,
-              ),
-              textAlign: TextAlign.end,
+              style: const TextStyle(fontSize: 14),
             ),
           ),
         ],
@@ -883,186 +869,6 @@ class HistorialTabState extends State<HistorialTab> {
   }
 
   bool _isLoading = false;
-
-  // Método para mostrar el detalle de una venta con productos
-  void _mostrarDetalleVentaConProductos(Venta venta) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detalles de la Venta',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildInfoRow('Cliente:', venta.clienteNombre ?? 'Venta Casual'),
-              _buildInfoRow('Fecha:', venta.fechaFormateada),
-              _buildInfoRow('Método de Pago:',
-                  '${venta.metodoPago}${venta.referenciaPago != null ? ' #${venta.referenciaPago}' : ''}'),
-              if (venta.items.isNotEmpty) ...[
-                ...() {
-                  final descripcion = venta.items.first['descripcion']?.toString() ?? 
-                                   venta.items.first['notas']?.toString() ?? 'Venta Casual';
-                  if (descripcion.isNotEmpty && descripcion != 'null') {
-                    return [_buildInfoRow(
-                      'Descripción:',
-                      descripcion,
-                    )];
-                  }
-                  return <Widget>[];
-                }(),
-              ],
-              const SizedBox(height: 16),
-              const Text('Productos:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              const Divider(),
-              ...venta.items.map((item) => _buildItemVenta(item)),
-              const SizedBox(height: 8),
-              _buildResumenVenta(venta),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Construye un ítem de venta para el diálogo
-  Widget _buildItemVenta(Map<String, dynamic> item) {
-    final productoNombre = item['nombre_producto'];
-    final descripcion = item['descripcion'] ?? item['notas'] ?? 'Venta Casual';
-    final cantidad = item['cantidad'];
-    final subtotal = item['subtotal'];
-    final settingsService =
-        Provider.of<SettingsService>(context, listen: false);
-    final currencySymbol = settingsService.currentCurrency.symbol;
-    final formatter = NumberFormat.currency(
-      symbol: currencySymbol,
-      decimalDigits: settingsService.currentCurrency.decimalDigits,
-      locale: settingsService.currentCurrency.locale,
-    );
-
-    // Determinar el texto a mostrar como título del ítem
-    String tituloItem = productoNombre ?? descripcion;
-    bool mostrarDescripcion = descripcion != 'Venta Casual' &&
-        (productoNombre == null || descripcion != productoNombre);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          tituloItem,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '$cantidad x ${formatter.format(subtotal / cantidad)} = ${formatter.format(subtotal)}',
-          style: TextStyle(color: Colors.grey[600]),
-        ),
-        // Mostrar descripción si es diferente a 'Venta Casual' y al nombre del producto
-        if (mostrarDescripcion)
-          Padding(
-            padding: const EdgeInsets.only(top: 4.0, left: 8.0),
-            child: Text(
-              descripcion,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ),
-        const Divider(),
-      ],
-    );
-  }
-
-  // Construye el resumen de la venta (subtotal, impuestos, total)
-  Widget _buildResumenVenta(Venta venta) {
-    final settingsService =
-        Provider.of<SettingsService>(context, listen: false);
-    final formatter = NumberFormat.currency(
-      symbol: settingsService.currentCurrency.symbol,
-      decimalDigits: settingsService.currentCurrency.decimalDigits,
-      locale: settingsService.currentCurrency.locale,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Divider(),
-        _buildInfoRow('Subtotal:', formatter.format(venta.total)),
-        _buildInfoRow(
-            'Impuestos:', formatter.format(0)), // Ajustar si hay impuestos
-        _buildInfoRow('Total:', formatter.format(venta.total),
-            isBold: true, isTotal: true),
-      ],
-    );
-  }
-
-  // Método para mostrar el detalle de una venta casual
-  void _mostrarDetalleVentaCasual(Venta venta) {
-    if (venta.items.isEmpty) {
-      debugPrint('No hay ítems en la venta');
-      return;
-    }
-
-    final item = venta.items.first;
-    final descripcion = item['descripcion']?.toString() ?? 
-                      item['notas']?.toString() ?? 'Venta Casual';
-    final monto = (item['precio_unitario'] as num?)?.toDouble() ?? 0.0;
-    final cantidad = (item['cantidad'] as int?) ?? 1;
-    final subtotal = (item['subtotal'] as num?)?.toDouble() ?? monto * cantidad;
-
-    final settingsService =
-        Provider.of<SettingsService>(context, listen: false);
-    final formatter = NumberFormat.currency(
-      symbol: settingsService.currentCurrency.symbol,
-      decimalDigits: settingsService.currentCurrency.decimalDigits,
-      locale: settingsService.currentCurrency.locale,
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detalle de Venta Casual',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInfoRow('Fecha:', venta.fechaFormateada),
-              _buildInfoRow('Método de Pago:',
-                  '${venta.metodoPago}${venta.referenciaPago != null ? ' #${venta.referenciaPago}' : ''}'),
-              const SizedBox(height: 16),
-              const Text('Descripción:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              Text(descripcion),
-              const SizedBox(height: 16),
-              _buildInfoRow('Precio Unitario:', formatter.format(monto)),
-              _buildInfoRow('Cantidad:', cantidad.toString()),
-              const Divider(),
-              _buildInfoRow('Total:', formatter.format(subtotal),
-                  isBold: true, isTotal: true),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _loadVentas() async {
     // Evitar múltiples cargas simultáneas
@@ -1229,14 +1035,162 @@ class HistorialTabState extends State<HistorialTab> {
                       ? const Icon(Icons.expand_more)
                       : null,
                   onTap: () {
-                    // Si es una venta casual, mostrar el diálogo personalizado
-                    if (venta.clienteNombre == null &&
-                        venta.items.length == 1) {
-                      _mostrarDetalleVentaCasual(venta);
-                    } else {
-                      // Mostrar diálogo para ventas con productos
-                      _mostrarDetalleVentaConProductos(venta);
-                    }
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Detalles de la Venta',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        content: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildInfoRow('Cliente:',
+                                  venta.clienteNombre ?? 'Venta Casual'),
+                              _buildInfoRow('Fecha:', venta.fechaFormateada),
+                              _buildInfoRow('Método de Pago:',
+                                  '${venta.metodoPago}${venta.referenciaPago != null ? ' #${venta.referenciaPago}' : ''}'),
+
+                              // Mostrar descripción de la venta casual si existe
+                              if (venta.clienteNombre == null &&
+                                  venta.items.isNotEmpty)
+                                for (final item in venta.items)
+                                  if (item['descripcion'] != null &&
+                                      item['descripcion'] != 'Venta Casual')
+                                    _buildInfoRow('Descripción:',
+                                        item['descripcion'].toString()),
+                              const SizedBox(height: 8),
+
+                              const SizedBox(height: 16),
+                              const Text('Productos:',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              const Divider(),
+                              ...venta.items.map((item) {
+                                final productoNombre = item['nombre_producto'];
+                                // Usar la descripción del ítem si está disponible, de lo contrario usar 'Venta Casual'
+                                final descripcion = item['descripcion'] ??
+                                    item['notas'] ??
+                                    'Venta Casual';
+                                final cantidad = item['cantidad'];
+                                final subtotal = item['subtotal'];
+                                final settingsService =
+                                    Provider.of<SettingsService>(context,
+                                        listen: false);
+                                final currencySymbol =
+                                    settingsService.currentCurrency.symbol;
+                                final formatter = NumberFormat.currency(
+                                  symbol: currencySymbol,
+                                  decimalDigits: settingsService
+                                      .currentCurrency.decimalDigits,
+                                  locale:
+                                      settingsService.currentCurrency.locale,
+                                );
+
+                            const SizedBox(height: 16),
+                            const Text('Productos:',
+                                style:
+                                    TextStyle(fontWeight: FontWeight.bold)),
+                            const Divider(),
+                            ...venta.items.map((item) {
+                              final productoNombre = item['nombre_producto'];
+                              // Usar la descripción del ítem si está disponible, de lo contrario usar 'Venta Casual'
+                              final descripcion = item['descripcion'] ??
+                                  item['notas'] ??
+                                  'Venta Casual';
+                              final cantidad = item['cantidad'];
+                              final subtotal = item['subtotal'];
+                              final settingsService =
+                                  Provider.of<SettingsService>(context,
+                                      listen: false);
+                              final currencySymbol =
+                                  settingsService.currentCurrency.symbol;
+                              final formatter = NumberFormat.currency(
+                                symbol: currencySymbol,
+                                decimalDigits: settingsService
+                                    .currentCurrency.decimalDigits,
+                                locale:
+                                    settingsService.currentCurrency.locale,
+                              );
+
+                              // Determinar el texto a mostrar como título del ítem
+                              String tituloItem =
+                                  productoNombre ?? descripcion;
+                              // Mostrar siempre la descripción en ventas casuales
+                              bool mostrarDescripcion = venta.clienteNombre == null;
+                                    Text(
+                                      tituloItem,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$cantidad x ${formatter.format(subtotal / cantidad)} = ${formatter.format(subtotal)}',
+                                      style: TextStyle(color: Colors.grey[600]),
+                                    ),
+                                    // Mostrar descripción si es diferente a 'Venta Casual' y al nombre del producto
+                                    if (mostrarDescripcion)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                            top: 4.0, left: 8.0),
+                                        child: Text(
+                                          descripcion,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                      ),
+                                    const Divider(),
+                                  ],
+                                );
+                              }),
+
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Total:',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16)),
+                                  Text(
+                                    NumberFormat.currency(
+                                      symbol: Provider.of<SettingsService>(
+                                              context,
+                                              listen: false)
+                                          .currentCurrency
+                                          .symbol,
+                                      decimalDigits:
+                                          Provider.of<SettingsService>(context,
+                                                  listen: false)
+                                              .currentCurrency
+                                              .decimalDigits,
+                                      locale: Provider.of<SettingsService>(
+                                              context,
+                                              listen: false)
+                                          .currentCurrency
+                                          .locale,
+                                    ).format(venta.total),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cerrar'),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                 );
               },

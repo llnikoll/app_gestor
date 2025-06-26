@@ -16,7 +16,7 @@ class DatabaseService extends ChangeNotifier {
 
   // Database configuration
   static const String _databaseName = 'gestor_ventas.db';
-  static const int _databaseVersion = 16; // Allow NULL producto_id in venta_detalles
+  static const int _databaseVersion = 17; // Agregar columna descripcion a venta_detalles
 
   // Table names
   static const String tableClientes = 'clientes';
@@ -248,6 +248,7 @@ class DatabaseService extends ChangeNotifier {
         precio_unitario REAL NOT NULL,
         subtotal REAL NOT NULL,
         notas TEXT,
+        descripcion TEXT,
         FOREIGN KEY (venta_id) REFERENCES $tableVentas(id) ON DELETE CASCADE,
         FOREIGN KEY (producto_id) REFERENCES $tableProductos(id)
       )
@@ -310,6 +311,34 @@ class DatabaseService extends ChangeNotifier {
 
   // Handle database upgrades
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // Migrate to version 17: Add descripcion column to venta_detalles
+    if (oldVersion < 17) {
+      try {
+        // Verificar si la columna ya existe
+        final columns = await db.rawQuery('PRAGMA table_info($tableVentaDetalles)');
+        final hasDescripcion = columns.any((col) => col['name'] == 'descripcion');
+        
+        if (!hasDescripcion) {
+          // Agregar la columna descripcion
+          await db.execute('ALTER TABLE $tableVentaDetalles ADD COLUMN descripcion TEXT');
+          
+          // Copiar los valores de notas a descripcion para mantener la compatibilidad
+          await db.execute('''
+            UPDATE $tableVentaDetalles 
+            SET descripcion = notas 
+            WHERE descripcion IS NULL
+          ''');
+          
+          debugPrint('Added descripcion column to $tableVentaDetalles table');
+        } else {
+          debugPrint('descripcion column already exists in $tableVentaDetalles table');
+        }
+      } catch (e) {
+        debugPrint('Error adding descripcion column to $tableVentaDetalles: $e');
+        rethrow;
+      }
+    }
+    
     // Migrate to version 16: Update venta_detalles to allow NULL producto_id
     if (oldVersion < 16) {
       try {
@@ -583,22 +612,57 @@ class DatabaseService extends ChangeNotifier {
     }
   }
 
-  // ========== VENTA METHODS ==========
 
   // Obtener detalles de una venta
   Future<List<Map<String, dynamic>>> getDetallesVenta(int ventaId) async {
     final db = await database;
+    
+    // Primero, verificar si es una venta casual
+    final venta = await db.query(
+      tableVentas,
+      where: 'id = ?',
+      whereArgs: [ventaId],
+    );
+    
+    final bool esVentaCasual = venta.isNotEmpty && venta.first['cliente'] == 'Venta Casual';
+    
+    // Obtener los detalles de la venta
     final List<Map<String, dynamic>> maps = await db.rawQuery(
       '''
-      SELECT vd.*, p.nombre as nombre_producto 
+      SELECT 
+        vd.*, 
+        COALESCE(p.nombre, 'Venta Casual') as nombre_producto,
+        COALESCE(vd.descripcion, vd.notas, 'Venta sin descripción') as descripcion
       FROM $tableVentaDetalles vd
-      JOIN $tableProductos p ON vd.producto_id = p.id
+      LEFT JOIN $tableProductos p ON vd.producto_id = p.id
       WHERE vd.venta_id = ?
-    ''',
+      ''',
       [ventaId],
     );
 
-    return maps;
+    // Si es una venta casual y no hay detalles, crear un detalle por defecto
+    if (maps.isEmpty && esVentaCasual && venta.isNotEmpty) {
+      return [
+        {
+          'id': 0,
+          'venta_id': ventaId,
+          'producto_id': null,
+          'nombre_producto': 'Venta Casual',
+          'cantidad': 1,
+          'precio_unitario': venta.first['total'],
+          'subtotal': venta.first['total'],
+          'descripcion': venta.first['notas'] ?? 'Venta sin descripción',
+        }
+      ];
+    }
+
+    // Asegurarse de que las ventas casuales tengan una descripción adecuada
+    return maps.map((map) {
+      if (map['producto_id'] == null && (map['descripcion'] == null || map['descripcion'] == 'null')) {
+        map['descripcion'] = 'Venta Casual';
+      }
+      return map;
+    }).toList();
   }
 
   // Obtener todos los clientes con opción de búsqueda
@@ -661,7 +725,7 @@ class DatabaseService extends ChangeNotifier {
               'cantidad': item['cantidad'],
               'precio_unitario': item['precio_unitario'] ?? 0.0,
               'subtotal': item['subtotal'],
-              'notas': item['notas'], // Incluir las notas en el detalle de venta
+              'descripcion': item['descripcion'] ?? item['notas'], // Usar descripcion si existe, si no, usar notas
             });
 
             debugPrint('Detalle de venta insertado para el producto ${item['producto_id']}');
@@ -1175,7 +1239,7 @@ class DatabaseService extends ChangeNotifier {
       SELECT 
         vd.*, 
         COALESCE(p.nombre, 'Venta Casual') as nombre_producto, 
-        COALESCE(p.descripcion, vd.notas) as descripcion
+        COALESCE(vd.descripcion, vd.notas, 'Venta sin descripción') as descripcion
       FROM $tableVentaDetalles vd
       LEFT JOIN $tableProductos p ON vd.producto_id = p.id
       WHERE vd.venta_id = ?
@@ -1192,22 +1256,32 @@ class DatabaseService extends ChangeNotifier {
       );
       
       if (venta.isNotEmpty) {
-        return [
-          {
-            'id': 0,
-            'venta_id': ventaId,
-            'producto_id': null,
-            'nombre_producto': 'Venta Casual',
-            'cantidad': 1,
-            'precio_unitario': venta.first['total'],
-            'subtotal': venta.first['total'],
-            'descripcion': venta.first['notas'] ?? 'Venta sin detalles',
-          }
-        ];
+        // Verificar si es una venta casual
+        if (venta.first['cliente'] == 'Venta Casual') {
+          return [
+            {
+              'id': 0,
+              'venta_id': ventaId,
+              'producto_id': null,
+              'nombre_producto': 'Venta Casual',
+              'cantidad': 1,
+              'precio_unitario': venta.first['total'],
+              'subtotal': venta.first['total'],
+              'descripcion': venta.first['notas'] ?? 'Venta sin descripción',
+            }
+          ];
+        }
       }
     }
-
-    return maps;
+    
+    // Para ventas con detalles, asegurarnos de que la descripción se maneje correctamente
+    return maps.map((map) {
+      // Si es una venta casual (sin producto_id) y no tiene descripción, usar 'Venta Casual'
+      if (map['producto_id'] == null && (map['descripcion'] == null || map['descripcion'] == 'null')) {
+        map['descripcion'] = 'Venta Casual';
+      }
+      return map;
+    }).toList();
   }
 
   // Search products by name or barcode
@@ -1664,7 +1738,8 @@ class DatabaseService extends ChangeNotifier {
             'cantidad': 1,
             'precio_unitario': monto,
             'subtotal': monto,
-            'notas': notas ?? 'Venta casual', // Usar las notas proporcionadas o un valor por defecto
+            'descripcion': notas ?? 'Venta casual',
+            'notas': null, // Asegurarse de que el campo notas sea nulo
           },
         );
 
