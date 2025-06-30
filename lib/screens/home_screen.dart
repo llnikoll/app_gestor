@@ -430,32 +430,68 @@ class HomeScreenState extends State<HomeScreen> {
                             ),
                           );
                         } else {
-                          return NavigationRail(
-                            selectedIndex: _selectedIndex,
-                            onDestinationSelected: onItemTapped,
-                            labelType: NavigationRailLabelType.all,
-                            minWidth: 140,
-                            minExtendedWidth: 140,
-                            groupAlignment: 0.0,
-                            leading: const SizedBox(height: 20),
-                            trailing: const SizedBox(height: 20),
-                            destinations: NavigationItem.items.map((item) {
-                              return NavigationRailDestination(
-                                icon: Icon(item.icon, size: 26),
-                                label: Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(
-                                    item.title,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
+                          return LayoutBuilder(
+                            builder: (context, constraints) {
+                              final availableHeight = constraints.maxHeight;
+                              const double itemHeight = 72.0;
+                              final totalItemsHeight = NavigationItem.items.length * itemHeight;
+                              final needsScroll = totalItemsHeight > availableHeight;
+
+                              // Espacio para los ítems de navegación (se considera automáticamente)
+                              
+                              final rail = NavigationRail(
+                                selectedIndex: _selectedIndex,
+                                onDestinationSelected: onItemTapped,
+                                labelType: NavigationRailLabelType.all,
+                                minWidth: 140,
+                                minExtendedWidth: 140,
+                                groupAlignment: 0.0,
+                                leading: const SizedBox(height: 20),
+                                trailing: needsScroll ? const SizedBox(height: 20) : null,
+                                extended: constraints.maxWidth >= 200, // Ajustar según el ancho disponible
+                                destinations: NavigationItem.items.map((item) {
+                                  return NavigationRailDestination(
+                                    icon: Icon(item.icon, size: 26),
+                                    label: Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        item.title,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 2,
+                                      ),
                                     ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                                selectedIcon: Icon(item.selectedIcon, size: 26),
+                                    selectedIcon: Icon(item.selectedIcon, size: 26),
+                                  );
+                                }).toList(),
                               );
-                            }).toList(),
+
+                              // Si necesitamos scroll, envolvemos el rail en un SingleChildScrollView
+                              if (needsScroll) {
+                                return SingleChildScrollView(
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      minHeight: availableHeight,
+                                    ),
+                                    child: rail,
+                                  ),
+                                );
+                              }
+
+                              // Si no necesita scroll, devolvemos el rail envuelto en un Expanded
+                              // para que ocupe el espacio disponible
+                              return ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: availableHeight,
+                                  maxHeight: availableHeight,
+                                ),
+                                child: rail,
+                              );
+                            },
                           );
                         }
                       },

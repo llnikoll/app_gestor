@@ -9,7 +9,7 @@ class Venta {
   final DateTime fecha;
   final String metodoPago;
   final String? referenciaPago; // Número de transacción para transferencia, crédito o débito
-  final List<Map<String, dynamic>> items;
+  List<Map<String, dynamic>> items; // Lista mutable de ítems
   final String estado;
 
   Venta({

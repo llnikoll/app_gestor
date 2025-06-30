@@ -99,8 +99,12 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
     final databaseService =
         Provider.of<DatabaseService>(context, listen: false);
     final categorias = await databaseService.getCategorias();
-    setState(() => _selectedCategory ??=
-        categorias.isNotEmpty ? categorias.first.nombre : 'Todas');
+    // Filtrar para excluir la categoría 'generales' (ignorando mayúsculas/minúsculas)
+    final categoriasFiltradas = categorias
+        .where((c) => c.nombre.toLowerCase() != 'generales')
+        .toList();
+    setState(() => _selectedCategory = 
+        categoriasFiltradas.isNotEmpty ? categoriasFiltradas.first.nombre : null);
   }
 
   void _filtrarProductos(String query) {
@@ -277,7 +281,10 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                       'producto': null,
                       'cantidad': 1,
                       'monto': monto,
-                      'descripcion': descripcion.isEmpty ? 'Venta Casual' : descripcion,
+                      'descripcion':
+                          descripcion.isEmpty ? 'Venta Casual' : descripcion,
+                      'notas':
+                          descripcion.isEmpty ? 'Venta Casual' : descripcion,
                     });
                   });
                   Navigator.pop(context);
@@ -620,15 +627,31 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
         final cantidad = item['cantidad'] as int;
         final monto = item['monto'] as double?;
         final descripcion = item['descripcion'] as String?;
+        final notas = item['notas'] as String?;
+        final esVentaCasual = producto == null && descripcion != null;
+
+        // Para ventas casuales, usar la descripción como nombre del producto
+        final nombreProducto = esVentaCasual
+            ? (descripcion.isNotEmpty ? descripcion : 'Venta Casual')
+            : producto?.nombre;
+
+        // Para ventas casuales, usar el monto como precio unitario
+        final precioUnitario =
+            esVentaCasual ? (monto ?? 0.0) : (producto?.precioVenta ?? 0.0);
+
+        // Para ventas casuales, el subtotal es el monto * cantidad
+        final subtotal = esVentaCasual
+            ? (monto ?? 0.0) * cantidad
+            : (producto?.precioVenta ?? 0.0) * cantidad;
 
         return {
           'producto_id': producto?.id,
           'cantidad': cantidad,
-          'precio_unitario': producto?.precioVenta ?? monto ?? 0.0,
-          'subtotal': producto != null
-              ? producto.precioVenta * cantidad
-              : (monto ?? 0.0) * cantidad,
-          'descripcion': descripcion  // Guardar solo en 'descripcion'
+          'precio_unitario': precioUnitario,
+          'subtotal': subtotal,
+          'nombre_producto': nombreProducto,
+          'descripcion': descripcion ?? 'Venta casual',
+          'notas': notas ?? descripcion ?? 'Venta casual',
         };
       }).toList(),
     );
@@ -823,6 +846,7 @@ class HistorialTabState extends State<HistorialTab> {
   DateTime _fechaInicio = DateTime.now().subtract(const Duration(days: 30));
   DateTime _fechaFin = DateTime.now();
   String _metodoPagoFiltro = 'Todos los métodos';
+  bool _soloVentasCasuales = false;
   List<Venta> _ventas = [];
   late final DatabaseService _databaseService;
 
@@ -850,8 +874,7 @@ class HistorialTabState extends State<HistorialTab> {
   }
 
   // Método auxiliar para construir filas de información en el diálogo
-  Widget _buildInfoRow(String label, String value,
-      {bool isBold = false, bool isTotal = false}) {
+  Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -859,22 +882,13 @@ class HistorialTabState extends State<HistorialTab> {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              fontSize: isTotal ? 16 : 14,
-              color: isTotal ? Theme.of(context).primaryColor : null,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: isTotal ? 16 : 14,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                color: isTotal ? Theme.of(context).primaryColor : null,
-              ),
-              textAlign: TextAlign.end,
+              style: const TextStyle(fontSize: 14),
             ),
           ),
         ],
@@ -884,186 +898,6 @@ class HistorialTabState extends State<HistorialTab> {
 
   bool _isLoading = false;
 
-  // Método para mostrar el detalle de una venta con productos
-  void _mostrarDetalleVentaConProductos(Venta venta) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detalles de la Venta',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildInfoRow('Cliente:', venta.clienteNombre ?? 'Venta Casual'),
-              _buildInfoRow('Fecha:', venta.fechaFormateada),
-              _buildInfoRow('Método de Pago:',
-                  '${venta.metodoPago}${venta.referenciaPago != null ? ' #${venta.referenciaPago}' : ''}'),
-              if (venta.items.isNotEmpty) ...[
-                ...() {
-                  final descripcion = venta.items.first['descripcion']?.toString() ?? 
-                                   venta.items.first['notas']?.toString() ?? 'Venta Casual';
-                  if (descripcion.isNotEmpty && descripcion != 'null') {
-                    return [_buildInfoRow(
-                      'Descripción:',
-                      descripcion,
-                    )];
-                  }
-                  return <Widget>[];
-                }(),
-              ],
-              const SizedBox(height: 16),
-              const Text('Productos:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              const Divider(),
-              ...venta.items.map((item) => _buildItemVenta(item)),
-              const SizedBox(height: 8),
-              _buildResumenVenta(venta),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Construye un ítem de venta para el diálogo
-  Widget _buildItemVenta(Map<String, dynamic> item) {
-    final productoNombre = item['nombre_producto'];
-    final descripcion = item['descripcion'] ?? item['notas'] ?? 'Venta Casual';
-    final cantidad = item['cantidad'];
-    final subtotal = item['subtotal'];
-    final settingsService =
-        Provider.of<SettingsService>(context, listen: false);
-    final currencySymbol = settingsService.currentCurrency.symbol;
-    final formatter = NumberFormat.currency(
-      symbol: currencySymbol,
-      decimalDigits: settingsService.currentCurrency.decimalDigits,
-      locale: settingsService.currentCurrency.locale,
-    );
-
-    // Determinar el texto a mostrar como título del ítem
-    String tituloItem = productoNombre ?? descripcion;
-    bool mostrarDescripcion = descripcion != 'Venta Casual' &&
-        (productoNombre == null || descripcion != productoNombre);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          tituloItem,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '$cantidad x ${formatter.format(subtotal / cantidad)} = ${formatter.format(subtotal)}',
-          style: TextStyle(color: Colors.grey[600]),
-        ),
-        // Mostrar descripción si es diferente a 'Venta Casual' y al nombre del producto
-        if (mostrarDescripcion)
-          Padding(
-            padding: const EdgeInsets.only(top: 4.0, left: 8.0),
-            child: Text(
-              descripcion,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ),
-        const Divider(),
-      ],
-    );
-  }
-
-  // Construye el resumen de la venta (subtotal, impuestos, total)
-  Widget _buildResumenVenta(Venta venta) {
-    final settingsService =
-        Provider.of<SettingsService>(context, listen: false);
-    final formatter = NumberFormat.currency(
-      symbol: settingsService.currentCurrency.symbol,
-      decimalDigits: settingsService.currentCurrency.decimalDigits,
-      locale: settingsService.currentCurrency.locale,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Divider(),
-        _buildInfoRow('Subtotal:', formatter.format(venta.total)),
-        _buildInfoRow(
-            'Impuestos:', formatter.format(0)), // Ajustar si hay impuestos
-        _buildInfoRow('Total:', formatter.format(venta.total),
-            isBold: true, isTotal: true),
-      ],
-    );
-  }
-
-  // Método para mostrar el detalle de una venta casual
-  void _mostrarDetalleVentaCasual(Venta venta) {
-    if (venta.items.isEmpty) {
-      debugPrint('No hay ítems en la venta');
-      return;
-    }
-
-    final item = venta.items.first;
-    final descripcion = item['descripcion']?.toString() ?? 
-                      item['notas']?.toString() ?? 'Venta Casual';
-    final monto = (item['precio_unitario'] as num?)?.toDouble() ?? 0.0;
-    final cantidad = (item['cantidad'] as int?) ?? 1;
-    final subtotal = (item['subtotal'] as num?)?.toDouble() ?? monto * cantidad;
-
-    final settingsService =
-        Provider.of<SettingsService>(context, listen: false);
-    final formatter = NumberFormat.currency(
-      symbol: settingsService.currentCurrency.symbol,
-      decimalDigits: settingsService.currentCurrency.decimalDigits,
-      locale: settingsService.currentCurrency.locale,
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detalle de Venta Casual',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInfoRow('Fecha:', venta.fechaFormateada),
-              _buildInfoRow('Método de Pago:',
-                  '${venta.metodoPago}${venta.referenciaPago != null ? ' #${venta.referenciaPago}' : ''}'),
-              const SizedBox(height: 16),
-              const Text('Descripción:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              Text(descripcion),
-              const SizedBox(height: 16),
-              _buildInfoRow('Precio Unitario:', formatter.format(monto)),
-              _buildInfoRow('Cantidad:', cantidad.toString()),
-              const Divider(),
-              _buildInfoRow('Total:', formatter.format(subtotal),
-                  isBold: true, isTotal: true),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _loadVentas() async {
     // Evitar múltiples cargas simultáneas
     if (_isLoading) return;
@@ -1072,10 +906,18 @@ class HistorialTabState extends State<HistorialTab> {
 
     try {
       debugPrint('Cargando ventas...');
+      // Ajustar fechas para incluir todo el rango
+      final fechaInicio =
+          DateTime(_fechaInicio.year, _fechaInicio.month, _fechaInicio.day);
+      final fechaFin =
+          DateTime(_fechaFin.year, _fechaFin.month, _fechaFin.day, 23, 59, 59);
+
+      debugPrint(
+          'Buscando ventas desde ${fechaInicio.toIso8601String()} hasta ${fechaFin.toIso8601String()}');
+
       final ventas = await _databaseService.getVentasPorRangoFechas(
-        _fechaInicio.subtract(
-            const Duration(hours: 1)), // Un poco de margen para la zona horaria
-        _fechaFin.add(const Duration(days: 1)), // Incluir todo el día
+        fechaInicio,
+        fechaFin,
       );
 
       debugPrint('Ventas cargadas: ${ventas.length}');
@@ -1085,6 +927,13 @@ class HistorialTabState extends State<HistorialTab> {
       if (_metodoPagoFiltro != 'Todos los métodos') {
         ventasFiltradas =
             ventas.where((v) => v.metodoPago == _metodoPagoFiltro).toList();
+      }
+
+      // Filtrar por tipo de venta (casual o no)
+      if (_soloVentasCasuales) {
+        ventasFiltradas = ventasFiltradas
+            .where((v) => v.clienteNombre == 'Venta Casual')
+            .toList();
       }
 
       // Ordenar por fecha descendente (más reciente primero)
@@ -1115,135 +964,584 @@ class HistorialTabState extends State<HistorialTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  final selectedDate = await showDatePicker(
-                    context: context,
-                    initialDate: _fechaInicio,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                  );
-                  if (selectedDate != null) {
-                    setState(() => _fechaInicio = selectedDate);
-                    _loadVentas();
-                  }
-                },
-                child: Text(
-                    'Inicio: ${DateFormat('dd/MM/yyyy').format(_fechaInicio)}'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final selectedDate = await showDatePicker(
-                    context: context,
-                    initialDate: _fechaFin,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                  );
-                  if (selectedDate != null) {
-                    setState(() => _fechaFin = selectedDate);
-                    _loadVentas();
-                  }
-                },
-                child:
-                    Text('Fin: ${DateFormat('dd/MM/yyyy').format(_fechaFin)}'),
-              ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Historial de Ventas'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.receipt), text: 'Todas'),
+              Tab(icon: Icon(Icons.person), text: 'Por Cliente'),
             ],
           ),
-          DropdownButton<String>(
-            value: _metodoPagoFiltro,
-            items: const [
-              DropdownMenuItem(
-                  value: 'Todos los métodos', child: Text('Todos los métodos')),
-              DropdownMenuItem(value: 'Efectivo', child: Text('Efectivo')),
-              DropdownMenuItem(
-                  value: 'Tarjeta de Crédito',
-                  child: Text('Tarjeta de Crédito')),
-              DropdownMenuItem(
-                  value: 'Tarjeta de Débito', child: Text('Tarjeta de Débito')),
-              DropdownMenuItem(
-                  value: 'Transferencia', child: Text('Transferencia')),
-            ],
-            onChanged: (value) {
-              setState(() => _metodoPagoFiltro = value!);
-              _loadVentas();
-            },
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _ventas.length,
-              itemBuilder: (context, index) {
-                final venta = _ventas[index];
-                // Verificar si es una venta casual (sin cliente y con un solo ítem)
-                final isVentaCasual =
-                    venta.clienteNombre == null && venta.items.length == 1;
-                final descripcionVenta = isVentaCasual
-                    ? (venta.items.first['descripcion'] ?? 'Venta Casual')
-                    : (venta.clienteNombre ?? 'Venta Casual');
-
-                // Mostrar el método de pago con referencia si existe
-                String metodoPagoText = venta.metodoPago;
-                if (venta.referenciaPago != null &&
-                    venta.referenciaPago!.isNotEmpty) {
-                  metodoPagoText += ' #${venta.referenciaPago}';
-                }
-
-                return ListTile(
-                  title: Text(
-                    descripcionVenta,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        body: TabBarView(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      Text('${NumberFormat.currency(
-                        symbol:
-                            Provider.of<SettingsService>(context, listen: false)
-                                .currentCurrency
-                                .symbol,
-                        decimalDigits:
-                            Provider.of<SettingsService>(context, listen: false)
-                                .currentCurrency
-                                .decimalDigits,
-                        locale:
-                            Provider.of<SettingsService>(context, listen: false)
-                                .currentCurrency
-                                .locale,
-                      ).format(venta.total)} • ${venta.fechaFormateada}'),
-                      Text(
-                        metodoPagoText,
-                        style: TextStyle(
-                          color: Theme.of(context).primaryColor,
-                          fontWeight: FontWeight.w500,
+                      ElevatedButton(
+                        onPressed: () async {
+                          final selectedDate = await showDatePicker(
+                            context: context,
+                            initialDate: _fechaInicio,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now(),
+                          );
+                          if (selectedDate != null) {
+                            setState(() => _fechaInicio = selectedDate);
+                            _loadVentas();
+                          }
+                        },
+                        child: Text(
+                            'Inicio: ${DateFormat('dd/MM/yyyy').format(_fechaInicio)}'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final selectedDate = await showDatePicker(
+                            context: context,
+                            initialDate: _fechaFin,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now(),
+                          );
+                          if (selectedDate != null) {
+                            setState(() => _fechaFin = selectedDate);
+                            _loadVentas();
+                          }
+                        },
+                        child: Text(
+                            'Fin: ${DateFormat('dd/MM/yyyy').format(_fechaFin)}'),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: _metodoPagoFiltro,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'Todos los métodos',
+                              child: Text('Todos los métodos'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Efectivo',
+                              child: Text('Efectivo'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Tarjeta de Crédito',
+                              child: Text('Tarjeta de Crédito'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Transferencia',
+                              child: Text('Transferencia'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Débito',
+                              child: Text('Débito'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _metodoPagoFiltro = value);
+                              _loadVentas();
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Tooltip(
+                        message: 'Mostrar solo ventas casuales',
+                        child: FilterChip(
+                          label: const Text('Casuales'),
+                          selected: _soloVentasCasuales,
+                          onSelected: (selected) {
+                            setState(() => _soloVentasCasuales = selected);
+                            _loadVentas();
+                          },
+                          backgroundColor: _soloVentasCasuales
+                              ? Theme.of(context)
+                                  .primaryColor
+                                  .withValues(alpha: 0.2)
+                              : null,
                         ),
                       ),
                     ],
                   ),
-                  trailing: venta.items.length > 1
-                      ? const Icon(Icons.expand_more)
-                      : null,
-                  onTap: () {
-                    // Si es una venta casual, mostrar el diálogo personalizado
-                    if (venta.clienteNombre == null &&
-                        venta.items.length == 1) {
-                      _mostrarDetalleVentaCasual(venta);
-                    } else {
-                      // Mostrar diálogo para ventas con productos
-                      _mostrarDetalleVentaConProductos(venta);
-                    }
-                  },
-                );
-              },
+                  Expanded(
+                      child: ListView.builder(
+                    itemCount: _ventas.length,
+                    itemBuilder: (context, index) {
+                      final venta = _ventas[index];
+                      // Verificar si es una venta casual (sin cliente y con un solo ítem)
+                      final isVentaCasual = venta.clienteNombre == null &&
+                          venta.items.length == 1;
+                      final descripcionVenta = isVentaCasual
+                          ? (venta.items.first['descripcion'] ?? 'Venta Casual')
+                          : (venta.clienteNombre ?? 'Venta Casual');
+
+                      // Mostrar el método de pago con referencia si existe
+                      String metodoPagoText = venta.metodoPago;
+                      if (venta.referenciaPago != null &&
+                          venta.referenciaPago!.isNotEmpty) {
+                        metodoPagoText += ' #${venta.referenciaPago}';
+                      }
+
+                      return ListTile(
+                        title: Text(
+                          descripcionVenta,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${NumberFormat.currency(
+                              symbol: Provider.of<SettingsService>(context,
+                                      listen: false)
+                                  .currentCurrency
+                                  .symbol,
+                              decimalDigits: Provider.of<SettingsService>(
+                                      context,
+                                      listen: false)
+                                  .currentCurrency
+                                  .decimalDigits,
+                              locale: Provider.of<SettingsService>(context,
+                                      listen: false)
+                                  .currentCurrency
+                                  .locale,
+                            ).format(venta.total)} • ${venta.fechaFormateada}'),
+                            Text(
+                              metodoPagoText,
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: venta.items.length > 1
+                            ? const Icon(Icons.expand_more)
+                            : null,
+                        onTap: () {
+                          // Calculate sale details
+                          final saleDetails =
+                              _calculateSaleDetails(venta.items, context);
+                          final currencyFormat =
+                              saleDetails['currencyFormat'] as NumberFormat;
+                          final subtotal = saleDetails['subtotal'] as double;
+                          final totalDiscount =
+                              saleDetails['totalDiscount'] as double;
+                          final hasDiscount =
+                              saleDetails['hasDiscount'] as bool;
+
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Detalles de la Venta',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              content: SingleChildScrollView(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _buildInfoRow('Cliente:',
+                                        venta.clienteNombre ?? 'Venta Casual'),
+                                    _buildInfoRow(
+                                        'Fecha:', venta.fechaFormateada),
+                                    _buildInfoRow('Método de Pago:',
+                                        '${venta.metodoPago}${venta.referenciaPago != null ? ' #${venta.referenciaPago}' : ''}'),
+
+                                    // Mostrar descripción de la venta casual si existe
+                                    if (venta.clienteNombre == null &&
+                                        venta.items.isNotEmpty)
+                                      for (final item in venta.items)
+                                        if (item['descripcion'] != null &&
+                                            item['descripcion'] !=
+                                                'Venta Casual')
+                                          _buildInfoRow('Descripción:',
+                                              item['descripcion'].toString()),
+                                    const SizedBox(height: 8),
+
+                                    const SizedBox(height: 16),
+                                    const Text('Productos:',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    const Divider(),
+                                    ...venta.items.map((item) {
+                                      final productoNombre =
+                                          item['nombre_producto'];
+                                      final descripcion = item['descripcion'] ??
+                                          item['notas'] ??
+                                          'Venta Casual';
+                                      final cantidad = item['cantidad'];
+                                      final subtotal = item['subtotal'];
+                                      final settingsService =
+                                          Provider.of<SettingsService>(context,
+                                              listen: false);
+                                      final formatter = NumberFormat.currency(
+                                        symbol: settingsService
+                                            .currentCurrency.symbol,
+                                        decimalDigits: settingsService
+                                            .currentCurrency.decimalDigits,
+                                        locale: settingsService
+                                            .currentCurrency.locale,
+                                      );
+
+                                      return ListTile(
+                                        title:
+                                            Text('$productoNombre x $cantidad'),
+                                        subtitle: Text(descripcion),
+                                        trailing:
+                                            Text(formatter.format(subtotal)),
+                                      );
+                                    }),
+                                    const SizedBox(height: 16),
+                                    _buildInfoRow('Subtotal:',
+                                        currencyFormat.format(subtotal)),
+                                    if (hasDiscount && totalDiscount > 0)
+                                      _buildInfoRow('Descuento:',
+                                          '-${currencyFormat.format(totalDiscount)}'),
+                                    _buildInfoRow(
+                                      'Total:',
+                                      NumberFormat.currency(
+                                        symbol: Provider.of<SettingsService>(
+                                                context,
+                                                listen: false)
+                                            .currentCurrency
+                                            .symbol,
+                                        decimalDigits:
+                                            Provider.of<SettingsService>(
+                                                    context,
+                                                    listen: false)
+                                                .currentCurrency
+                                                .decimalDigits,
+                                        locale: Provider.of<SettingsService>(
+                                                context,
+                                                listen: false)
+                                            .currentCurrency
+                                            .locale,
+                                      ).format(venta.total),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cerrar'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  )),
+                ],
+              ),
             ),
-          ),
-        ],
+            // Vista de ventas por cliente
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  // Filtros de fecha
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () async {
+                          final selectedDate = await showDatePicker(
+                            context: context,
+                            initialDate: _fechaInicio,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now(),
+                          );
+                          if (selectedDate != null) {
+                            setState(() => _fechaInicio = selectedDate);
+                            _loadVentas();
+                          }
+                        },
+                        child: Text(
+                            'Inicio: ${DateFormat('dd/MM/yyyy').format(_fechaInicio)}'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final selectedDate = await showDatePicker(
+                            context: context,
+                            initialDate: _fechaFin,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now(),
+                          );
+                          if (selectedDate != null) {
+                            setState(() => _fechaFin = selectedDate);
+                            _loadVentas();
+                          }
+                        },
+                        child: Text(
+                            'Fin: ${DateFormat('dd/MM/yyyy').format(_fechaFin)}'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Lista de clientes con ventas
+                  Expanded(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _getVentasAgrupadasPorCliente(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                          return const Center(
+                              child: Text('No hay ventas por cliente'));
+                        }
+
+                        final clientesConVentas = snapshot.data!;
+                        return ListView.builder(
+                          itemCount: clientesConVentas.length,
+                          itemBuilder: (context, index) {
+                            final cliente = clientesConVentas[index];
+                            final ventas = cliente['ventas'] as List<Venta>;
+                            final totalVentas = ventas.fold(
+                                0.0, (sum, venta) => sum + venta.total);
+
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                  vertical: 4.0, horizontal: 8.0),
+                              child: ExpansionTile(
+                                title: Text(
+                                  cliente['nombre'] as String,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text(
+                                  '${ventas.length} ventas • Total: ${NumberFormat.currency(
+                                    symbol: Provider.of<SettingsService>(
+                                            context,
+                                            listen: false)
+                                        .currentCurrency
+                                        .symbol,
+                                    decimalDigits: 2,
+                                  ).format(totalVentas)}',
+                                ),
+                                children: ventas.map((venta) {
+                                  return ListTile(
+                                    title: Text(
+                                      '${DateFormat('dd/MM/yyyy HH:mm').format(venta.fecha)} • ${venta.metodoPago}',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                    trailing: Text(
+                                      NumberFormat.currency(
+                                        symbol: Provider.of<SettingsService>(
+                                                context,
+                                                listen: false)
+                                            .currentCurrency
+                                            .symbol,
+                                        decimalDigits: 2,
+                                      ).format(venta.total),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    onTap: () {
+                                      // Mostrar detalles de la venta
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title:
+                                              const Text('Detalles de Venta'),
+                                          content: SingleChildScrollView(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                    'Cliente: ${cliente['nombre']}'),
+                                                Text(
+                                                    'Fecha: ${DateFormat('dd/MM/yyyy HH:mm').format(venta.fecha)}'),
+                                                Text(
+                                                    'Método de pago: ${venta.metodoPago}'),
+                                                if (venta.referenciaPago !=
+                                                        null &&
+                                                    venta.referenciaPago!
+                                                        .isNotEmpty)
+                                                  Text(
+                                                      'Referencia: ${venta.referenciaPago}'),
+                                                const SizedBox(height: 16),
+                                                const Text('Productos:',
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                                ...venta.items.map((item) =>
+                                                    ListTile(
+                                                      title: Text(
+                                                          '${item['nombre_producto']} x${item['cantidad']}'),
+                                                      trailing: Text(
+                                                        NumberFormat.currency(
+                                                          symbol: Provider.of<
+                                                                      SettingsService>(
+                                                                  context,
+                                                                  listen: false)
+                                                              .currentCurrency
+                                                              .symbol,
+                                                          decimalDigits: 2,
+                                                        ).format(item[
+                                                                'precio_unitario'] *
+                                                            item['cantidad']),
+                                                      ),
+                                                    )),
+                                                const Divider(),
+                                                Text(
+                                                  'Total: ${NumberFormat.currency(
+                                                    symbol: Provider.of<
+                                                                SettingsService>(
+                                                            context,
+                                                            listen: false)
+                                                        .currentCurrency
+                                                        .symbol,
+                                                    decimalDigits: 2,
+                                                  ).format(venta.total)}',
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 16),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: const Text('Cerrar'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  // Obtener ventas agrupadas por cliente
+  Future<List<Map<String, dynamic>>> _getVentasAgrupadasPorCliente() async {
+    try {
+      // Obtener todas las ventas en el rango de fechas
+      final ventas = await _databaseService.getVentasPorRangoFechas(
+        _fechaInicio.subtract(const Duration(hours: 1)),
+        _fechaFin.add(const Duration(days: 1)),
+      );
+
+      // Filtrar por método de pago si no es 'Todos los métodos'
+      List<Venta> ventasFiltradas = ventas;
+      if (_metodoPagoFiltro != 'Todos los métodos') {
+        ventasFiltradas =
+            ventas.where((v) => v.metodoPago == _metodoPagoFiltro).toList();
+      }
+
+      // Agrupar ventas por cliente
+      final Map<String, Map<String, dynamic>> clientesMap = {};
+
+      for (final venta in ventasFiltradas) {
+        final clienteId = venta.clienteId?.toString() ?? 'sin_cliente';
+        final clienteNombre = venta.clienteNombre ?? 'Cliente Ocasional';
+
+        if (!clientesMap.containsKey(clienteId)) {
+          clientesMap[clienteId] = {
+            'id': clienteId,
+            'nombre': clienteNombre,
+            'ventas': <Venta>[],
+          };
+        }
+
+        clientesMap[clienteId]!['ventas'].add(venta);
+      }
+
+      // Convertir el mapa a lista y ordenar por nombre de cliente
+      final clientesList = clientesMap.values.toList();
+      clientesList.sort((a, b) => (a['nombre'] as String)
+          .toLowerCase()
+          .compareTo((b['nombre'] as String).toLowerCase()));
+
+      // Ordenar las ventas de cada cliente por fecha (más reciente primero)
+      for (final cliente in clientesList) {
+        final ventasCliente = cliente['ventas'] as List<Venta>;
+        ventasCliente.sort((a, b) => b.fecha.compareTo(a.fecha));
+      }
+
+      return clientesList.cast<Map<String, dynamic>>();
+    } catch (e) {
+      debugPrint('Error al agrupar ventas por cliente: $e');
+      return [];
+    }
+  }
+
+  // Helper method to calculate sale details
+  Map<String, dynamic> _calculateSaleDetails(
+      List<Map<String, dynamic>> items, BuildContext context) {
+    final settings = Provider.of<SettingsService>(context, listen: false);
+    final currencyFormat = NumberFormat.currency(
+      symbol: settings.currentCurrency.symbol,
+      decimalDigits: settings.currentCurrency.decimalDigits,
+      locale: settings.currentCurrency.locale,
+    );
+
+    double subtotal = 0;
+    double totalDiscount = 0;
+    bool hasDiscount = false;
+
+    for (final item in items) {
+      // Calculate subtotal
+      final precioUnitario = item['precio_unitario'] is double
+          ? item['precio_unitario'] as double
+          : (item['precio_unitario'] as num).toDouble();
+      final cantidad = item['cantidad'] is int
+          ? item['cantidad'] as int
+          : (item['cantidad'] as num).toInt();
+      subtotal += (precioUnitario * cantidad);
+
+      // Calculate discount if it exists
+      if (item['descuento'] != null) {
+        final descuento = item['descuento'] is double
+            ? item['descuento'] as double
+            : ((item['descuento'] as num).toDouble());
+        if (descuento > 0) {
+          totalDiscount += descuento;
+          hasDiscount = true;
+        }
+      }
+    }
+
+    return {
+      'subtotal': subtotal,
+      'totalDiscount': totalDiscount,
+      'hasDiscount': hasDiscount,
+      'currencyFormat': currencyFormat,
+    };
   }
 }

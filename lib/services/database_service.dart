@@ -59,7 +59,22 @@ class DatabaseService extends ChangeNotifier {
       );
       
       debugPrint('Ventas encontradas en DB: ${maps.length}');
-      return List.generate(maps.length, (i) => Venta.fromMap(maps[i]));
+      
+      // Crear una lista para almacenar las ventas
+      final List<Venta> ventas = [];
+      
+      for (var map in maps) {
+        try {
+          final venta = Venta.fromMap(map);
+          // Inicializar explícitamente la lista de ítems
+          venta.items = [];
+          ventas.add(venta);
+        } catch (e) {
+          debugPrint('Error al procesar venta: $e');
+        }
+      }
+      
+      return ventas;
     } catch (e) {
       debugPrint('Error en getVentasPorRango: $e');
       rethrow;
@@ -717,28 +732,28 @@ class DatabaseService extends ChangeNotifier {
 
         // Insert sale details
         for (var item in venta.items) {
-          // Solo insertar en venta_detalles si es un producto (tiene producto_id)
-          if (item['tipo'] == 'producto' || item['producto_id'] != null) {
-            await txn.insert(tableVentaDetalles, {
-              'venta_id': ventaId,
-              'producto_id': item['producto_id'],
-              'cantidad': item['cantidad'],
-              'precio_unitario': item['precio_unitario'] ?? 0.0,
-              'subtotal': item['subtotal'],
-              'descripcion': item['descripcion'] ?? item['notas'], // Usar descripcion si existe, si no, usar notas
-            });
+          // Insertar en venta_detalles tanto para productos como para ventas casuales
+          final Map<String, dynamic> detalle = {
+            'venta_id': ventaId,
+            'producto_id': item['producto_id'], // Puede ser null para ventas casuales
+            'cantidad': item['cantidad'] ?? 1,
+            'precio_unitario': item['precio_unitario'] ?? item['monto'] ?? 0.0,
+            'subtotal': item['subtotal'] ?? (item['monto'] ?? 0.0) * (item['cantidad'] ?? 1),
+            'descripcion': item['descripcion'], // Usar la descripción directamente
+            'notas': item['notas'], // Guardar también las notas por si acaso
+          };
 
-            debugPrint('Detalle de venta insertado para el producto ${item['producto_id']}');
+          await txn.insert(tableVentaDetalles, detalle);
+          debugPrint('Detalle de venta insertado: ${detalle.toString()}');
 
-            // Update product stock
+          // Actualizar stock solo si es un producto con ID
+          if (item['producto_id'] != null) {
             await txn.rawUpdate(
               'UPDATE $tableProductos SET stock = stock - ? WHERE id = ?',
               [item['cantidad'], item['producto_id']],
             );
             debugPrint('Stock actualizado para el producto ${item['producto_id']}');
           }
-          // Para ventas casuales, no hacemos nada en venta_detalles
-          // ya que no están asociadas a un producto
         }
       });
 
@@ -1233,13 +1248,28 @@ class DatabaseService extends ChangeNotifier {
   Future<List<Map<String, dynamic>>> getVentaDetalles(int ventaId) async {
     final db = await database;
     
+    // Primero, verificar si la venta existe y obtener sus datos
+    final venta = await db.query(
+      tableVentas,
+      where: 'id = ?',
+      whereArgs: [ventaId],
+    );
+
+    if (venta.isEmpty) {
+      return [];
+    }
+
+    // Verificar si es una venta casual
+    final bool esVentaCasual = venta.first['cliente'] == 'Venta Casual';
+    
     // Obtenemos los detalles de la venta
     final List<Map<String, dynamic>> maps = await db.rawQuery(
       '''
       SELECT 
         vd.*, 
         COALESCE(p.nombre, 'Venta Casual') as nombre_producto, 
-        COALESCE(vd.descripcion, vd.notas, 'Venta sin descripción') as descripcion
+        vd.descripcion as descripcion,
+        vd.notas as notas
       FROM $tableVentaDetalles vd
       LEFT JOIN $tableProductos p ON vd.producto_id = p.id
       WHERE vd.venta_id = ?
@@ -1247,41 +1277,41 @@ class DatabaseService extends ChangeNotifier {
       [ventaId],
     );
 
-    // Si no hay detalles pero existe la venta, es una venta casual sin detalles
-    if (maps.isEmpty) {
-      final venta = await db.query(
-        tableVentas,
-        where: 'id = ?',
-        whereArgs: [ventaId],
-      );
-      
-      if (venta.isNotEmpty) {
-        // Verificar si es una venta casual
-        if (venta.first['cliente'] == 'Venta Casual') {
-          return [
-            {
-              'id': 0,
-              'venta_id': ventaId,
-              'producto_id': null,
-              'nombre_producto': 'Venta Casual',
-              'cantidad': 1,
-              'precio_unitario': venta.first['total'],
-              'subtotal': venta.first['total'],
-              'descripcion': venta.first['notas'] ?? 'Venta sin descripción',
-            }
-          ];
+    // Si no hay detalles pero es una venta casual, crear un detalle por defecto
+    if (maps.isEmpty && esVentaCasual) {
+      // Crear un nuevo mapa mutable para el detalle
+      return [
+        <String, dynamic>{
+          'id': 0,
+          'venta_id': ventaId,
+          'producto_id': null,
+          'nombre_producto': 'Venta Casual',
+          'cantidad': 1,
+          'precio_unitario': venta.first['total'],
+          'subtotal': venta.first['total'],
+          'descripcion': venta.first['notas'] ?? 'Venta sin descripción',
+          'notas': venta.first['notas'],
         }
-      }
+      ];
     }
     
     // Para ventas con detalles, asegurarnos de que la descripción se maneje correctamente
-    return maps.map((map) {
-      // Si es una venta casual (sin producto_id) y no tiene descripción, usar 'Venta Casual'
-      if (map['producto_id'] == null && (map['descripcion'] == null || map['descripcion'] == 'null')) {
-        map['descripcion'] = 'Venta Casual';
-      }
-      return map;
-    }).toList();
+    // y que los mapas sean mutables
+    return List<Map<String, dynamic>>.from(
+      maps.map((map) {
+        // Crear un nuevo mapa mutable para cada detalle
+        final detalle = Map<String, dynamic>.from(map);
+        
+        // Si es una venta casual (sin producto_id) 
+        if (detalle['producto_id'] == null) {
+          // Usar la descripción si existe, si no, usar notas, si no, 'Venta Casual'
+          detalle['descripcion'] = detalle['descripcion'] ?? 
+                                 detalle['notas'] ?? 
+                                 'Venta Casual';
+        }
+        return detalle;
+      })
+    );
   }
 
   // Search products by name or barcode
@@ -1691,9 +1721,33 @@ class DatabaseService extends ChangeNotifier {
     final ventas = <Venta>[];
     for (var ventaMap in maps) {
       try {
-        final detalles = await getVentaDetalles(ventaMap['id']);
+        // Crear la venta
         final venta = Venta.fromMap(ventaMap);
-        venta.items.addAll(detalles);
+        
+        // Inicializar la lista de ítems como una nueva lista mutable
+        venta.items = [];
+        
+        // Obtener los detalles de la venta
+        final detalles = await getVentaDetalles(venta.id!);
+        
+        // Si no hay detalles pero es una venta casual, crear un detalle por defecto
+        if (detalles.isEmpty && venta.clienteNombre == 'Venta Casual') {
+          venta.items.add({
+            'id': 0,
+            'venta_id': venta.id,
+            'producto_id': null,
+            'nombre_producto': 'Venta Casual',
+            'cantidad': 1,
+            'precio_unitario': venta.total,
+            'subtotal': venta.total,
+            'descripcion': 'Venta Casual',
+          });
+        } else {
+          // Crear una nueva lista mutable para los detalles
+          final detallesMutables = List<Map<String, dynamic>>.from(detalles);
+          venta.items.addAll(detallesMutables);
+        }
+        
         ventas.add(venta);
       } catch (e) {
         debugPrint('Error al procesar venta ${ventaMap['id']}: $e');
