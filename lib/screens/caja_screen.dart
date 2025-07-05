@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/database_service.dart';
 import '../services/settings_service.dart';
 import '../models/producto_model.dart';
@@ -340,37 +341,101 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   for (var item in _carrito)
-                    ListTile(
-                      title:
-                          Text(item['producto']?.nombre ?? item['descripcion']),
-                      subtitle: Text(
-                          'Cantidad: ${item['cantidad']} - Subtotal: ${formatter.format(item['producto'] != null ? item['producto'].precioVenta * item['cantidad'] : item['monto'])}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove),
-                            onPressed: () {
-                              setState(() {
-                                setDialogState(() {
-                                  if (item['cantidad'] > 1) {
-                                    item['cantidad'] -= 1;
-                                  } else {
-                                    _carrito.remove(item);
-                                  }
+                    Card(
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 4.0, horizontal: 0),
+                      child: ListTile(
+                        leading: item['producto']?.imagenUrl != null &&
+                                item['producto'].imagenUrl.toString().isNotEmpty
+                            ? Container(
+                                width: 60,
+                                height: 60,
+                                padding: const EdgeInsets.all(4.0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  child: item['producto'].imagenUrl.toString().startsWith('http')
+                                      ? CachedNetworkImage(
+                                          imageUrl: item['producto'].imagenUrl,
+                                          width: 60,
+                                          height: 60,
+                                          fit: BoxFit.cover,
+                                          placeholder: (context, url) => Container(
+                                            color: Colors.grey[200],
+                                            child: const Center(
+                                              child: CircularProgressIndicator(strokeWidth: 2.0),
+                                            ),
+                                          ),
+                                          errorWidget: (context, url, error) => Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(Icons.broken_image, color: Colors.grey, size: 24),
+                                          ),
+                                        )
+                                      : Image.asset(
+                                          'assets/${item['producto'].imagenUrl}',
+                                          width: 60,
+                                          height: 60,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 24),
+                                          ),
+                                        ),
+                                ),
+                              )
+                            : Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 28),
+                                ),
+                              ),
+                        title: Text(
+                          item['producto']?.nombre ?? item['descripcion'],
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Cantidad: ${item['cantidad']}'),
+                            Text(
+                              'Subtotal: ${formatter.format(item['producto'] != null ? item['producto'].precioVenta * item['cantidad'] : item['monto'])}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline,
+                                  color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  setDialogState(() {
+                                    if (item['cantidad'] > 1) {
+                                      item['cantidad'] -= 1;
+                                    } else {
+                                      _carrito.remove(item);
+                                    }
+                                  });
                                 });
-                              });
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () {
-                              setState(() {
-                                setDialogState(() => _carrito.remove(item));
-                              });
-                            },
-                          ),
-                        ],
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  setDialogState(() => _carrito.remove(item));
+                                });
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ListTile(
@@ -762,19 +827,72 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
               itemCount: _productos.length,
               itemBuilder: (context, index) {
                 final producto = _productos[index];
-                return ListTile(
-                  leading: producto.imagenUrl != null
-                      ? Image.network(producto.imagenUrl!,
-                          width: 50,
-                          height: 50,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.error))
-                      : const Icon(Icons.error),
-                  title: Text(producto.nombre),
-                  subtitle: Text(
-                      '${NumberFormat.currency(symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol).format(producto.precioVenta)} - Stock: ${producto.stock}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () => _agregarAlCarrito(producto),
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 0),
+                  child: InkWell(
+                    onTap: () => _agregarAlCarrito(producto),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                      leading: producto.imagenUrl != null && producto.imagenUrl!.isNotEmpty
+                          ? Container(
+                              width: 60,
+                              height: 60,
+                              padding: const EdgeInsets.all(4.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: producto.imagenUrl!.startsWith('http')
+                                    ? CachedNetworkImage(
+                                        imageUrl: producto.imagenUrl!,
+                                        width: 60,
+                                        height: 60,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: Colors.grey[200],
+                                          child: const Center(
+                                            child: CircularProgressIndicator(strokeWidth: 2.0),
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) => Container(
+                                          color: Colors.grey[200],
+                                          child: const Icon(Icons.broken_image, color: Colors.grey, size: 24),
+                                        ),
+                                      )
+                                    : Image.asset(
+                                        'assets/${producto.imagenUrl}',
+                                        width: 60,
+                                        height: 60,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => Container(
+                                          color: Colors.grey[200],
+                                          child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 24),
+                                        ),
+                                      ),
+                              ),
+                            )
+                          : Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 28),
+                              ),
+                            ),
+                      title: Text(
+                        producto.nombre,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      subtitle: Text(
+                        '${NumberFormat.currency(symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol).format(producto.precioVenta)} - Stock: ${producto.stock}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
+                        onPressed: () => _agregarAlCarrito(producto),
+                      ),
+                    ),
                   ),
                 );
               },

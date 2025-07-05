@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../models/entrada_inventario_model.dart';
 import '../services/database_service.dart';
 import '../utils/currency_formatter.dart';
@@ -185,6 +186,27 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
   }
 
   // Método para abrir la imagen en pantalla completa
+  Widget _buildSafeImage(String imageUrl) {
+    if (imageUrl.startsWith('http') || imageUrl.startsWith('https')) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const Center(child: CircularProgressIndicator());
+        },
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+      );
+    } else {
+      // Si es una ruta local, tratar como archivo
+      return Image.file(
+        File(imageUrl),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+      );
+    }
+  }
+
   void _showFullScreenImage(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) return;
     
@@ -198,15 +220,7 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
                 panEnabled: true,
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
-                ),
+                child: _buildSafeImage(imageUrl),
               ),
             ),
             Positioned(
@@ -247,15 +261,7 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
             color: Colors.grey[200],
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return const Center(child: CircularProgressIndicator());
-            },
-            errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
-          ),
+          child: _buildSafeImage(imageUrl),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../widgets/primary_button.dart'; // Asegúrate que esta ruta sea correct
 import 'home_screen.dart'; // Asegúrate que esta ruta sea correcta
 import 'product_form_screen.dart'; // Asegúrate que esta ruta sea correcta
 import 'package:intl/intl.dart';
+import 'stock_products_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -77,9 +78,8 @@ class DashboardScreenState extends State<DashboardScreen> {
       final products = await db.getProductos();
       final totalProducts = products.length;
       // Productos con stock bajo (entre 1 y 9 unidades)
-      final lowStockProducts = products
-          .where((p) => p.stock > 0 && p.stock < 10)
-          .length;
+      final lowStockProducts =
+          products.where((p) => p.stock > 0 && p.stock < 10).length;
       // Productos sin stock (0 o menos unidades)
       final outOfStockProducts = products.where((p) => p.stock <= 0).length;
 
@@ -136,51 +136,67 @@ class DashboardScreenState extends State<DashboardScreen> {
     String title,
     String value,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
       elevation: 2.0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8.0),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12.0),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Icon(icon, color: color, size: 26),
+                  ),
+                  if (onTap != null)
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: color.withValues(alpha: 0.6),
+                    ),
+                ],
               ),
-              child: Icon(icon, color: color, size: 26),
-            ),
-            const SizedBox(height: 8),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                value,
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
+              const SizedBox(height: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                  maxLines: 1,
                 ),
-                maxLines: 1,
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -366,12 +382,34 @@ class DashboardScreenState extends State<DashboardScreen> {
                         numberFormat.format(data['lowStockProducts']),
                         Icons.warning_amber_outlined,
                         Colors.orange.shade700,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const StockProductsScreen(
+                                title: 'Productos con Bajo Stock',
+                                showLowStock: true,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       _buildStatCard(
                         'Agotados',
                         numberFormat.format(data['outOfStockProducts']),
                         Icons.error_outline_rounded,
                         Colors.red.shade700,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const StockProductsScreen(
+                                title: 'Productos Agotados',
+                                showOutOfStock: true,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       _buildStatCard(
                         'Valor Inventario', // Título más corto
@@ -429,7 +467,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                                       maxWidth: 600,
                                       maxHeight:
                                           MediaQuery.of(context).size.height *
-                                          0.8,
+                                              0.8,
                                     ),
                                     child: const ProductFormScreen(),
                                   ),
