@@ -52,7 +52,20 @@ class StockProductsScreen extends StatelessWidget {
 
     // Si el esquema es http o https, es una imagen de red.
     if (uri.isScheme('http') || uri.isScheme('https')) {
-      return _buildNetworkImage(imageUrl, productName, theme);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12.0), // More rounded corners
+        child: CachedNetworkImage(
+          imageUrl: imageUrl,
+          width: 70, // Larger image
+          height: 70, // Larger image
+          fit: BoxFit.cover,
+          placeholder: (context, url) => _buildPlaceholderImage(productName, theme),
+          errorWidget: (context, url, error) {
+            debugPrint('Error cargando imagen de red: $url, error: $error');
+            return _buildPlaceholderImage(productName, theme);
+          },
+        ),
+      );
     } 
     
     // Para cualquier otro caso (esquema 'file' o sin esquema), se trata como archivo local.
@@ -62,11 +75,11 @@ class StockProductsScreen extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.done && snapshot.hasData && snapshot.data != null) {
           // Si tenemos un archivo válido, lo mostramos.
           return ClipRRect(
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(12.0), // More rounded corners
             child: Image.file(
               snapshot.data!,
-              width: 60,
-              height: 60,
+              width: 70, // Larger image
+              height: 70, // Larger image
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 debugPrint("Error en Image.file para '${snapshot.data!.path}': $error");
@@ -125,26 +138,6 @@ Future<File?> _getLocalFile(String imagePath) async {
   // Si hay un error o el archivo no existe, devuelve null.
   return null;
 }
-
-
-
-  // Construye la imagen desde una URL de red.
-  Widget _buildNetworkImage(String imageUrl, String productName, ThemeData theme) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8.0),
-      child: CachedNetworkImage(
-        imageUrl: imageUrl,
-        width: 60,
-        height: 60,
-        fit: BoxFit.cover,
-        placeholder: (context, url) => _buildPlaceholderImage(productName, theme),
-        errorWidget: (context, url, error) {
-          debugPrint('Error cargando imagen de red: $url, error: $error');
-          return _buildPlaceholderImage(productName, theme);
-        },
-      ),
-    );
-  }
 
   // Construye un widget de placeholder cuando no hay imagen.
   Widget _buildPlaceholderImage(String productName, ThemeData theme) {
@@ -219,21 +212,25 @@ Future<File?> _getLocalFile(String imagePath) async {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(12.0), // Increased padding
             itemCount: products.length,
             itemBuilder: (context, index) {
               final product = products[index];
               return Card(
                 margin:
-                    const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+                    const EdgeInsets.symmetric(vertical: 6.0, horizontal: 0), // Adjusted margin
+                elevation: 4, // Increased elevation
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.0), // More rounded corners
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(12.0), // Increased padding
                   child: Row(
                     children: [
                       // Imagen del producto
                       _buildProductImage(product.imagenUrl, product.nombre, theme),
 
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16), // Increased spacing
 
                       // Información del producto
                       Expanded(
@@ -242,21 +239,19 @@ Future<File?> _getLocalFile(String imagePath) async {
                           children: [
                             Text(
                               product.nombre,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6), // Increased spacing
                             Text(
                               'Código: ${product.codigoBarras}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: theme.textTheme.bodySmall?.color
-                                    ?.withValues(alpha: 0.7),
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
                             ),
                           ],
                         ),
@@ -269,23 +264,21 @@ Future<File?> _getLocalFile(String imagePath) async {
                         children: [
                           Text(
                             'Stock: ${product.stock}',
-                            style: TextStyle(
-                              color: product.stock <= 0
-                                  ? Colors.red
-                                  : product.stock < 10
-                                      ? Colors.orange
-                                      : null,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: product.stock <= 0
+                                      ? Colors.red
+                                      : product.stock < 10
+                                          ? Colors.orange
+                                          : Colors.green, // Added green for sufficient stock
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6), // Increased spacing
                           Text(
                             'Bs. ${product.precioVenta.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
                         ],
                       ),

@@ -187,9 +187,16 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                   children: [
                     TextFormField(
                       controller: _descripcionController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Descripción',
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -204,7 +211,14 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                       decoration: InputDecoration(
                         labelText: 'Monto',
                         prefixText: '$currencySymbol ',
-                        border: const OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                         hintText: '0',
                       ),
                       keyboardType: TextInputType.number,
@@ -260,9 +274,16 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: _categoriaSeleccionada,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Categoría',
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                       ),
                       items: _categorias
                           .map((categoria) => DropdownMenuItem(
@@ -281,9 +302,16 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _notasController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Notas (opcional)',
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                         alignLabelWithHint: true,
                       ),
                       maxLines: 3,

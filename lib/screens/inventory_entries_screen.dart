@@ -31,10 +31,12 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
 
   void _loadEntradas() {
     setState(() {
-      _entradasFuture = _databaseService.getEntradasInventario(
+      _entradasFuture = _databaseService
+          .getEntradasInventario(
         fechaInicio: _dateRange.start,
         fechaFin: _dateRange.end,
-      ).then((entradas) {
+      )
+          .then((entradas) {
         // Ordenar por fecha descendente
         entradas.sort((a, b) => b.fecha.compareTo(a.fecha));
         return entradas;
@@ -49,7 +51,7 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
       lastDate: DateTime(2100),
       initialDateRange: _dateRange,
     );
-    
+
     if (picked != null) {
       setState(() {
         _dateRange = picked;
@@ -76,19 +78,48 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
           // Filtro de fechas
           Card(
             margin: const EdgeInsets.all(8.0),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0)),
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(16.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${_dateRange.start.year}-${_dateRange.start.month.toString().padLeft(2, '0')}-${_dateRange.start.day.toString().padLeft(2, '0')} - ${_dateRange.end.year}-${_dateRange.end.month.toString().padLeft(2, '0')}-${_dateRange.end.day.toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Rango de fechas:',
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_dateRange.start.year}-${_dateRange.start.month.toString().padLeft(2, '0')}-${_dateRange.start.day.toString().padLeft(2, '0')} - ${_dateRange.end.year}-${_dateRange.end.month.toString().padLeft(2, '0')}-${_dateRange.end.day.toString().padLeft(2, '0')}',
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                        ),
+                      ],
+                    ),
                   ),
-                  TextButton.icon(
+                  ElevatedButton.icon(
                     onPressed: _selectDateRange,
-                    icon: const Icon(Icons.calendar_today),
-                    label: const Text('Cambiar rango'),
+                    icon: const Icon(Icons.edit_calendar),
+                    label: const Text('Cambiar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -154,16 +185,53 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
                               horizontal: 8.0,
                               vertical: 4.0,
                             ),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
                             child: ListTile(
-                              title: Text(entrada.productoNombre),
-                              subtitle: Text(
-                                'Cantidad: ${entrada.cantidad}\nPrecio Unitario: ${_formatearMoneda(entrada.precioUnitario)}\nTotal: ${_formatearMoneda(entrada.cantidad * entrada.precioUnitario)}',
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              leading: CircleAvatar(
+                                backgroundColor: Theme.of(context)
+                                    .primaryColor
+                                    .withValues(alpha: 0.1),
+                                child: Icon(Icons.input,
+                                    color: Theme.of(context).primaryColor),
+                              ),
+                              title: Text(
+                                entrada.productoNombre,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Cantidad: ${entrada.cantidad}',
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.grey[700]),
+                                  ),
+                                  Text(
+                                    'Precio Unitario: ${_formatearMoneda(entrada.precioUnitario)}',
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.grey[700]),
+                                  ),
+                                  Text(
+                                    'Fecha: ${entrada.fecha.day.toString().padLeft(2, '0')}/${entrada.fecha.month.toString().padLeft(2, '0')}/${entrada.fecha.year}',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[600]),
+                                  ),
+                                ],
                               ),
                               trailing: Text(
                                 _formatearMoneda(entrada.total),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.green,
+                                  fontSize: 18,
                                 ),
                               ),
                               onTap: () {
@@ -209,7 +277,7 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
 
   void _showFullScreenImage(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => Dialog.fullscreen(
@@ -246,7 +314,8 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
           color: Colors.grey[200],
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
+        child:
+            const Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
       );
     }
 

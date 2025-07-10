@@ -143,13 +143,14 @@ class DashboardScreenState extends State<DashboardScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      elevation: 2.0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      elevation: 4.0, // Increased elevation for more depth
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0)), // More rounded corners
       child: InkWell(
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.circular(16.0),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0), // Increased padding
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,37 +159,41 @@ class DashboardScreenState extends State<DashboardScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(10.0), // Increased padding
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8.0),
+                      color: color.withValues(
+                          alpha: 0.15), // Slightly more opaque background
+                      borderRadius: BorderRadius.circular(
+                          12.0), // More rounded icon background
                     ),
-                    child: Icon(icon, color: color, size: 26),
+                    child: Icon(icon, color: color, size: 30), // Larger icon
                   ),
                   if (onTap != null)
                     Icon(
                       Icons.arrow_forward_ios_rounded,
-                      size: 16,
-                      color: color.withValues(alpha: 0.6),
+                      size: 18, // Slightly larger arrow
+                      color: color.withValues(alpha: 0.7), // More visible arrow
                     ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12), // Increased spacing
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
                   value,
-                  style: textTheme.headlineSmall?.copyWith(
+                  style: textTheme.headlineMedium?.copyWith(
+                    // Larger headline
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onSurface,
                   ),
                   maxLines: 1,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6), // Increased spacing
               Text(
                 title,
-                style: textTheme.bodyMedium?.copyWith(
+                style: textTheme.bodyLarge?.copyWith(
+                  // Larger body text
                   color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
@@ -217,7 +222,7 @@ class DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         backgroundColor: colorScheme.primary,
-        elevation: 1.0,
+        elevation: 0, // Remove elevation for a flatter look
         actions: [
           IconButton(
             icon: Icon(Icons.refresh_rounded, color: colorScheme.onPrimary),
@@ -263,27 +268,30 @@ class DashboardScreenState extends State<DashboardScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.cloud_off_rounded,
+                          Icons.error_outline_rounded, // Changed icon
                           color: colorScheme.error,
-                          size: 50,
+                          size: 60, // Larger icon
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20), // Increased spacing
                         Text(
                           'Error al Cargar Datos',
-                          style: textTheme.titleLarge?.copyWith(
+                          style: textTheme.headlineSmall?.copyWith(
+                            // Larger headline
                             color: colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12), // Increased spacing
                         Text(
                           'No se pudo conectar para obtener la información. Verifica tu conexión e inténtalo de nuevo.',
                           textAlign: TextAlign.center,
-                          style: textTheme.bodyMedium?.copyWith(
+                          style: textTheme.bodyLarge?.copyWith(
+                            // Larger body text
                             color: colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 32), // Increased spacing
                         ElevatedButton.icon(
                           icon: const Icon(Icons.refresh_rounded),
                           label: const Text('Reintentar'),
@@ -292,10 +300,14 @@ class DashboardScreenState extends State<DashboardScreen> {
                             backgroundColor: colorScheme.primary,
                             foregroundColor: colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 10,
+                              horizontal: 24, // Increased padding
+                              vertical: 12, // Increased padding
                             ),
-                            textStyle: textTheme.labelLarge,
+                            textStyle: textTheme.titleMedium, // Larger text
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(12), // Rounded corners
+                            ),
                           ),
                         ),
                       ],
@@ -316,29 +328,47 @@ class DashboardScreenState extends State<DashboardScreen> {
                         Icon(
                           Icons.info_outline_rounded,
                           color: colorScheme.secondary,
-                          size: 50,
+                          size: 60, // Larger icon
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20), // Increased spacing
                         Text(
                           'No hay datos para mostrar',
-                          style: textTheme.titleLarge?.copyWith(
+                          style: textTheme.headlineSmall?.copyWith(
+                            // Larger headline
                             color: colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12), // Increased spacing
                         Text(
                           'Parece que aún no hay información registrada en el panel.',
                           textAlign: TextAlign.center,
-                          style: textTheme.bodyMedium?.copyWith(
+                          style: textTheme.bodyLarge?.copyWith(
+                            // Larger body text
                             color: colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 32), // Increased spacing
                         ElevatedButton.icon(
                           icon: const Icon(Icons.refresh_rounded),
                           label: const Text('Actualizar'),
                           onPressed: _loadDashboardData,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                colorScheme.secondary, // Changed color
+                            foregroundColor:
+                                colorScheme.onSecondary, // Changed color
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24, // Increased padding
+                              vertical: 12, // Increased padding
+                            ),
+                            textStyle: textTheme.titleMedium, // Larger text
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(12), // Rounded corners
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -435,8 +465,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                     crossAxisCount: _getCrossAxisCount(context),
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 16, // Increased spacing
+                    mainAxisSpacing: 16, // Increased spacing
                     childAspectRatio: _getChildAspectRatioForActions(context),
                     children: [
                       PrimaryButton(

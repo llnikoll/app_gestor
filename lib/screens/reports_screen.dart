@@ -65,12 +65,12 @@ class _ReportsScreenState extends State<ReportsScreen>
     with SingleTickerProviderStateMixin {
   // Servicio de configuración
   late final SettingsService _settingsService;
-  
+
   // Función para formatear montos según la moneda configurada
   String _formatearMoneda(double monto) {
     return context.formattedCurrency(monto);
   }
-  
+
   // Obtener el símbolo de moneda actual
   String get _currencySymbol {
     return _settingsService.currentCurrency.symbol;
@@ -144,7 +144,7 @@ class _ReportsScreenState extends State<ReportsScreen>
     super.initState();
     _settingsService = SettingsService();
     _tabController = TabController(length: 3, vsync: this);
-    
+
     // Configurar el listener para actualizar los datos cuando haya cambios en las transacciones
     _onTransactionUpdated = () {
       if (mounted) {
@@ -161,10 +161,11 @@ class _ReportsScreenState extends State<ReportsScreen>
       _onTransactionUpdated,
     );
     debugPrint('Listener de transacciones registrado en ReportsScreen');
-    
+
     // Cargar los datos iniciales
     _cargarTodo();
   }
+
   Future<void> _cargarTodo() async {
     await _cargarDatos();
     await _cargarVentas();
@@ -237,69 +238,7 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 
-  Future<void> _selectDateRange(BuildContext context) async {
-    void showErrorSnackBar(String message) {
-      if (!mounted) return;
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
-      scaffoldMessenger.clearSnackBars();
-      scaffoldMessenger.showSnackBar(SnackBar(content: Text(message)));
-    }
 
-    try {
-      final DateTimeRange? picked = await showDateRangePicker(
-        context: context,
-        firstDate: DateTime(2020),
-        lastDate: DateTime(2100),
-        initialDateRange: _selectedDateRange,
-        builder: (context, child) {
-          return Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: ColorScheme.light(
-                primary: Theme.of(context).primaryColor,
-                onPrimary: Colors.white,
-                surface: Theme.of(context).scaffoldBackgroundColor,
-                onSurface: Theme.of(context).textTheme.bodyLarge?.color ??
-                    Colors.black,
-              ),
-              dialogTheme: DialogThemeData(
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              ),
-            ),
-            child: child!,
-          );
-        },
-      );
-
-      if (!mounted) return;
-
-      if (picked != null) {
-        final startDate = DateTime(
-          picked.start.year,
-          picked.start.month,
-          picked.start.day,
-        );
-        final endDate = DateTime(
-          picked.end.year,
-          picked.end.month,
-          picked.end.day,
-          23,
-          59,
-          59,
-          999,
-        );
-
-        final newDateRange = DateTimeRange(start: startDate, end: endDate);
-
-        setState(() {
-          _selectedDateRange = newDateRange;
-        });
-        await _cargarDatos();
-      }
-    } catch (e) {
-      debugPrint('Error al seleccionar rango de fechas: $e');
-      showErrorSnackBar('Error al seleccionar fechas: $e');
-    }
-  }
 
   Future<void> _cargarVentas() async {
     if (!mounted) return;
@@ -803,20 +742,135 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
+    Future<void> _seleccionarFechaInicio() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateRange.start,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+
+    if (fecha != null) {
+      final newStartDate = DateTime(fecha.year, fecha.month, fecha.day);
+      setState(() {
+        _selectedDateRange = DateTimeRange(
+          start: newStartDate,
+          end: _selectedDateRange.end,
+        );
+      });
+      await _cargarDatos();
+    }
+  }
+
+  Future<void> _seleccionarFechaFin() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateRange.end,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+
+    if (fecha != null) {
+      final newEndDate = DateTime(fecha.year, fecha.month, fecha.day, 23, 59, 59, 999);
+      setState(() {
+        _selectedDateRange = DateTimeRange(
+          start: _selectedDateRange.start,
+          end: newEndDate,
+        );
+      });
+      await _cargarDatos();
+    }
+  }
+
   Widget _buildDateRangeInfo() {
     final formatter = DateFormat('dd/MM/yyyy');
-    return Builder(
-      builder: (BuildContext context) => Card(
-        child: ListTile(
-          leading: const Icon(Icons.date_range),
-          title: const Text('Rango de fechas seleccionado:'),
-          subtitle: Text(
-            '${formatter.format(_selectedDateRange.start)} - ${formatter.format(_selectedDateRange.end)}',
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.edit_calendar),
-            onPressed: () => _selectDateRange(context),
-          ),
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Filtrar por fecha',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onSurface,
+                        ),
+                        onPressed: _seleccionarFechaInicio,
+                        icon: const Icon(Icons.calendar_today, size: 18),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            formatter.format(_selectedDateRange.start),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'hasta',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onSurface,
+                        ),
+                        onPressed: _seleccionarFechaFin,
+                        icon: const Icon(Icons.calendar_today, size: 18),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            formatter.format(_selectedDateRange.end),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -872,55 +926,65 @@ class _ReportsScreenState extends State<ReportsScreen>
 
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    color: data.color.withValues(
-                      red: ((data.color.r * 255.0) * 0.1).roundToDouble(),
-                      green: ((data.color.g * 255.0) * 0.1).roundToDouble(),
-                      blue: ((data.color.b * 255.0) * 0.1).roundToDouble(),
-                      alpha: (data.color.a * 255.0).roundToDouble(),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16.0),
+        onTap: () {},
+        child: Container(
+          constraints: const BoxConstraints(
+            minHeight: 140,
+            maxWidth: double.infinity,
+          ),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10.0),
+                    decoration: BoxDecoration(
+                      color: data.color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12.0),
                     ),
-                    borderRadius: BorderRadius.circular(8.0),
+                    child: Icon(icon, color: data.color, size: 24),
                   ),
-                  child: Icon(icon, color: data.color, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        data.concepto,
-                        style: const TextStyle(
-                          fontSize: 16,
+                ],
+              ),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _formatearMoneda(data.monto),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data.concepto,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey,
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatearMoneda(data.monto),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -938,9 +1002,12 @@ class _ReportsScreenState extends State<ReportsScreen>
           const SizedBox(height: 20),
           _buildGastosChart(),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Gastos por Categoría',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
           ),
           const SizedBox(height: 10),
           _buildListaGastos(),
@@ -954,30 +1021,35 @@ class _ReportsScreenState extends State<ReportsScreen>
       'dd/MM/yyyy',
     ).format(_selectedDateRange.end);
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      elevation: 6, // Increased elevation
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0)), // More rounded corners
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0), // Increased padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Text(
+                Text(
                   'Resumen de Gastos: ',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
                 ),
                 Text(
                   fechaSeleccionada,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .error, // Changed color
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20), // Increased spacing
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -1013,34 +1085,51 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildGastosChart() {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      elevation: 6, // Increased elevation
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0)), // More rounded corners
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0), // Increased padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Gastos por Período',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20), // Increased spacing
             SizedBox(
-              height: 250,
+              height: 280, // Increased height
               child: _gastosData.isEmpty
-                  ? const Center(
-                      child: Text('No hay datos de gastos disponibles'),
+                  ? Center(
+                      child: Text(
+                        'No hay datos de gastos disponibles para este período.',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(color: Colors.grey[600]),
+                        textAlign: TextAlign.center,
+                      ),
                     )
                   : SfCartesianChart(
-                      primaryXAxis: const CategoryAxis(
+                      primaryXAxis: CategoryAxis(
                         labelRotation: 45,
-                        labelStyle: TextStyle(fontSize: 10),
+                        labelStyle: Theme.of(context).textTheme.bodySmall,
+                        majorGridLines: const MajorGridLines(
+                            width: 0), // Removed grid lines
                       ),
                       primaryYAxis: NumericAxis(
                         numberFormat: NumberFormat.currency(
                           symbol: '$_currencySymbol ',
                           decimalDigits: 0,
                         ),
+                        labelStyle: Theme.of(context).textTheme.bodySmall,
+                        majorGridLines: const MajorGridLines(
+                            width: 0.5,
+                            color: Colors.grey), // Lighter grid lines
                       ),
                       tooltipBehavior: TooltipBehavior(enable: true),
                       series: <CartesianSeries>[
@@ -1052,19 +1141,21 @@ class _ReportsScreenState extends State<ReportsScreen>
                           color: Colors.red,
                           markerSettings: const MarkerSettings(
                             isVisible: true,
-                            color: Colors.red,
+                            shape: DataMarkerType.circle,
                             borderColor: Colors.white,
                             borderWidth: 2,
+                            width: 8,
+                            height: 8,
                           ),
-                          dataLabelSettings: const DataLabelSettings(
+                          dataLabelSettings: DataLabelSettings(
                             isVisible: true,
                             labelAlignment: ChartDataLabelAlignment.top,
-                            textStyle: TextStyle(
-                              color: Colors.red,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            textStyle: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
+                          width: 3, // Thicker line
                         ),
                       ],
                     ),
@@ -1078,20 +1169,30 @@ class _ReportsScreenState extends State<ReportsScreen>
   Widget _buildListaGastos() {
     if (_gastosDiaSeleccionadoLista.isEmpty) {
       return Card(
-        elevation: 4,
+        elevation: 6, // Increased elevation
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.circular(16.0), // More rounded corners
         ),
-        child: const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Center(child: Text('No hay gastos registrados')),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0), // Increased padding
+          child: Center(
+            child: Text(
+              'No hay gastos registrados para este período.',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
       );
     }
 
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      elevation: 6, // Increased elevation
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0)), // More rounded corners
       child: ListView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -1099,24 +1200,32 @@ class _ReportsScreenState extends State<ReportsScreen>
         itemBuilder: (context, index) {
           final gasto = _gastosDiaSeleccionadoLista[index];
           return ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20, vertical: 10), // Increased padding
             leading: CircleAvatar(
-              backgroundColor: Colors.red.withValues(alpha: 0.1),
-              child: const Icon(Icons.money_off, color: Colors.red),
+              backgroundColor:
+                  Colors.red.withValues(alpha: 0.15), // More opaque background
+              child: const Icon(Icons.money_off,
+                  color: Colors.red, size: 28), // Larger icon
             ),
             title: Text(
               gasto['descripcion'] ?? 'Sin descripción',
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold), // Larger and bolder title
             ),
             subtitle: Text(
-              'Categoría: ${gasto['categoria'] ?? 'Sin categoría'}\n${DateFormat('HH:mm').format(DateTime.parse(gasto['fecha']))}',
+              'Categoría: ${gasto['categoria'] ?? 'Sin categoría'}\nFecha: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(gasto['fecha']))}', // Added "Fecha:" and full date format
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.grey[700]), // Adjusted text style
             ),
             trailing: Text(
               _formatearMoneda((gasto['monto'] as num).toDouble()),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Colors.red,
-              ),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ), // Larger and bolder trailing text
             ),
           );
         },
@@ -1129,30 +1238,35 @@ class _ReportsScreenState extends State<ReportsScreen>
       'dd/MM/yyyy',
     ).format(_selectedDateRange.end);
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      elevation: 6, // Increased elevation
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0)), // More rounded corners
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0), // Increased padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Text(
+                Text(
                   'Resumen del día: ',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
                 ),
                 Text(
                   fechaSeleccionada,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Colors.blue,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .secondary, // Changed color
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20), // Increased spacing
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -1190,65 +1304,103 @@ class _ReportsScreenState extends State<ReportsScreen>
     IconData icon,
     Color color,
   ) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
+    return Flexible(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16), // Increased padding
+            decoration: BoxDecoration(
+              color: color.withValues(
+                  alpha: 0.15), // Slightly more opaque background
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 32), // Larger icon
           ),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      ],
+          const SizedBox(height: 12), // Increased spacing
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  // Larger font size
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4), // Increased spacing
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  // Larger font size
+                  color: Colors.grey[700],
+                ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildSalesChart() {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      elevation: 6, // Increased elevation
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0)), // More rounded corners
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0), // Increased padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Ventas por Período',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
                 ),
                 Text(
                   'Últimos ${_ventasData.length} ${_ventasData.length == 1 ? 'día' : 'días'}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: Colors.grey[700]),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20), // Increased spacing
             SizedBox(
-              height: 250,
+              height: 280, // Increased height
               child: _ventasData.isEmpty
-                  ? const Center(
-                      child: Text('No hay datos de ventas disponibles'),
+                  ? Center(
+                      child: Text(
+                        'No hay datos de ventas disponibles para este período.',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(color: Colors.grey[600]),
+                        textAlign: TextAlign.center,
+                      ),
                     )
                   : SfCartesianChart(
-                      primaryXAxis: const CategoryAxis(
+                      primaryXAxis: CategoryAxis(
                         labelRotation: 45,
-                        labelStyle: TextStyle(fontSize: 10),
+                        labelStyle: Theme.of(context).textTheme.bodySmall,
+                        majorGridLines: const MajorGridLines(
+                            width: 0), // Removed grid lines
                       ),
                       primaryYAxis: NumericAxis(
                         numberFormat: NumberFormat.currency(
                           symbol: '$_currencySymbol ',
                           decimalDigits: 0,
                         ),
+                        labelStyle: Theme.of(context).textTheme.bodySmall,
+                        majorGridLines: const MajorGridLines(
+                            width: 0.5,
+                            color: Colors.grey), // Lighter grid lines
                       ),
                       tooltipBehavior: TooltipBehavior(enable: true),
                       series: <CartesianSeries>[
@@ -1257,12 +1409,24 @@ class _ReportsScreenState extends State<ReportsScreen>
                           xValueMapper: (SalesData sales, _) => sales.periodo,
                           yValueMapper: (SalesData sales, _) => sales.ventas,
                           name: 'Ventas',
-                          markerSettings: const MarkerSettings(isVisible: true),
-                          dataLabelSettings: const DataLabelSettings(
+                          markerSettings: const MarkerSettings(
+                            isVisible: true,
+                            shape: DataMarkerType.circle,
+                            borderColor: Colors.white,
+                            borderWidth: 2,
+                            width: 8,
+                            height: 8,
+                          ),
+                          dataLabelSettings: DataLabelSettings(
                             isVisible: true,
                             labelAlignment: ChartDataLabelAlignment.top,
+                            textStyle: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           color: Theme.of(context).primaryColor,
+                          width: 3, // Thicker line
                         ),
                       ],
                     ),
@@ -1276,49 +1440,75 @@ class _ReportsScreenState extends State<ReportsScreen>
   Widget _buildProductosRanking() {
     if (_productosMasVendidos.isEmpty) {
       return Card(
-        elevation: 4,
+        elevation: 6, // Increased elevation
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.circular(16.0), // More rounded corners
         ),
-        child: const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Center(child: Text('No hay datos de productos vendidos')),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0), // Increased padding
+          child: Center(
+            child: Text(
+              'No hay datos de productos vendidos para este período.',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
       );
     }
 
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      elevation: 6, // Increased elevation
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0)), // More rounded corners
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _productosMasVendidos.length,
-        separatorBuilder: (context, index) =>
-            const Divider(height: 1, indent: 16, endIndent: 16),
+        separatorBuilder: (context, index) => Divider(
+            height: 1,
+            indent: 20,
+            endIndent: 20,
+            color: Colors.grey[300]), // Lighter divider
         itemBuilder: (context, index) {
           final producto = _productosMasVendidos[index];
           return ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20, vertical: 10), // Increased padding
             leading: CircleAvatar(
               backgroundColor: Theme.of(
                 context,
-              ).primaryColor.withValues(alpha: 0.1),
+              ).primaryColor.withValues(alpha: 0.15), // More opaque background
               child: Text(
                 '${index + 1}',
                 style: TextStyle(
                   color: Theme.of(context).primaryColor,
                   fontWeight: FontWeight.bold,
+                  fontSize: 18, // Larger font size
                 ),
               ),
             ),
             title: Text(
               producto['nombre'] ?? 'Producto desconocido',
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold), // Larger and bolder title
             ),
-            subtitle: Text('${producto['cantidad']} unidades'),
+            subtitle: Text(
+              '${producto['cantidad']} unidades',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.grey[700]), // Adjusted text style
+            ),
             trailing: Text(
               _formatearMoneda((producto['total'] as num).toDouble()),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ), // Larger and bolder trailing text
             ),
           );
         },

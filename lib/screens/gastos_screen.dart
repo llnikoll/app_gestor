@@ -215,72 +215,83 @@ class _GastosScreenState extends State<GastosScreen> {
           // Filtro de fechas
           Card(
             margin: const EdgeInsets.all(8.0),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0)),
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'Filtrar por fecha',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).primaryColor,
+                        ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   LayoutBuilder(
                     builder: (context, constraints) {
                       return Row(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 1.0),
-                              child: OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 8.0, horizontal: 2.0),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
                                 ),
-                                onPressed: _seleccionarFechaInicio,
-                                icon:
-                                    const Icon(Icons.calendar_today, size: 14),
-                                label: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    _dateFormat.format(_fechaInicio),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                                foregroundColor:
+                                    Theme.of(context).colorScheme.onSurface,
+                              ),
+                              onPressed: _seleccionarFechaInicio,
+                              icon: const Icon(Icons.calendar_today, size: 18),
+                              label: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  _dateFormat.format(_fechaInicio),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 14),
                                 ),
                               ),
                             ),
                           ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 2.0),
-                            child:
-                                Text('hasta', style: TextStyle(fontSize: 13)),
+                          const SizedBox(width: 10),
+                          Text(
+                            'hasta',
+                            style: Theme.of(context).textTheme.bodyMedium,
                           ),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 1.0),
-                              child: OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 8.0, horizontal: 2.0),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
                                 ),
-                                onPressed: _seleccionarFechaFin,
-                                icon:
-                                    const Icon(Icons.calendar_today, size: 14),
-                                label: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    _dateFormat.format(_fechaFin),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                                foregroundColor:
+                                    Theme.of(context).colorScheme.onSurface,
+                              ),
+                              onPressed: _seleccionarFechaFin,
+                              icon: const Icon(Icons.calendar_today, size: 18),
+                              label: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  _dateFormat.format(_fechaFin),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 14),
                                 ),
                               ),
                             ),
@@ -289,13 +300,13 @@ class _GastosScreenState extends State<GastosScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 16),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(vertical: 12.0),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(10.0),
                       border: Border.all(
                         color: Colors.green.withValues(alpha: 0.3),
                       ),
@@ -305,7 +316,7 @@ class _GastosScreenState extends State<GastosScreen> {
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontSize: 20,
                         color: Colors.green,
                       ),
                     ),

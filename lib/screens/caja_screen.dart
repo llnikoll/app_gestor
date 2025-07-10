@@ -101,11 +101,11 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
         Provider.of<DatabaseService>(context, listen: false);
     final categorias = await databaseService.getCategorias();
     // Filtrar para excluir la categoría 'generales' (ignorando mayúsculas/minúsculas)
-    final categoriasFiltradas = categorias
-        .where((c) => c.nombre.toLowerCase() != 'generales')
-        .toList();
-    setState(() => _selectedCategory = 
-        categoriasFiltradas.isNotEmpty ? categoriasFiltradas.first.nombre : null);
+    final categoriasFiltradas =
+        categorias.where((c) => c.nombre.toLowerCase() != 'generales').toList();
+    setState(() => _selectedCategory = categoriasFiltradas.isNotEmpty
+        ? categoriasFiltradas.first.nombre
+        : null);
   }
 
   void _filtrarProductos(String query) {
@@ -353,21 +353,30 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                 padding: const EdgeInsets.all(4.0),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8.0),
-                                  child: item['producto'].imagenUrl.toString().startsWith('http')
+                                  child: item['producto']
+                                          .imagenUrl
+                                          .toString()
+                                          .startsWith('http')
                                       ? CachedNetworkImage(
                                           imageUrl: item['producto'].imagenUrl,
                                           width: 60,
                                           height: 60,
                                           fit: BoxFit.cover,
-                                          placeholder: (context, url) => Container(
+                                          placeholder: (context, url) =>
+                                              Container(
                                             color: Colors.grey[200],
                                             child: const Center(
-                                              child: CircularProgressIndicator(strokeWidth: 2.0),
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2.0),
                                             ),
                                           ),
-                                          errorWidget: (context, url, error) => Container(
+                                          errorWidget: (context, url, error) =>
+                                              Container(
                                             color: Colors.grey[200],
-                                            child: const Icon(Icons.broken_image, color: Colors.grey, size: 24),
+                                            child: const Icon(
+                                                Icons.broken_image,
+                                                color: Colors.grey,
+                                                size: 24),
                                           ),
                                         )
                                       : Image.asset(
@@ -375,9 +384,14 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                           width: 60,
                                           height: 60,
                                           fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => Container(
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Container(
                                             color: Colors.grey[200],
-                                            child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 24),
+                                            child: const Icon(
+                                                Icons.image_not_supported,
+                                                color: Colors.grey,
+                                                size: 24),
                                           ),
                                         ),
                                 ),
@@ -390,7 +404,8 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                   borderRadius: BorderRadius.circular(8.0),
                                 ),
                                 child: const Center(
-                                  child: Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 28),
+                                  child: Icon(Icons.inventory_2_outlined,
+                                      color: Colors.grey, size: 28),
                                 ),
                               ),
                         title: Text(
@@ -403,7 +418,8 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                             Text('Cantidad: ${item['cantidad']}'),
                             Text(
                               'Subtotal: ${formatter.format(item['producto'] != null ? item['producto'].precioVenta * item['cantidad'] : item['monto'])}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -778,7 +794,16 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              labelText: 'Buscar producto',
+              hintText: 'Buscar producto...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30.0),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[800]!.withValues(alpha: 0.7)
+                  : Colors.grey[100],
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -824,73 +849,116 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
           ),
           Expanded(
             child: ListView.builder(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8.0,
+                vertical: 4.0,
+              ),
               itemCount: _productos.length,
               itemBuilder: (context, index) {
                 final producto = _productos[index];
                 return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 0),
+                  margin: const EdgeInsets.symmetric(
+                      vertical: 4.0, horizontal: 8.0),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: InkWell(
                     onTap: () => _agregarAlCarrito(producto),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                      leading: producto.imagenUrl != null && producto.imagenUrl!.isNotEmpty
-                          ? Container(
-                              width: 60,
-                              height: 60,
-                              padding: const EdgeInsets.all(4.0),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8.0),
-                                child: producto.imagenUrl!.startsWith('http')
-                                    ? CachedNetworkImage(
-                                        imageUrl: producto.imagenUrl!,
-                                        width: 60,
-                                        height: 60,
-                                        fit: BoxFit.cover,
-                                        placeholder: (context, url) => Container(
-                                          color: Colors.grey[200],
-                                          child: const Center(
-                                            child: CircularProgressIndicator(strokeWidth: 2.0),
-                                          ),
-                                        ),
-                                        errorWidget: (context, url, error) => Container(
-                                          color: Colors.grey[200],
-                                          child: const Icon(Icons.broken_image, color: Colors.grey, size: 24),
-                                        ),
-                                      )
-                                    : Image.asset(
-                                        'assets/${producto.imagenUrl}',
-                                        width: 60,
-                                        height: 60,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => Container(
-                                          color: Colors.grey[200],
-                                          child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 24),
-                                        ),
-                                      ),
-                              ),
-                            )
-                          : Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 28),
-                              ),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        children: [
+                          // Imagen del producto
+                          Container(
+                            width: 70,
+                            height: 70,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                      title: Text(
-                        producto.nombre,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      subtitle: Text(
-                        '${NumberFormat.currency(symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol).format(producto.precioVenta)} - Stock: ${producto.stock}',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-                        onPressed: () => _agregarAlCarrito(producto),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: producto.imagenUrl != null &&
+                                      producto.imagenUrl!.isNotEmpty
+                                  ? (producto.imagenUrl!.startsWith('http')
+                                      ? CachedNetworkImage(
+                                          imageUrl: producto.imagenUrl!,
+                                          width: 70,
+                                          height: 70,
+                                          fit: BoxFit.cover,
+                                          placeholder: (context, url) =>
+                                              Container(
+                                            color: Colors.grey[200],
+                                            child: const Center(
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2.0),
+                                            ),
+                                          ),
+                                          errorWidget: (context, url, error) =>
+                                              Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(
+                                                Icons.broken_image,
+                                                color: Colors.grey,
+                                                size: 28),
+                                          ),
+                                        )
+                                      : Image.asset(
+                                          'assets/${producto.imagenUrl}',
+                                          width: 70,
+                                          height: 70,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(
+                                                Icons.image_not_supported,
+                                                color: Colors.grey,
+                                                size: 28),
+                                          ),
+                                        ))
+                                  : const Center(
+                                      child: Icon(Icons.inventory_2_outlined,
+                                          color: Colors.grey, size: 32),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Detalles del producto
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  producto.nombre,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${NumberFormat.currency(symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol).format(producto.precioVenta)} - Stock: ${producto.stock}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Botón de agregar al carrito
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline,
+                                color: Colors.blue, size: 30),
+                            onPressed: () => _agregarAlCarrito(producto),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1080,13 +1148,52 @@ class HistorialTabState extends State<HistorialTab> {
     }
   }
 
+  // Método para seleccionar fecha de inicio
+  Future<void> _seleccionarFechaInicio() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaInicio,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+
+    if (fecha != null) {
+      final newStartDate = DateTime(fecha.year, fecha.month, fecha.day);
+      setState(() {
+        _fechaInicio = newStartDate;
+      });
+      _loadVentas();
+    }
+  }
+
+  // Método para seleccionar fecha de fin
+  Future<void> _seleccionarFechaFin() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaFin,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+
+    if (fecha != null) {
+      final newEndDate =
+          DateTime(fecha.year, fecha.month, fecha.day, 23, 59, 59, 999);
+      setState(() {
+        _fechaFin = newEndDate;
+      });
+      _loadVentas();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final formatter = DateFormat('dd/MM/yyyy');
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Historial de Ventas'),
+          toolbarHeight: 0,
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.receipt), text: 'Todas'),
@@ -1100,43 +1207,111 @@ class HistorialTabState extends State<HistorialTab> {
               padding: const EdgeInsets.all(8.0),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton(
-                        onPressed: () async {
-                          final selectedDate = await showDatePicker(
-                            context: context,
-                            initialDate: _fechaInicio,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime.now(),
-                          );
-                          if (selectedDate != null) {
-                            setState(() => _fechaInicio = selectedDate);
-                            _loadVentas();
-                          }
-                        },
-                        child: Text(
-                            'Inicio: ${DateFormat('dd/MM/yyyy').format(_fechaInicio)}'),
+                  // Selector de fechas
+                  Card(
+                    margin: const EdgeInsets.all(8.0),
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Filtrar por fecha',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12.0),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                        ),
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        foregroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
+                                      ),
+                                      onPressed: _seleccionarFechaInicio,
+                                      icon: const Icon(Icons.calendar_today,
+                                          size: 18),
+                                      label: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          formatter.format(_fechaInicio),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'hasta',
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12.0),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                        ),
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        foregroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
+                                      ),
+                                      onPressed: _seleccionarFechaFin,
+                                      icon: const Icon(Icons.calendar_today,
+                                          size: 18),
+                                      label: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          formatter.format(_fechaFin),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          final selectedDate = await showDatePicker(
-                            context: context,
-                            initialDate: _fechaFin,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime.now(),
-                          );
-                          if (selectedDate != null) {
-                            setState(() => _fechaFin = selectedDate);
-                            _loadVentas();
-                          }
-                        },
-                        child: Text(
-                            'Fin: ${DateFormat('dd/MM/yyyy').format(_fechaFin)}'),
-                      ),
-                    ],
+                    ),
                   ),
+                  // Filtros adicionales
                   Row(
                     children: [
                       Expanded(

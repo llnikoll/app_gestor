@@ -48,7 +48,7 @@ class InventoryScreenState extends State<InventoryScreen>
           _filteredProducts = List.from(productos);
           _isLoading = false;
         });
-        
+
         // Recargar las categorías después de cargar los productos
         _loadCategories();
       }
@@ -71,21 +71,22 @@ class InventoryScreenState extends State<InventoryScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     // Obtener el notificador de productos solo una vez
-    _productNotifier ??= Provider.of<ProductNotifierService>(context, listen: false);
-    
+    _productNotifier ??=
+        Provider.of<ProductNotifierService>(context, listen: false);
+
     // Escuchar cambios en el notificador
     _productNotifier!.notifier.addListener(_onProductUpdate);
-    
+
     // Cargar productos iniciales
     _loadProducts();
   }
-  
+
   @override
   void dispose() {
     // Limpiar el listener cuando el widget se destruya
@@ -95,7 +96,7 @@ class InventoryScreenState extends State<InventoryScreen>
     _searchController.dispose();
     super.dispose();
   }
-  
+
   // Método que se ejecuta cuando hay una actualización de productos
   void _onProductUpdate() {
     if (mounted) {
@@ -156,10 +157,25 @@ class InventoryScreenState extends State<InventoryScreen>
         isExpanded: true,
         decoration: InputDecoration(
           labelText: 'Categoría',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+            borderSide:
+                BorderSide(color: Theme.of(context).primaryColor, width: 2.0),
+          ),
+          filled: true,
+          fillColor: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[800]!.withValues(alpha: 0.7)
+              : Colors.grey[100],
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
-            vertical: 8,
+            vertical: 12,
           ),
         ),
         items: _categories.map((String category) {
@@ -184,8 +200,6 @@ class InventoryScreenState extends State<InventoryScreen>
       });
     }
   }
-
-
 
   // Widget para mostrar la imagen del producto
   Widget _buildProductImage(String? imageName) {
@@ -281,27 +295,29 @@ class InventoryScreenState extends State<InventoryScreen>
   Future<String> _getImagePath(String imageName) async {
     try {
       // Primero intentamos con el almacenamiento externo
-      const String externalDir = '/storage/emulated/0/Android/data/com.example.app_gestor_ventas/files/product_images';
+      const String externalDir =
+          '/storage/emulated/0/Android/data/com.example.app_gestor_ventas/files/product_images';
       final externalPath = '$externalDir/$imageName';
-      
+
       // Verificamos si el archivo existe en el almacenamiento externo
       final externalFile = File(externalPath);
       if (await externalFile.exists()) {
-        debugPrint('Imagen encontrada en almacenamiento externo: $externalPath');
+        debugPrint(
+            'Imagen encontrada en almacenamiento externo: $externalPath');
         return externalPath;
       }
-      
+
       // Si no está en almacenamiento externo, buscamos en el directorio de documentos de la app
       final Directory appDir = await getApplicationDocumentsDirectory();
       final localPath = '${appDir.path}/product_images/$imageName';
       debugPrint('Buscando imagen en: $localPath');
-      
+
       final localFile = File(localPath);
       if (await localFile.exists()) {
         debugPrint('Imagen encontrada en almacenamiento local: $localPath');
         return localPath;
       }
-      
+
       debugPrint('No se encontró la imagen en ninguna ubicación: $imageName');
       return '';
     } catch (e) {
@@ -362,143 +378,171 @@ class InventoryScreenState extends State<InventoryScreen>
                     child: _isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : _filteredProducts.isEmpty
-                        ? const Center(
-                            child: Text('No hay productos disponibles'),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8.0,
-                              vertical: 4.0,
-                            ),
-                            itemCount: _filteredProducts.length,
-                            itemBuilder: (context, index) {
-                              final producto = _filteredProducts[index];
-                              return Card(
-                                margin: const EdgeInsets.symmetric(
-                                  vertical: 4.0,
+                            ? const Center(
+                                child: Text('No hay productos disponibles'),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(
                                   horizontal: 8.0,
+                                  vertical: 4.0,
                                 ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                                  minLeadingWidth: 40,  
-                                  leading: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 40,  
-                                      maxHeight: 60,
+                                itemCount: _filteredProducts.length,
+                                itemBuilder: (context, index) {
+                                  final producto = _filteredProducts[index];
+                                  return Card(
+                                    margin: const EdgeInsets.symmetric(
+                                      vertical: 4.0,
+                                      horizontal: 8.0,
                                     ),
-                                    child: _buildProductImage(
-                                      producto.imagenUrl,
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
                                     ),
-                                  ),
-                                  title: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        producto.nombre,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
+                                    child: ListTile(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 8),
+                                      leading: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxWidth: 60,
+                                          maxHeight: 60,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                        child: _buildProductImage(
+                                          producto.imagenUrl,
+                                        ),
                                       ),
-                                      if (producto.descripcion.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 2.0),
-                                          child: RichText(
-                                            text: TextSpan(
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: Theme.of(context).textTheme.bodySmall?.color,
-                                              ),
-                                              children: [
-                                                const TextSpan(
-                                                  text: 'Descripción: ',
-                                                  style: TextStyle(fontWeight: FontWeight.w500),
-                                                ),
-                                                TextSpan(
-                                                  text: producto.descripcion,
-                                                  style: const TextStyle(fontWeight: FontWeight.normal),
-                                                ),
-                                              ],
+                                      title: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            producto.nombre,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                            maxLines: 2,
+                                            maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
-                                    ],
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        'Precio: ${context.formattedCurrency(producto.precioVenta)}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      if (producto.categoria.isNotEmpty)
-                                        Text('Categoría: ${producto.categoria}'),
-                                      const SizedBox(height: 2),
-                                      Row(
-                                        children: [
-                                          _buildInfoChip(
-                                            'Stock: ${producto.stock}',
-                                            producto.stock > 0
-                                                ? Colors.green
-                                                : Colors.red,
-                                            fontSize: 12,
-                                          ),
-                                          if (producto.codigoBarras.isNotEmpty)
+                                          if (producto.descripcion.isNotEmpty)
                                             Padding(
-                                              padding: const EdgeInsets.only(left: 8.0),
-                                              child: _buildInfoChip(
-                                                'Código: ${producto.codigoBarras}',
-                                                Colors.blueGrey,
-                                                fontSize: 10,
+                                              padding: const EdgeInsets.only(
+                                                  top: 2.0),
+                                              child: RichText(
+                                                text: TextSpan(
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.color,
+                                                  ),
+                                                  children: [
+                                                    const TextSpan(
+                                                      text: 'Descripción: ',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w500),
+                                                    ),
+                                                    TextSpan(
+                                                      text:
+                                                          producto.descripcion,
+                                                      style: const TextStyle(
+                                                          fontWeight: FontWeight
+                                                              .normal),
+                                                    ),
+                                                  ],
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                  onTap: () async {
-                                    final result = await showDialog<bool>(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        return Dialog(
-                                          child: SizedBox(
-                                            width: 600,
-                                            height: MediaQuery.of(context).size.height * 0.9,
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Expanded(
-                                                  child: SingleChildScrollView(
-                                                    padding: const EdgeInsets.all(16.0),
-                                                    child: IntrinsicWidth(
-                                                      child: ProductFormScreen(
-                                                        product: producto,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'Precio: ${context.formattedCurrency(producto.precioVenta)}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
                                             ),
                                           ),
+                                          const SizedBox(height: 2),
+                                          if (producto.categoria.isNotEmpty)
+                                            Text(
+                                                'Categoría: ${producto.categoria}'),
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            children: [
+                                              _buildInfoChip(
+                                                'Stock: ${producto.stock}',
+                                                producto.stock > 0
+                                                    ? Colors.green
+                                                    : Colors.red,
+                                                fontSize: 12,
+                                              ),
+                                              if (producto
+                                                  .codigoBarras.isNotEmpty)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          left: 8.0),
+                                                  child: _buildInfoChip(
+                                                    'Código: ${producto.codigoBarras}',
+                                                    Colors.blueGrey,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      onTap: () async {
+                                        final result = await showDialog<bool>(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return Dialog(
+                                              child: SizedBox(
+                                                width: 600,
+                                                height: MediaQuery.of(context)
+                                                        .size
+                                                        .height *
+                                                    0.9,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Expanded(
+                                                      child:
+                                                          SingleChildScrollView(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .all(16.0),
+                                                        child: IntrinsicWidth(
+                                                          child:
+                                                              ProductFormScreen(
+                                                            product: producto,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
                                         );
-                                      },
-                                    );
 
-                                    if (result == true) {
-                                      _loadProducts();
-                                    }
-                                  },
-                                ),
-                              );
-                            },
-                          ),
+                                        if (result == true) {
+                                          _loadProducts();
+                                        }
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
                   ),
                 ),
               ],
@@ -509,7 +553,7 @@ class InventoryScreenState extends State<InventoryScreen>
         ),
       ),
       floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               heroTag: 'inventory_fab',
               onPressed: () async {
                 final result = await showDialog<bool>(
@@ -540,7 +584,14 @@ class InventoryScreenState extends State<InventoryScreen>
                   _loadProducts();
                 }
               },
-              child: const Icon(Icons.add),
+              label: const Text('Nuevo Producto'),
+              icon: const Icon(Icons.add),
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
             )
           : null,
     );

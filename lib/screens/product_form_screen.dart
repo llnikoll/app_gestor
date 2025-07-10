@@ -1146,6 +1146,12 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                   }
                   return null;
                 },
+                // Added modern styling
+                borderRadius: 12.0,
+                filled: true,
+                fillColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]!.withValues(alpha: 0.7)
+                    : Colors.grey[100],
               ),
               const SizedBox(height: 16),
 
@@ -1162,6 +1168,12 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                   }
                   return null;
                 },
+                // Added modern styling
+                borderRadius: 12.0,
+                filled: true,
+                fillColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]!.withValues(alpha: 0.7)
+                    : Colors.grey[100],
               ),
               const SizedBox(height: 16),
 
@@ -1211,6 +1223,12 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                         }
                         return null;
                       },
+                      // Added modern styling
+                      borderRadius: 12.0,
+                      filled: true,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[800]!.withValues(alpha: 0.7)
+                          : Colors.grey[100],
                     ),
                   ),
                   const SizedBox(width: 16),

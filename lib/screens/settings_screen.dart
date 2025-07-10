@@ -8,7 +8,8 @@ class ChangeAdminPasswordDialog extends StatefulWidget {
   const ChangeAdminPasswordDialog({super.key});
 
   @override
-  State<ChangeAdminPasswordDialog> createState() => _ChangeAdminPasswordDialogState();
+  State<ChangeAdminPasswordDialog> createState() =>
+      _ChangeAdminPasswordDialogState();
 }
 
 class _ChangeAdminPasswordDialogState extends State<ChangeAdminPasswordDialog> {
@@ -40,9 +41,10 @@ class _ChangeAdminPasswordDialogState extends State<ChangeAdminPasswordDialog> {
 
     try {
       final settings = Provider.of<SettingsService>(context, listen: false);
-      
+
       // Verificar la contraseña actual
-      final isCurrentValid = await settings.verifyAdminPassword(_currentPasswordController.text);
+      final isCurrentValid =
+          await settings.verifyAdminPassword(_currentPasswordController.text);
       if (!isCurrentValid) {
         setState(() {
           _errorMessage = 'La contraseña actual es incorrecta';
@@ -53,14 +55,14 @@ class _ChangeAdminPasswordDialogState extends State<ChangeAdminPasswordDialog> {
 
       // Actualizar la contraseña
       await settings.setAdminPassword(_newPasswordController.text);
-      
+
       if (!mounted) return;
-      
+
       // Mostrar mensaje de éxito y cerrar
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Contraseña actualizada correctamente')),
       );
-      
+
       Navigator.of(context).pop();
     } catch (e) {
       setState(() {
@@ -101,7 +103,9 @@ class _ChangeAdminPasswordDialogState extends State<ChangeAdminPasswordDialog> {
                   labelText: 'Contraseña actual',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureCurrentPassword ? Icons.visibility : Icons.visibility_off,
+                      _obscureCurrentPassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
                     onPressed: () {
                       setState(() {
@@ -125,7 +129,9 @@ class _ChangeAdminPasswordDialogState extends State<ChangeAdminPasswordDialog> {
                   labelText: 'Nueva contraseña',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureNewPassword ? Icons.visibility : Icons.visibility_off,
+                      _obscureNewPassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
                     onPressed: () {
                       setState(() {
@@ -152,7 +158,9 @@ class _ChangeAdminPasswordDialogState extends State<ChangeAdminPasswordDialog> {
                   labelText: 'Confirmar nueva contraseña',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                      _obscureConfirmPassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
                     onPressed: () {
                       setState(() {
@@ -211,12 +219,11 @@ class SettingsScreenState extends State<SettingsScreen> {
     _settings = SettingsService();
   }
 
-
-
   void _showLanguageDialog() {
     final BuildContext dialogContext = context;
     final navigator = Navigator.of(dialogContext);
-    final currentLocale = EasyLocalization.of(context)?.locale ?? const Locale('es');
+    final currentLocale =
+        EasyLocalization.of(context)?.locale ?? const Locale('es');
 
     showDialog(
       context: dialogContext,
@@ -274,17 +281,18 @@ class SettingsScreenState extends State<SettingsScreen> {
     // Guardar solo el código de idioma sin el país
     await _settings.setLanguage(locale.languageCode);
     if (!mounted) return;
-    
+
     // Establecer el locale completo (con código de país si existe)
     await context.setLocale(locale);
     if (!mounted) return;
-    
+
     // Actualizar la UI
     setState(() {});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Idioma cambiado a ${_getLanguageName(locale.languageCode)}'),
+        content:
+            Text('Idioma cambiado a ${_getLanguageName(locale.languageCode)}'),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -347,7 +355,6 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-
   Widget _buildSettingItem({
     required IconData icon,
     required String title,
@@ -360,59 +367,86 @@ class SettingsScreenState extends State<SettingsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      elevation: 1,
+      margin: const EdgeInsets.symmetric(
+          horizontal: 16, vertical: 8), // Increased vertical margin
+      elevation: 4, // Increased elevation
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16), // More rounded corners
+      ),
       color: Theme.of(context).cardColor,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor.withAlpha(26),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: Theme.of(context).primaryColor),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.w500, 
-            fontSize: 15,
-            color: Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        ),
-        subtitle: subtitle != null
-            ? Text(
-                subtitle, 
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).textTheme.bodyMedium?.color,
-                ),
-              )
-            : null,
-        trailing: trailing,
+      child: InkWell(
+        // Added InkWell for ripple effect
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: 20, vertical: 16), // Increased padding
+          child: Row(
+            children: [
+              Container(
+                width: 48, // Larger icon container
+                height: 48, // Larger icon container
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .primaryColor
+                      .withValues(alpha: 0.15), // More opaque background
+                  borderRadius:
+                      BorderRadius.circular(12), // More rounded icon background
+                ),
+                child: Icon(icon,
+                    color: Theme.of(context).primaryColor,
+                    size: 28), // Larger icon
+              ),
+              const SizedBox(width: 16), // Increased spacing
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold, // Bolder title
+                            fontSize: 16, // Slightly larger font size
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                          ),
+                    ),
+                    if (subtitle != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          subtitle,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                fontSize: 14, // Slightly larger font size
+                                color: Colors.grey[700], // Slightly darker grey
+                              ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
         ),
       ),
     );
   }
 
-
-
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 32, 20, 12), // Increased padding
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: Theme.of(context).primaryColor,
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-          letterSpacing: 0.5,
-        ),
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              // Larger font size
+              color: Theme.of(context).primaryColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 18, // Increased font size
+              letterSpacing: 0.8, // Increased letter spacing
+            ),
       ),
     );
   }
@@ -443,10 +477,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.language,
                 title: 'Idioma',
                 subtitle: {
-                  'es': 'Español',
-                  'en': 'English',
-                  'pt': 'Português',
-                }[context.locale.languageCode] ?? 'Español',
+                      'es': 'Español',
+                      'en': 'English',
+                      'pt': 'Português',
+                    }[context.locale.languageCode] ??
+                    'Español',
                 onTap: _showLanguageDialog,
               ),
               _buildSectionTitle('PREFERENCIAS'),
@@ -455,7 +490,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                   return _buildSettingItem(
                     icon: Icons.attach_money,
                     title: 'Moneda',
-                    subtitle: '${settings.currentCurrency.name} (${settings.currentCurrency.symbol})',
+                    subtitle:
+                        '${settings.currentCurrency.name} (${settings.currentCurrency.symbol})',
                     onTap: _showCurrencyDialog,
                   );
                 },

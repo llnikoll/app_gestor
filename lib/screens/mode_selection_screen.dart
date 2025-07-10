@@ -345,30 +345,33 @@ class _ModeCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      elevation: 4,
+      elevation: 8, // Increased elevation for more depth
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20), // More rounded corners
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(32.0), // Increased padding
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 64, color: theme.primaryColor),
-              const SizedBox(height: 16),
+              Icon(icon, size: 80, color: theme.primaryColor), // Larger icon
+              const SizedBox(height: 24), // Increased spacing
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 22, // Larger font size
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12), // Increased spacing
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: theme.textTheme.bodySmall?.color,
-                  fontSize: 14,
+                  color: theme.textTheme.bodyMedium?.color, // Adjusted text color
+                  fontSize: 16, // Larger font size
                 ),
                 textAlign: TextAlign.center,
               ),

@@ -38,6 +38,9 @@ class CustomTextField extends StatefulWidget {
     this.textAlignVertical,
     this.expands = false,
     this.inputFormatters,
+    this.borderRadius = 8.0,
+    this.filled = false,
+    this.fillColor,
   });
 
   final TextEditingController controller;
@@ -73,6 +76,9 @@ class CustomTextField extends StatefulWidget {
   final TextAlignVertical? textAlignVertical;
   final bool expands;
   final List<TextInputFormatter>? inputFormatters;
+  final double borderRadius;
+  final bool filled;
+  final Color? fillColor;
 
   @override
   CustomTextFieldState createState() => CustomTextFieldState();
@@ -223,44 +229,46 @@ class CustomTextFieldState extends State<CustomTextField> {
                     vertical: 12,
                   ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(widget.borderRadius),
                 borderSide: BorderSide(
-                  color: theme.dividerColor,
-                  width: 1,
+                  color: _isFocused
+                      ? theme.colorScheme.primary
+                      : theme.dividerColor,
+                  width: 1.5,
                 ),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(widget.borderRadius),
                 borderSide: BorderSide(
                   color: theme.dividerColor,
-                  width: 1,
+                  width: 1.0,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(widget.borderRadius),
                 borderSide: BorderSide(
-                  color: theme.primaryColor,
-                  width: 2,
+                  color: theme.colorScheme.primary,
+                  width: 2.0,
                 ),
               ),
               errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(widget.borderRadius),
                 borderSide: BorderSide(
                   color: theme.colorScheme.error,
                   width: 1,
                 ),
               ),
               focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(widget.borderRadius),
                 borderSide: BorderSide(
                   color: theme.colorScheme.error,
                   width: 2,
                 ),
               ),
-              filled: !widget.enabled,
+              filled: widget.filled || !widget.enabled,
               fillColor: !widget.enabled
                   ? theme.colorScheme.surface.withAlpha(128) // 255 * 0.5 ≈ 128
-                  : null,
+                  : widget.fillColor,
               errorStyle: widget.showError
                   ? theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.error,

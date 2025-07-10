@@ -24,9 +24,7 @@ class SafeConstraints extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final screenSize = MediaQuery
-            .of(context)
-            .size;
+        final screenSize = MediaQuery.of(context).size;
         final safeMaxWidth = maxWidth ?? screenSize.width;
         final safeMinWidth = minWidth ?? 0.0;
         return ConstrainedBox(
@@ -67,15 +65,11 @@ class _HomeScreenContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery
-        .of(context)
-        .size;
+    final screenSize = MediaQuery.of(context).size;
     return Scaffold(
       key: scaffoldKey,
       appBar: AppBar(
-        title: Text(NavigationItem
-            .fromIndex(selectedIndex)
-            .title),
+        title: Text(NavigationItem.fromIndex(selectedIndex).title),
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () => scaffoldKey.currentState?.openDrawer(),
@@ -92,25 +86,33 @@ class _HomeScreenContent extends StatelessWidget {
     );
   }
 
-  Widget _buildDrawer(BuildContext context,
-      int selectedIndex,
-      ValueChanged<int> onItemTapped,) {
-    final screenWidth = MediaQuery
-        .of(context)
-        .size
-        .width;
+  Widget _buildDrawer(
+    BuildContext context,
+    int selectedIndex,
+    ValueChanged<int> onItemTapped,
+  ) {
+    final screenWidth = MediaQuery.of(context).size.width;
     final isWideScreen = screenWidth > 600;
 
     return SizedBox(
       width: isWideScreen ? screenWidth * 0.25 : screenWidth * 0.7,
       child: Drawer(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: Theme
-                  .of(context)
-                  .primaryColor),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(20),
+                ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -123,29 +125,21 @@ class _HomeScreenContent extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     'Mi Negocio',
-                    style: Theme
-                        .of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'admin@minegocio.com',
-                    style: Theme
-                        .of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -156,15 +150,15 @@ class _HomeScreenContent extends StatelessWidget {
               Container(
                 margin: const EdgeInsets.symmetric(
                   horizontal: 8.0,
-                  vertical: 2.0,
+                  vertical: 4.0, // Increased vertical margin
                 ),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8.0),
+                  borderRadius:
+                      BorderRadius.circular(12.0), // More rounded corners
                   color: selectedIndex == item.index
-                      ? Theme
-                      .of(context)
-                      .primaryColor
-                      .withAlpha(26) // alpha 0.1
+                      ? Theme.of(context)
+                          .primaryColor
+                          .withValues(alpha: 0.15) // More opaque background
                       : Colors.transparent,
                 ),
                 child: ListTile(
@@ -173,19 +167,24 @@ class _HomeScreenContent extends StatelessWidget {
                   leading: Icon(
                     selectedIndex == item.index ? item.selectedIcon : item.icon,
                     color: selectedIndex == item.index
-                        ? Theme
-                        .of(context)
-                        .primaryColor
+                        ? Theme.of(context).primaryColor
                         : null,
-                    size: 22,
+                    size: 24, // Slightly larger icon
                   ),
                   title: Text(
                     item.title,
                     style: TextStyle(
-                      fontSize: isWideScreen ? 14 : 13,
+                      fontSize:
+                          isWideScreen ? 15 : 14, // Slightly larger font size
                       fontWeight: selectedIndex == item.index
                           ? FontWeight.w600
                           : FontWeight.normal,
+                      color: selectedIndex == item.index
+                          ? Theme.of(context).primaryColor
+                          : Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.color, // Consistent text color
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -200,15 +199,20 @@ class _HomeScreenContent extends StatelessWidget {
             Container(
               margin: const EdgeInsets.symmetric(
                 horizontal: 8.0,
-                vertical: 2.0,
+                vertical: 4.0, // Increased vertical margin
               ),
               child: ListTile(
                 dense: true,
                 visualDensity: VisualDensity.compact,
-                leading: const Icon(Icons.logout, size: 22),
-                title: const Text(
+                leading:
+                    const Icon(Icons.logout, size: 24), // Slightly larger icon
+                title: Text(
                   'Cerrar sesión',
-                  style: TextStyle(fontSize: 14),
+                  style: TextStyle(
+                    fontSize:
+                        isWideScreen ? 15 : 14, // Slightly larger font size
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -272,7 +276,8 @@ class HomeScreenState extends State<HomeScreen> {
   // Define un método para manejar la lógica de "pop"
   // Devuelve true si el pop debe continuar (cerrar app), false si fue manejado.
   bool _handlePop() {
-    if (_selectedIndex != 0) { // Si no estamos en el Dashboard (índice 0)
+    if (_selectedIndex != 0) {
+      // Si no estamos en el Dashboard (índice 0)
       onItemTapped(0); // Volver al Dashboard
       return false; // El pop fue manejado, no continuar
     }
@@ -306,9 +311,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDesktopLayout() {
-    final screenSize = MediaQuery
-        .of(context)
-        .size;
+    final screenSize = MediaQuery.of(context).size;
     return PopScope(
       canPop: _selectedIndex == 0,
       // Solo permite el pop si estamos en Dashboard
@@ -327,9 +330,7 @@ class HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 border: Border(
                   right: BorderSide(
-                    color: Theme
-                        .of(context)
-                        .dividerColor,
+                    color: Theme.of(context).dividerColor,
                     width: 1,
                   ),
                 ),
@@ -343,9 +344,7 @@ class HomeScreenState extends State<HomeScreen> {
                     ),
                     child: CircleAvatar(
                       radius: 24,
-                      backgroundColor: Theme
-                          .of(context)
-                          .primaryColor,
+                      backgroundColor: Theme.of(context).primaryColor,
                       child: const Icon(
                         Icons.store,
                         color: Colors.white,
@@ -374,10 +373,9 @@ class HomeScreenState extends State<HomeScreen> {
                                   ),
                                   child: Material(
                                     color: isSelected
-                                        ? Theme
-                                        .of(context)
-                                        .primaryColor
-                                        .withAlpha(26)
+                                        ? Theme.of(context)
+                                            .primaryColor
+                                            .withAlpha(26)
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(8),
                                     child: InkWell(
@@ -397,9 +395,8 @@ class HomeScreenState extends State<HomeScreen> {
                                                   : item.icon,
                                               size: 26,
                                               color: isSelected
-                                                  ? Theme
-                                                  .of(context)
-                                                  .primaryColor
+                                                  ? Theme.of(context)
+                                                      .primaryColor
                                                   : null,
                                             ),
                                             const SizedBox(height: 8),
@@ -411,9 +408,8 @@ class HomeScreenState extends State<HomeScreen> {
                                                     ? FontWeight.w600
                                                     : FontWeight.normal,
                                                 color: isSelected
-                                                    ? Theme
-                                                    .of(context)
-                                                    .primaryColor
+                                                    ? Theme.of(context)
+                                                        .primaryColor
                                                     : null,
                                               ),
                                               textAlign: TextAlign.center,
@@ -434,11 +430,13 @@ class HomeScreenState extends State<HomeScreen> {
                             builder: (context, constraints) {
                               final availableHeight = constraints.maxHeight;
                               const double itemHeight = 72.0;
-                              final totalItemsHeight = NavigationItem.items.length * itemHeight;
-                              final needsScroll = totalItemsHeight > availableHeight;
+                              final totalItemsHeight =
+                                  NavigationItem.items.length * itemHeight;
+                              final needsScroll =
+                                  totalItemsHeight > availableHeight;
 
                               // Espacio para los ítems de navegación (se considera automáticamente)
-                              
+
                               final rail = NavigationRail(
                                 selectedIndex: _selectedIndex,
                                 onDestinationSelected: onItemTapped,
@@ -447,8 +445,11 @@ class HomeScreenState extends State<HomeScreen> {
                                 minExtendedWidth: 140,
                                 groupAlignment: 0.0,
                                 leading: const SizedBox(height: 20),
-                                trailing: needsScroll ? const SizedBox(height: 20) : null,
-                                extended: constraints.maxWidth >= 200, // Ajustar según el ancho disponible
+                                trailing: needsScroll
+                                    ? const SizedBox(height: 20)
+                                    : null,
+                                extended: constraints.maxWidth >=
+                                    200, // Ajustar según el ancho disponible
                                 destinations: NavigationItem.items.map((item) {
                                   return NavigationRailDestination(
                                     icon: Icon(item.icon, size: 26),
@@ -465,7 +466,8 @@ class HomeScreenState extends State<HomeScreen> {
                                         maxLines: 2,
                                       ),
                                     ),
-                                    selectedIcon: Icon(item.selectedIcon, size: 26),
+                                    selectedIcon:
+                                        Icon(item.selectedIcon, size: 26),
                                   );
                                 }).toList(),
                               );
@@ -505,9 +507,7 @@ class HomeScreenState extends State<HomeScreen> {
                         Container(
                           height: 1,
                           margin: const EdgeInsets.symmetric(horizontal: 12),
-                          color: Theme
-                              .of(context)
-                              .dividerColor,
+                          color: Theme.of(context).dividerColor,
                         ),
                         const SizedBox(height: 12),
                         InkWell(
@@ -574,7 +574,8 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     return MediaQuery(
-      data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.0)),
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: const TextScaler.linear(1.0)),
       child: LayoutBuilder(
         builder: (context, constraints) {
           return constraints.maxWidth < 600

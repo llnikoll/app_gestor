@@ -132,9 +132,17 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                     // Campo Nombre
                     TextFormField(
                       controller: _nombreController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Nombre Completo *',
-                        prefixIcon: Icon(Icons.person),
+                        prefixIcon: const Icon(Icons.person),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -148,9 +156,17 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                     // Campo Teléfono
                     TextFormField(
                       controller: _telefonoController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Teléfono',
-                        prefixIcon: Icon(Icons.phone),
+                        prefixIcon: const Icon(Icons.phone),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                       ),
                       keyboardType: TextInputType.phone,
                     ),
@@ -159,19 +175,32 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                     // Campo Email
                     TextFormField(
                       controller: _emailController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Correo Electrónico',
-                        prefixIcon: Icon(Icons.email),
+                        prefixIcon: const Icon(Icons.email),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          final emailRegex = RegExp(
-                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                          );
-                          if (!emailRegex.hasMatch(value)) {
-                            return 'Ingrese un correo electrónico válido';
-                          }
+                        if (value == null || value.isEmpty) {
+                          return null; // Correo vacío es válido (no requerido)
+                        }
+
+                        // Expresión regular más flexible
+                        final emailRegex = RegExp(
+                            r'^[a-zA-Z0-9.!#$%&*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}');
+
+                        final isValid = emailRegex.hasMatch(value);
+
+                        if (!isValid) {
+                          return 'Por favor ingrese un correo válido';
                         }
                         return null;
                       },
@@ -181,9 +210,17 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                     // Campo RUC
                     TextFormField(
                       controller: _rucController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'RUC',
-                        prefixIcon: Icon(Icons.numbers),
+                        prefixIcon: const Icon(Icons.numbers),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -192,9 +229,17 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                     // Campo Dirección
                     TextFormField(
                       controller: _direccionController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Dirección',
-                        prefixIcon: Icon(Icons.location_on),
+                        prefixIcon: const Icon(Icons.location_on),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                       ),
                       maxLines: 2,
                     ),
@@ -203,9 +248,17 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                     // Campo Notas
                     TextFormField(
                       controller: _notasController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Notas',
-                        prefixIcon: Icon(Icons.note),
+                        prefixIcon: const Icon(Icons.note),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                : Colors.grey[100],
                       ),
                       maxLines: 3,
                     ),
@@ -216,14 +269,29 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                       onPressed: _isLoading ? null : _saveCustomer,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                        elevation: 4,
                       ),
                       child: _isLoading
-                          ? const CircularProgressIndicator()
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
                           : Text(
                               _isEditMode
                                   ? 'Actualizar Cliente'
                                   : 'Agregar Cliente',
-                              style: const TextStyle(fontSize: 16),
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                     ),
                   ],

@@ -159,6 +159,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Widget _buildCustomerCard(Cliente cliente) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final fechaRegistro = dateFormat.format(cliente.fechaRegistro);
+    final theme = Theme.of(context);
 
     return Dismissible(
       key: ValueKey(cliente.id),
@@ -197,8 +198,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
       onDismissed: (direction) => _deleteCustomer(cliente),
       child: Card(
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.0),
+        ),
         child: InkWell(
           onTap: () => _navigateToCustomerForm(cliente: cliente),
+          borderRadius: BorderRadius.circular(12.0),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: IntrinsicHeight(
@@ -209,7 +215,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.blue[50],
+                      color: theme.primaryColor.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -217,8 +223,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         cliente.nombre.isNotEmpty
                             ? cliente.nombre[0].toUpperCase()
                             : '?',
-                        style: const TextStyle(
-                          color: Colors.blue,
+                        style: TextStyle(
+                          color: theme.primaryColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 20,
                         ),
@@ -233,9 +239,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       children: [
                         Text(
                           cliente.nombre,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
+                          style: theme.textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         if (cliente.email != null && cliente.email!.isNotEmpty)
@@ -315,14 +319,45 @@ class _CustomersScreenState extends State<CustomersScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
+          Icon(Icons.people_outline,
+              size: 80,
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.6)),
+          const SizedBox(height: 24),
           Text(
             _searchQuery.isNotEmpty
                 ? 'No se encontraron clientes que coincidan con "$_searchQuery"'
                 : 'Aún no hay clientes registrados',
-            style: const TextStyle(fontSize: 16, color: Colors.grey),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _searchQuery.isNotEmpty
+                ? 'Intenta ajustar tu búsqueda o agrega un nuevo cliente.'
+                : 'Comienza agregando tu primer cliente para gestionar sus datos y ventas.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () => _navigateToCustomerForm(),
+            icon: const Icon(Icons.person_add),
+            label: const Text('Agregar Nuevo Cliente'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              textStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            ),
           ),
         ],
       ),
@@ -352,8 +387,17 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 hintText: 'Buscar por nombre, teléfono o email...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30.0),
+                  borderRadius: BorderRadius.circular(12.0),
                   borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: BorderSide(
+                      color: Theme.of(context).primaryColor, width: 2.0),
                 ),
                 filled: true,
                 fillColor: Theme.of(context).brightness == Brightness.dark
@@ -363,7 +407,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   color: Theme.of(context).hintColor,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                  vertical: 0,
+                  vertical: 12,
                   horizontal: 16,
                 ),
               ),
