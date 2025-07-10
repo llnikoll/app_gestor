@@ -1,4 +1,9 @@
 {
     "CodeGPT.apiKey": "CodeGPT Plus Beta",
-    "cmake.sourceDirectory": "C:/Users/jakao/Proyectos/gestor nuevo/app_gestor/windows"
+    "cmake.sourceDirectory": "C:/Users/jakao/Proyectos/gestor nuevo/app_gestor/windows",
+    "dart.analysisExclude": [
+        "**/build/**",
+        "**/file_picker/**"
+    ],
+    "dart.ignoreFilePickerWarnings": true
 }

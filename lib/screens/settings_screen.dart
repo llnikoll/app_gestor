@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../main.dart';
 import '../services/settings_service.dart';
+import '../widgets/company_logo_picker.dart';
 
 class ChangeAdminPasswordDialog extends StatefulWidget {
   const ChangeAdminPasswordDialog({super.key});
@@ -462,6 +463,29 @@ class SettingsScreenState extends State<SettingsScreen> {
           body: ListView(
             children: [
               _buildSectionTitle('APARIENCIA'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Column(
+                  children: [
+                    Text(
+                      'Logo de la Empresa',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const CompanyLogoPicker(size: 120),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Toca para cambiar el logo',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
               _buildSettingItem(
                 icon: Icons.brightness_6,
                 title: 'Tema oscuro',

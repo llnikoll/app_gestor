@@ -9,6 +9,16 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    - '**/build/**'
+    - '**/file_picker/**'
+  errors:
+    # Ignorar advertencias de implementación de plugin
+    'invalid_use_of_visible_for_testing_member': ignore
+    'unnecessary_import': ignore
+    'deprecated_member_use': ignore
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

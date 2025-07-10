@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:provider/provider.dart';
+import 'package:app_gestor_ventas/services/logo_service.dart';
 import 'package:flutter/material.dart';
 import '../models/navigation_item.dart';
 import 'dashboard_screen.dart';
@@ -117,10 +120,19 @@ class _HomeScreenContent extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.store, size: 40, color: Colors.blue),
+                  Consumer<LogoService>(
+                    builder: (context, logoService, child) {
+                      return CircleAvatar(
+                        radius: 30,
+                        backgroundColor: Colors.white,
+                        backgroundImage: logoService.logoPath != null
+                            ? FileImage(File(logoService.logoPath!))
+                            : null,
+                        child: logoService.logoPath == null
+                            ? const Icon(Icons.store, size: 40, color: Colors.blue)
+                            : null,
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -342,14 +354,23 @@ class HomeScreenState extends State<HomeScreen> {
                       vertical: 20,
                       horizontal: 12,
                     ),
-                    child: CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Theme.of(context).primaryColor,
-                      child: const Icon(
-                        Icons.store,
-                        color: Colors.white,
-                        size: 28,
-                      ),
+                    child: Consumer<LogoService>(
+                      builder: (context, logoService, child) {
+                        return CircleAvatar(
+                          radius: 24,
+                          backgroundColor: Theme.of(context).primaryColor,
+                          backgroundImage: logoService.logoPath != null
+                              ? FileImage(File(logoService.logoPath!))
+                              : null,
+                          child: logoService.logoPath == null
+                              ? const Icon(
+                                  Icons.store,
+                                  color: Colors.white,
+                                  size: 28,
+                                )
+                              : null,
+                        );
+                      },
                     ),
                   ),
                   Expanded(

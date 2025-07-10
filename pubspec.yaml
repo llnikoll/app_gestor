@@ -49,10 +49,14 @@ dependencies:
   path_provider: ^2.1.1
   path: ^1.8.3
   
+  # Manejo de imágenes y almacenamiento
+  image_picker: ^1.0.7
+  shared_preferences: ^2.2.2
+  file_picker: ^8.0.0
+  cached_network_image: ^3.3.1
+  
   # UI y utilidades
   provider: ^6.1.1
-  shared_preferences: ^2.2.1
-  file_picker: ^10.2.0
   pdf: ^3.10.9
   printing: ^5.11.0
   
@@ -61,10 +65,6 @@ dependencies:
   
   # Lanzador de URLs
   url_launcher: ^6.2.5
-  
-  # Selección de imágenes
-  image_picker: ^1.0.7
-  cached_network_image: ^3.2.3
   
   # Íconos adicionales
   font_awesome_flutter: ^10.6.1
