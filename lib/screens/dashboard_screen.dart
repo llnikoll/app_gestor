@@ -151,56 +151,57 @@ class DashboardScreenState extends State<DashboardScreen> {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(20.0), // Increased padding
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10.0), // Increased padding
-                    decoration: BoxDecoration(
-                      color: color.withValues(
-                          alpha: 0.15), // Slightly more opaque background
-                      borderRadius: BorderRadius.circular(
-                          12.0), // More rounded icon background
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(), // Use a bouncing scroll effect
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10.0), // Increased padding
+                      decoration: BoxDecoration(
+                        color: color.withAlpha(38), // Slightly more opaque background
+                        borderRadius: BorderRadius.circular(12.0), // More rounded icon background
+                      ),
+                      child: Icon(icon, color: color, size: 30), // Larger icon
                     ),
-                    child: Icon(icon, color: color, size: 30), // Larger icon
-                  ),
-                  if (onTap != null)
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 18, // Slightly larger arrow
-                      color: color.withValues(alpha: 0.7), // More visible arrow
+                    if (onTap != null)
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 18, // Slightly larger arrow
+                        color: color.withAlpha(178), // More visible arrow
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12), // Increased spacing
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    value,
+                    style: textTheme.headlineMedium?.copyWith(
+                      // Larger headline
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
                     ),
-                ],
-              ),
-              const SizedBox(height: 12), // Increased spacing
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  style: textTheme.headlineMedium?.copyWith(
-                    // Larger headline
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
+                    maxLines: 1,
                   ),
-                  maxLines: 1,
                 ),
-              ),
-              const SizedBox(height: 6), // Increased spacing
-              Text(
-                title,
-                style: textTheme.bodyLarge?.copyWith(
-                  // Larger body text
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(height: 6), // Increased spacing
+                Text(
+                  title,
+                  style: textTheme.bodyLarge?.copyWith(
+                    // Larger body text
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

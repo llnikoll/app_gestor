@@ -15,6 +15,7 @@ import '../services/product_notifier_service.dart';
 import '../models/producto_model.dart';
 import '../services/database_service.dart';
 import '../widgets/custom_text_field.dart';
+import 'scanner_screen.dart';
 
 class ProductFormScreen extends StatefulWidget {
   final Producto? product;
@@ -1134,25 +1135,28 @@ class ProductFormScreenState extends State<ProductFormScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Código de barras
-              CustomTextField(
-                controller: _codigoBarrasController,
-                label: 'Código de Barras',
-                hint: 'Ingrese el código de barras',
-                keyboardType: TextInputType.text,
-                textInputAction: TextInputAction.next,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese el código de barras';
-                  }
-                  return null;
-                },
-                // Added modern styling
-                borderRadius: 12.0,
-                filled: true,
-                fillColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[800]!.withValues(alpha: 0.7)
-                    : Colors.grey[100],
-              ),
+              TextFormField(
+                  controller: _codigoBarrasController,
+                  decoration: InputDecoration(
+                    labelText: 'Código de barras',
+                    hintText: 'Opcional',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.camera_alt),
+                      onPressed: () async {
+                        final result = await Navigator.push<String>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ScannerScreen(),
+                          ),
+                        );
+                        if (result != null) {
+                          _codigoBarrasController.text = result;
+                        }
+                      },
+                    ),
+                  ),
+                  keyboardType: TextInputType.text,
+                ),
               const SizedBox(height: 16),
 
               // Nombre

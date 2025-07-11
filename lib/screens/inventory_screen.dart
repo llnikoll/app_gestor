@@ -1,7 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import '../widgets/product_image_viewer.dart';
 import 'inventory_entries_screen.dart';
 import 'product_form_screen.dart';
 import '../models/producto_model.dart';
@@ -201,131 +200,6 @@ class InventoryScreenState extends State<InventoryScreen>
     }
   }
 
-  // Widget para mostrar la imagen del producto
-  Widget _buildProductImage(String? imageName) {
-    if (imageName == null || imageName.isEmpty) {
-      return Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(
-          Icons.image_not_supported,
-          size: 40,
-          color: Colors.grey,
-        ),
-      );
-    }
-
-    // Si es una URL de red, mostrarla directamente
-    if (imageName.startsWith('http') || imageName.startsWith('https')) {
-      return Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            imageName,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return const Center(child: CircularProgressIndicator());
-            },
-            errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.error),
-          ),
-        ),
-      );
-    }
-
-    // Para imágenes locales, usar un FutureBuilder para cargarlas de forma asíncrona
-    return FutureBuilder<String>(
-      future: _getImagePath(imageName),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError || !snapshot.hasData) {
-          return _buildErrorImage();
-        }
-
-        final imagePath = snapshot.data!;
-
-        return Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              File(imagePath),
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => _buildErrorImage(),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Método auxiliar para construir una imagen de error
-  Widget _buildErrorImage() {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
-    );
-  }
-
-  // Método para obtener la ruta completa de una imagen
-  Future<String> _getImagePath(String imageName) async {
-    try {
-      // Primero intentamos con el almacenamiento externo
-      const String externalDir =
-          '/storage/emulated/0/Android/data/com.example.app_gestor_ventas/files/product_images';
-      final externalPath = '$externalDir/$imageName';
-
-      // Verificamos si el archivo existe en el almacenamiento externo
-      final externalFile = File(externalPath);
-      if (await externalFile.exists()) {
-        debugPrint(
-            'Imagen encontrada en almacenamiento externo: $externalPath');
-        return externalPath;
-      }
-
-      // Si no está en almacenamiento externo, buscamos en el directorio de documentos de la app
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final localPath = '${appDir.path}/product_images/$imageName';
-      debugPrint('Buscando imagen en: $localPath');
-
-      final localFile = File(localPath);
-      if (await localFile.exists()) {
-        debugPrint('Imagen encontrada en almacenamiento local: $localPath');
-        return localPath;
-      }
-
-      debugPrint('No se encontró la imagen en ninguna ubicación: $imageName');
-      return '';
-    } catch (e) {
-      debugPrint('Error al obtener ruta de imagen: $e');
-      return '';
-    }
-  }
-
   // Widget para mostrar información en un chip
   Widget _buildInfoChip(String text, Color color, {double fontSize = 12.0}) {
     return Container(
@@ -407,8 +281,11 @@ class InventoryScreenState extends State<InventoryScreen>
                                           maxWidth: 60,
                                           maxHeight: 60,
                                         ),
-                                        child: _buildProductImage(
-                                          producto.imagenUrl,
+                                        child: ProductImageViewer(
+                                          imageUrl: producto.imagenUrl,
+                                          width: 60,
+                                          height: 60,
+                                          borderRadius: 8.0,
                                         ),
                                       ),
                                       title: Column(

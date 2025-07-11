@@ -673,7 +673,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                   const TextStyle(fontWeight: FontWeight.normal),
               tabs: const [
                 Tab(
-                  icon: Icon(Icons.summarize),
+                  icon: Icon(Icons.bar_chart),
                   text: 'Resumen',
                 ),
                 Tab(
@@ -938,52 +938,50 @@ class _ReportsScreenState extends State<ReportsScreen>
             maxWidth: double.infinity,
           ),
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10.0),
-                    decoration: BoxDecoration(
-                      color: data.color.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12.0),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10.0),
+                      decoration: BoxDecoration(
+                        color: data.color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                      child: Icon(icon, color: data.color, size: 24),
                     ),
-                    child: Icon(icon, color: data.color, size: 24),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      _formatearMoneda(data.monto),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    data.concepto,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _formatearMoneda(data.monto),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  data.concepto,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1026,58 +1024,60 @@ class _ReportsScreenState extends State<ReportsScreen>
           borderRadius: BorderRadius.circular(16.0)), // More rounded corners
       child: Padding(
         padding: const EdgeInsets.all(20.0), // Increased padding
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'Resumen de Gastos: ',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                ),
-                Text(
-                  fechaSeleccionada,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .error, // Changed color
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20), // Increased spacing
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildResumenItem(
-                  'Gastos',
-                  _gastosCountDiaSeleccionado.toString(),
-                  Icons.receipt,
-                  Colors.red,
-                ),
-                _buildResumenItem(
-                  'Total',
-                  _formatearMoneda(_gastosDiaSeleccionado),
-                  Icons.money_off,
-                  Colors.orange,
-                ),
-                _buildResumenItem(
-                  'Promedio',
-                  _gastosCountDiaSeleccionado > 0
-                      ? _formatearMoneda(
-                          _gastosDiaSeleccionado / _gastosCountDiaSeleccionado,
-                        )
-                      : _formatearMoneda(0),
-                  Icons.bar_chart,
-                  Colors.deepOrange,
-                ),
-              ],
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Resumen de Gastos: ',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                  ),
+                  Text(
+                    fechaSeleccionada,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error, // Changed color
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20), // Increased spacing
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildResumenItem(
+                    'Gastos',
+                    _gastosCountDiaSeleccionado.toString(),
+                    Icons.receipt,
+                    Colors.red,
+                  ),
+                  _buildResumenItem(
+                    'Total',
+                    _formatearMoneda(_gastosDiaSeleccionado),
+                    Icons.money_off,
+                    Colors.orange,
+                  ),
+                  _buildResumenItem(
+                    'Promedio',
+                    _gastosCountDiaSeleccionado > 0
+                        ? _formatearMoneda(
+                            _gastosDiaSeleccionado / _gastosCountDiaSeleccionado,
+                          )
+                        : _formatearMoneda(0),
+                    Icons.bar_chart,
+                    Colors.deepOrange,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
