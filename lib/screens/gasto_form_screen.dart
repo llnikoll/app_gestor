@@ -51,12 +51,12 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
   }
 
   // Función para formatear montos según la moneda configurada
-  String _formatearMoneda(double monto) {
+  String _formatearMoneda(double monto, {bool incluirSimbolo = true}) {
     final settings = Provider.of<SettingsService>(context, listen: false);
     final currency = Currency.getByCode(settings.currency);
     final formatter = NumberFormat.currency(
       locale: 'es_PY',
-      symbol: currency.symbol,
+      symbol: incluirSimbolo ? currency.symbol : '',
       decimalDigits: 0,
     );
     return formatter.format(monto);
@@ -248,8 +248,8 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                                 soloNumeros.isEmpty ? '0' : soloNumeros) ??
                             0;
 
-                        // Formatear el número
-                        final formateado = _formatearMoneda(monto.toDouble());
+                        // Formatear el número sin el símbolo de moneda (ya que se muestra en el prefixText)
+                        final formateado = _formatearMoneda(monto.toDouble(), incluirSimbolo: false);
 
                         // Calcular la nueva posición del cursor
                         int newCursorPosition = cursorPosition;

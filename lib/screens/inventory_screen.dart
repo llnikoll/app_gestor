@@ -26,7 +26,7 @@ class InventoryScreenState extends State<InventoryScreen>
   List<Producto> _productos = [];
   List<Producto> _filteredProducts = [];
   bool _isLoading = true;
-  String? _selectedCategory;
+  String _selectedCategory = 'Todas las categorías';
   List<String> _categories = ['Todas las categorías'];
   final TextEditingController _searchController = TextEditingController();
 
@@ -111,33 +111,30 @@ class InventoryScreenState extends State<InventoryScreen>
 
       final categorias = productos
           .map((p) => p.categoria)
-          .where((c) => c.isNotEmpty)
+          .where((c) => c.isNotEmpty && c.toLowerCase() != 'general')
           .toSet()
-          .toList()
-          .cast<String>();
+          .toList();
 
       categorias.sort();
 
-      if (mounted) {
-        setState(() {
-          _categories = ['Todas las categorías'];
-          _categories.addAll(categorias);
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _categories = ['Todas las categorías'];
+        _categories.addAll(categorias);
+      });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar categorías: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar categorías: $e')),
+      );
     }
   }
 
-  // Método para aplicar el filtro de categoría
-  void _applyFilter(String? category) {
+  void _applyFilter(String category) {
+    if (!mounted) return;
     setState(() {
       _selectedCategory = category;
-      if (category == null || category == 'Todas las categorías') {
+      if (category == 'Todas las categorías' || category.toLowerCase() == 'generales') {
         _filteredProducts = List.from(_productos);
       } else {
         _filteredProducts = _productos

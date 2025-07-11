@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:io';
 
@@ -5,10 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../utils/image_helper.dart';
 import '../services/settings_service.dart';
 import '../models/categoria_model.dart';
 import '../services/product_notifier_service.dart';
@@ -16,6 +16,7 @@ import '../models/producto_model.dart';
 import '../services/database_service.dart';
 import '../widgets/custom_text_field.dart';
 import 'scanner_screen.dart';
+
 
 class ProductFormScreen extends StatefulWidget {
   final Producto? product;
@@ -86,7 +87,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
       _precioCompraController = TextEditingController();
       _precioVentaController = TextEditingController();
       _stockController = TextEditingController(text: '0');
-      _selectedCategoria = 'General';
+      _selectedCategoria = null; // Forzar la selección de categoría para nuevos productos
     }
 
     _cargarCategorias();
@@ -94,25 +95,27 @@ class ProductFormScreenState extends State<ProductFormScreen> {
 
   Future<void> _cargarCategorias() async {
     try {
-      final categorias = await _databaseService.getCategorias();
+      final fetchedCategories = await _databaseService.getCategorias();
       setState(() {
         _categorias.clear();
-        _categorias.addAll(categorias);
+        // Filtrar la categoría 'General'
+        _categorias.addAll(fetchedCategories.where((c) => c.nombre.toLowerCase() != 'general'));
 
-        // If no categories exist, create a default one
+        // Si no hay categorías (después de filtrar), crear una por defecto 'Sin Categoría'
         if (_categorias.isEmpty) {
           _databaseService
               .insertCategoria(
-                Categoria(nombre: 'General', fechaCreacion: DateTime.now()),
+                Categoria(nombre: 'Sin Categoría', fechaCreacion: DateTime.now()),
               )
               .then(
                 (_) => _cargarCategorias(),
-              ); // Reload categories after creating default
+              ); // Recargar categorías después de crear la por defecto
           return;
         }
 
-        // Set selected category if not already set
-        if (_selectedCategoria == null || _selectedCategoria!.isEmpty) {
+        // Si el producto existente tenía 'General' o no hay categoría seleccionada,
+        // establecer la primera categoría como seleccionada.
+        if (_selectedCategoria == null || _selectedCategoria!.toLowerCase() == 'general') {
           _selectedCategoria = _categorias.first.nombre;
         }
       });
@@ -224,187 +227,11 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     }
   }
 
-  // Método para guardar una imagen en el directorio de la aplicación
-  Future<String> _saveImageToAppDir(String imagePath) async {
-    try {
-      if (imagePath.isEmpty) return '';
-
-      // Normalizar los separadores de ruta
-      imagePath = imagePath
-          .replaceAll('/', Platform.pathSeparator)
-          .replaceAll('\\', Platform.pathSeparator);
-
-      // Verificar si la imagen ya está en el directorio de la aplicación
-      if (imagePath.contains('product_images')) {
-        // Si ya está en el directorio de imágenes, devolver solo el nombre del archivo
-        final fileName = path.basename(imagePath);
-        debugPrint(
-          'La imagen ya está en el directorio de la aplicación: $fileName',
-        );
-        return fileName;
-      }
-
-      // Usar el directorio de documentos de la aplicación
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final String imagesPath =
-          '${appDir.path}${Platform.pathSeparator}product_images';
-      final Directory imagesDir = Directory(imagesPath);
-
-      // Crear directorio para las imágenes si no existe
-      if (!await imagesDir.exists()) {
-        await imagesDir.create(recursive: true);
-      }
-
-      // Generar un nombre de archivo único
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final extension = path.extension(imagePath).toLowerCase();
-      final fileName = 'product_$timestamp$extension';
-
-      // Usar path.join para manejar correctamente los separadores de ruta
-      final String fullPath = path.join(imagesDir.path, fileName);
-
-      // Obtener el archivo de origen
-      final File imageFile = File(imagePath);
-      if (!await imageFile.exists()) {
-        // Si el archivo no existe, verificar si es un nombre de archivo sin ruta
-        final possiblePath = path.join(imagesDir.path, imagePath);
-        if (await File(possiblePath).exists()) {
-          debugPrint('Imagen encontrada en: $possiblePath');
-          return path.basename(possiblePath);
-        }
-        throw Exception('El archivo de imagen no existe: $imagePath');
-      }
-
-      // Crear el archivo de destino
-      final File savedImage = File(fullPath);
-
-      // Copiar la imagen al directorio de la aplicación
-      await imageFile.copy(savedImage.path);
-
-      debugPrint('Imagen guardada en: ${savedImage.path}');
-
-      // Devolver solo el nombre del archivo para almacenamiento en la base de datos
-      return fileName;
-    } catch (e) {
-      debugPrint('Error en _saveImageToAppDir: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al guardar la imagen: ${e.toString()}'),
-          ),
-        );
-      }
-      // Si hay un error, devolver la ruta original como último recurso
-      return imagePath;
-    }
-  }
-
-  // Obtiene la ruta completa de una imagen a partir de su nombre de archivo
-  Future<String> _getFullImagePath(String fileName) async {
-    if (fileName.isEmpty) return '';
-
-    // Normalizar los separadores de ruta
-    fileName = fileName
-        .replaceAll('\\', Platform.pathSeparator)
-        .replaceAll('/', Platform.pathSeparator);
-
-    // Si ya es una ruta completa, devolverla tal cual
-    if (path.isAbsolute(fileName) ||
-        fileName.startsWith('file:') ||
-        (fileName.contains(':') && Platform.isWindows)) {
-      return fileName;
-    }
-
-    try {
-      // Usar el directorio de documentos de la aplicación
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final String imagesPath = path.join(appDir.path, 'product_images');
-      final Directory imagesDir = Directory(imagesPath);
-
-      // Asegurarse de que el directorio exista
-      if (!await imagesDir.exists()) {
-        await imagesDir.create(recursive: true);
-      }
-
-      // Construir la ruta completa usando path.join
-      final fullPath = path.join(imagesDir.path, path.basename(fileName));
-      debugPrint('Resolviendo ruta de imagen: $fileName -> $fullPath');
-
-      // Verificar si el archivo existe
-      final file = File(fullPath);
-      if (await file.exists()) {
-        return fullPath;
-      } else {
-        debugPrint('El archivo no existe: $fullPath');
-        return '';
-      }
-    } catch (e) {
-      debugPrint('Error en _getFullImagePath: $e');
-      return ''; // Devolver cadena vacía si hay un error
-    }
-  }
-
-  // Verifica si un archivo de imagen existe en el directorio de la aplicación
-  Future<bool> _checkIfFileExists(String fileName) async {
-    if (fileName.isEmpty) return false;
-
-    try {
-      // Normalizar los separadores de ruta
-      final normalizedPath = fileName
-          .replaceAll('\\', Platform.pathSeparator)
-          .replaceAll('/', Platform.pathSeparator);
-
-      // Primero verificar si la ruta ya es absoluta
-      final file = File(normalizedPath);
-      if (await file.exists()) {
-        debugPrint(
-          '_checkIfFileExists: Archivo encontrado en ruta: $normalizedPath',
-        );
-        return true;
-      }
-
-      // Si no es una ruta absoluta, intentar con la ruta completa
-      final fullPath = await _getFullImagePath(normalizedPath);
-      if (fullPath.isEmpty) {
-        debugPrint(
-          '_checkIfFileExists: No se pudo obtener ruta para: $normalizedPath',
-        );
-        return false;
-      }
-
-      final fullFile = File(fullPath);
-      final exists = await fullFile.exists();
-      debugPrint('_checkIfFileExists: Verificando $fullPath - Existe: $exists');
-
-      if (!exists) {
-        // Si no existe, verificar si el archivo está en el directorio de documentos
-        final appDir = await getApplicationDocumentsDirectory();
-        final possiblePath = path.join(
-          appDir.path,
-          path.basename(normalizedPath),
-        );
-        final possibleFile = File(possiblePath);
-        if (await possibleFile.exists()) {
-          debugPrint(
-            '_checkIfFileExists: Archivo encontrado en documentos: $possiblePath',
-          );
-          return true;
-        }
-      }
-
-      return exists;
-    } catch (e) {
-      debugPrint('Error en _checkIfFileExists para $fileName: $e');
-      return false;
-    }
-  }
-
   Future<void> _pickImage() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        final savedImageName = await _saveImageToAppDir(image.path);
-
+        final savedImageName = await ImageHelper.saveImage(File(image.path));
         setState(() {
           _imagenPath = savedImageName;
         });
@@ -422,8 +249,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
     try {
       final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
       if (photo != null) {
-        final savedImageName = await _saveImageToAppDir(photo.path);
-
+        final savedImageName = await ImageHelper.saveImage(File(photo.path));
         setState(() {
           _imagenPath = savedImageName;
         });
@@ -466,11 +292,6 @@ class ProductFormScreenState extends State<ProductFormScreen> {
 
       // Si hay una imagen, asegurarse de que se guarde en el directorio de la app
       String? imagenUrl = _imagenPath;
-      if (imagenUrl != null &&
-          !imagenUrl.contains('product_images') &&
-          File(imagenUrl).existsSync()) {
-        imagenUrl = await _saveImageToAppDir(imagenUrl);
-      }
 
       // Limpiar los puntos de los miles y convertir a double
       final precioCompra = double.parse(
@@ -976,8 +797,8 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       alignment: Alignment.center,
                       children: [
                         _imagenPath != null && _imagenPath!.isNotEmpty
-                            ? FutureBuilder<bool>(
-                                future: _checkIfFileExists(_imagenPath!),
+                            ? FutureBuilder<String>(
+                                future: ImageHelper.getImagePath(_imagenPath!),
                                 builder: (context, snapshot) {
                                   if (snapshot.connectionState ==
                                       ConnectionState.waiting) {
@@ -986,9 +807,8 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                                     );
                                   }
 
-                                  final fileExists = snapshot.data ?? false;
-
-                                  if (!fileExists) {
+                                  final imagePath = snapshot.data;
+                                  if (imagePath == null || imagePath.isEmpty) {
                                     return const Center(
                                       child: Icon(
                                         Icons.broken_image,
@@ -998,18 +818,15 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                                     );
                                   }
 
-                                  return FutureBuilder<String>(
-                                    future: _getFullImagePath(_imagenPath!),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState !=
-                                          ConnectionState.done) {
-                                        return const Center(
-                                          child: CircularProgressIndicator(),
-                                        );
-                                      }
-
-                                      final fullPath = snapshot.data ?? '';
-                                      if (fullPath.isEmpty) {
+                                  return ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      File(imagePath),
+                                      width: 150,
+                                      height: 150,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
                                         return const Center(
                                           child: Icon(
                                             Icons.broken_image,
@@ -1017,28 +834,8 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                                             color: Colors.grey,
                                           ),
                                         );
-                                      }
-
-                                      return ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.file(
-                                          File(fullPath),
-                                          width: 150,
-                                          height: 150,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return const Center(
-                                              child: Icon(
-                                                Icons.broken_image,
-                                                size: 50,
-                                                color: Colors.grey,
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      );
-                                    },
+                                      },
+                                    ),
                                   );
                                 },
                               )

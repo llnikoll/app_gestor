@@ -147,43 +147,73 @@ class _ReportsScreenState extends State<ReportsScreen>
 
     // Configurar el listener para actualizar los datos cuando haya cambios en las transacciones
     _onTransactionUpdated = () {
-      if (mounted) {
-        final value = _transactionNotifier.transactionsNotifier.value;
-        debugPrint(
-          'Notificación de transacción recibida (valor: $value) - Recargando datos...',
-        );
-        _cargarDatos(); // CAMBIO: Asegurar que se recarguen los datos al recibir notificaciones
-      }
+      if (!mounted) return;
+      final value = _transactionNotifier.transactionsNotifier.value;
+      debugPrint(
+        'Notificación de transacción recibida (valor: $value) - Recargando datos...',
+      );
+      _cargarDatos();
     };
 
     // Agregar el listener al notifier
-    _transactionNotifier.transactionsNotifier.addListener(
-      _onTransactionUpdated,
-    );
+    _transactionNotifier.transactionsNotifier.addListener(_onTransactionUpdated);
     debugPrint('Listener de transacciones registrado en ReportsScreen');
 
-    // Cargar los datos iniciales
-    _cargarTodo();
+    // Cargar los datos iniciales solo cuando la pestaña esté activa
+    _tabController.addListener(() {
+      if (!mounted) return;
+      if (_tabController.index == 0 && !_tabController.indexIsChanging) { // Pestaña de Resumen (índice 0)
+        _cargarTodo();
+      }
+    });
+
+    // Cargar los datos iniciales al inicio si la pestaña de resumen es la primera
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _tabController.index == 0) {
+        _cargarTodo();
+      }
+    });
   }
 
+
+
   Future<void> _cargarTodo() async {
-    await _cargarDatos();
-    await _cargarVentas();
-    await _cargarGastos();
-    await _cargarClientes();
-    await _cargarProductos();
+    if (!mounted) return;
+    
+    try {
+      await _cargarDatos();
+      if (!mounted) return;
+      
+      await _cargarVentas();
+      if (!mounted) return;
+      
+      await _cargarGastos();
+      if (!mounted) return;
+      
+      await _cargarClientes();
+      if (!mounted) return;
+      
+      await _cargarProductos();
+    } catch (e) {
+      debugPrint('Error en _cargarTodo: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error al cargar datos: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _cargarDatos() async {
     if (!mounted) return;
 
     try {
-      if (mounted) {
-        setState(() {
-          _isLoading = true;
-          _errorMessage = '';
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
 
       debugPrint('Iniciando carga de datos...');
 
@@ -208,29 +238,29 @@ class _ReportsScreenState extends State<ReportsScreen>
       debugPrint('Carga de datos completada exitosamente');
 
       // Forzar actualización de la UI después de cargar todos los datos
-      if (mounted) {
-        _dataUpdated.value++;
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      _dataUpdated.value++;
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
     } catch (e, stackTrace) {
       debugPrint('Error en _cargarDatos: $e');
       debugPrint('Stack trace: $stackTrace');
 
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Error al cargar datos: ${e.toString()}';
-        });
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Error al cargar datos: ${e.toString()}';
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar datos: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar datos: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -334,7 +364,6 @@ class _ReportsScreenState extends State<ReportsScreen>
       debugPrint('Total de ventas calculado: $totalVentas');
 
       if (!mounted) return;
-
       setState(() {
         _ventasData.clear();
         _ventasData.addAll(ventasData);
@@ -348,19 +377,19 @@ class _ReportsScreenState extends State<ReportsScreen>
       debugPrint('Error cargando ventas: $e');
       debugPrint('Stack trace: $stackTrace');
 
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Error al cargar ventas: ${e.toString()}';
-        });
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Error al cargar ventas: ${e.toString()}';
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar ventas: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar ventas: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
       rethrow;
     }
   }
@@ -433,11 +462,10 @@ class _ReportsScreenState extends State<ReportsScreen>
         );
       }
 
-      if (mounted) {
-        setState(() {
-          _gastosData = gastosData;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _gastosData = gastosData;
+      });
 
       debugPrint(
         'Datos de gastos para el gráfico: ${gastosData.length} puntos',
@@ -448,19 +476,19 @@ class _ReportsScreenState extends State<ReportsScreen>
       debugPrint('Error cargando gastos: $e');
       debugPrint('Stack trace: $stackTrace');
 
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Error al cargar gastos: ${e.toString()}';
-        });
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Error al cargar gastos: ${e.toString()}';
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar gastos: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar gastos: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
       rethrow;
     }
   }
@@ -496,24 +524,23 @@ class _ReportsScreenState extends State<ReportsScreen>
         'Datos financieros actualizados - Ventas: $_ventasTotales, Gastos: $_gastosTotales, Ganancias: $_gananciasTotales',
       );
 
-      if (mounted) {
-        _dataUpdated.value++;
-      }
+      if (!mounted) return;
+
+      _dataUpdated.value++;
     } catch (e, stackTrace) {
       debugPrint('Error en _updateFinancialData: $e');
       debugPrint('Stack trace: $stackTrace');
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error al actualizar datos financieros: ${e.toString()}',
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error al actualizar datos financieros: ${e.toString()}',
           ),
-        );
-      }
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -558,7 +585,6 @@ class _ReportsScreenState extends State<ReportsScreen>
       }
 
       if (!mounted) return;
-
       setState(() {
         _productosData.clear();
         _productosData.addAll(productosData);
@@ -569,19 +595,19 @@ class _ReportsScreenState extends State<ReportsScreen>
       debugPrint('Error cargando productos: $e');
       debugPrint('Stack trace: $stackTrace');
 
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Error al cargar productos: ${e.toString()}';
-        });
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Error al cargar productos: ${e.toString()}';
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar productos: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar productos: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
       rethrow;
     }
   }
@@ -627,7 +653,6 @@ class _ReportsScreenState extends State<ReportsScreen>
       }
 
       if (!mounted) return;
-
       setState(() {
         _clientesData.clear();
         _clientesData.addAll(clientesData);
@@ -638,19 +663,19 @@ class _ReportsScreenState extends State<ReportsScreen>
       debugPrint('Error cargando clientes: $e');
       debugPrint('Stack trace: $stackTrace');
 
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Error al cargar clientes: ${e.toString()}';
-        });
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Error al cargar clientes: ${e.toString()}';
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar clientes: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar clientes: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
       rethrow;
     }
   }
@@ -752,6 +777,7 @@ class _ReportsScreenState extends State<ReportsScreen>
 
     if (fecha != null) {
       final newStartDate = DateTime(fecha.year, fecha.month, fecha.day);
+      if (!mounted) return;
       setState(() {
         _selectedDateRange = DateTimeRange(
           start: newStartDate,
@@ -772,6 +798,7 @@ class _ReportsScreenState extends State<ReportsScreen>
 
     if (fecha != null) {
       final newEndDate = DateTime(fecha.year, fecha.month, fecha.day, 23, 59, 59, 999);
+      if (!mounted) return;
       setState(() {
         _selectedDateRange = DateTimeRange(
           start: _selectedDateRange.start,
@@ -1519,17 +1546,28 @@ class _ReportsScreenState extends State<ReportsScreen>
   @override
   void dispose() {
     debugPrint('Dispose de ReportsScreen - Removiendo listeners');
+    
+    // Remove transaction listener
     try {
-      _transactionNotifier.transactionsNotifier.removeListener(
-        _onTransactionUpdated,
-      );
+      _transactionNotifier.transactionsNotifier.removeListener(_onTransactionUpdated);
       debugPrint('Listener de transacciones removido correctamente');
     } catch (e) {
       debugPrint('Error al remover listener de transacciones: $e');
     }
-
-    _tabController.dispose();
-    _dataUpdated.dispose();
+    
+    // Dispose controllers safely
+    try {
+      _tabController.dispose();
+    } catch (e) {
+      debugPrint('Error al hacer dispose del TabController: $e');
+    }
+    
+    try {
+      _dataUpdated.dispose();
+    } catch (e) {
+      debugPrint('Error al hacer dispose del ValueNotifier: $e');
+    }
+    
     super.dispose();
   }
 }

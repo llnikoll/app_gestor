@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/product_image_viewer.dart';
 import '../services/database_service.dart';
 import '../services/settings_service.dart';
 import '../models/producto_model.dart';
@@ -66,7 +66,7 @@ class NuevaVentaTab extends StatefulWidget {
 class NuevaVentaTabState extends State<NuevaVentaTab> {
   final TextEditingController _searchController = TextEditingController();
   late final TextEditingController _montoRecibidoController;
-  String? _selectedCategory;
+  String? _selectedCategory = 'Todas';
   List<Producto> _productos = [];
   final List<Map<String, dynamic>> _carrito = [];
   Cliente? _selectedCliente;
@@ -79,7 +79,6 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
     super.initState();
     _montoRecibidoController = TextEditingController();
     _loadProductos();
-    _loadCategorias();
   }
 
   @override
@@ -91,46 +90,73 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
   Future<void> _loadProductos() async {
     final databaseService =
         Provider.of<DatabaseService>(context, listen: false);
-    final productos =
-        await databaseService.getProductos(categoria: _selectedCategory);
+    final categoria = (_selectedCategory == 'Todas' || _selectedCategory == 'Generales') ? null : _selectedCategory;
+    final productos = await databaseService.getProductos(categoria: categoria);
+    if (!mounted) return;
     setState(() => _productos = productos);
-  }
-
-  Future<void> _loadCategorias() async {
-    final databaseService =
-        Provider.of<DatabaseService>(context, listen: false);
-    final categorias = await databaseService.getCategorias();
-    // Filtrar para excluir la categoría 'generales' (ignorando mayúsculas/minúsculas)
-    final categoriasFiltradas =
-        categorias.where((c) => c.nombre.toLowerCase() != 'generales').toList();
-    setState(() => _selectedCategory = categoriasFiltradas.isNotEmpty
-        ? categoriasFiltradas.first.nombre
-        : null);
   }
 
   void _filtrarProductos(String query) {
     final databaseService =
         Provider.of<DatabaseService>(context, listen: false);
     databaseService.buscarProductos(query).then((productos) {
-      setState(() => _productos = productos
-          .where((p) =>
-              _selectedCategory == null || p.categoria == _selectedCategory)
-          .toList());
+      if (!mounted) return;
+      setState(() {
+        if (_selectedCategory == 'Todas' || _selectedCategory == 'Generales') {
+          _productos = productos;
+        } else {
+          _productos = productos
+              .where((p) => p.categoria == _selectedCategory)
+              .toList();
+        }
+      });
     });
   }
 
-  void _agregarAlCarrito(Producto producto) {
-    setState(() {
-      final existingItem = _carrito.firstWhere(
-        (item) => item['producto'].id == producto.id,
-        orElse: () => {},
+  // Helper method to safely find an item in the cart
+  Map<String, dynamic>? _findCartItem(Producto producto) {
+    try {
+      return _carrito.firstWhere(
+        (item) => item['producto']?.id == producto.id,
       );
-      if (existingItem.isNotEmpty) {
-        existingItem['cantidad'] += 1;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  void _agregarAlCarrito(Producto producto) {
+    if (!mounted) return;
+    
+    final existingItem = _findCartItem(producto);
+    
+    if (existingItem != null) {
+      // Si el producto ya está en el carrito, incrementar la cantidad
+      final int cantidadActual = existingItem['cantidad'] ?? 0;
+      if (cantidadActual < producto.stock) {
+        if (!mounted) return;
+        setState(() {
+          existingItem['cantidad'] = cantidadActual + 1;
+        });
       } else {
-        _carrito.add({'producto': producto, 'cantidad': 1});
+        // Mostrar mensaje de que no hay suficiente stock
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No hay suficiente stock de ${producto.nombre}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
-    });
+    } else {
+      // Si el producto no está en el carrito, agregarlo con cantidad 1
+      if (!mounted) return;
+      setState(() {
+        _carrito.add({
+          'producto': producto,
+          'cantidad': 1,
+        });
+      });
+    }
   }
 
   String formatearNumero(String value) {
@@ -277,6 +303,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
             ElevatedButton(
               onPressed: () {
                 if (monto > 0) {
+                  if (!mounted) return;
                   setState(() {
                     _carrito.add({
                       'producto': null,
@@ -288,6 +315,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                           descripcion.isEmpty ? 'Venta Casual' : descripcion,
                     });
                   });
+                  if (!mounted) return;
                   Navigator.pop(context);
                 }
               },
@@ -351,49 +379,11 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                 width: 60,
                                 height: 60,
                                 padding: const EdgeInsets.all(4.0),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                  child: item['producto']
-                                          .imagenUrl
-                                          .toString()
-                                          .startsWith('http')
-                                      ? CachedNetworkImage(
-                                          imageUrl: item['producto'].imagenUrl,
-                                          width: 60,
-                                          height: 60,
-                                          fit: BoxFit.cover,
-                                          placeholder: (context, url) =>
-                                              Container(
-                                            color: Colors.grey[200],
-                                            child: const Center(
-                                              child: CircularProgressIndicator(
-                                                  strokeWidth: 2.0),
-                                            ),
-                                          ),
-                                          errorWidget: (context, url, error) =>
-                                              Container(
-                                            color: Colors.grey[200],
-                                            child: const Icon(
-                                                Icons.broken_image,
-                                                color: Colors.grey,
-                                                size: 24),
-                                          ),
-                                        )
-                                      : Image.asset(
-                                          'assets/${item['producto'].imagenUrl}',
-                                          width: 60,
-                                          height: 60,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Container(
-                                            color: Colors.grey[200],
-                                            child: const Icon(
-                                                Icons.image_not_supported,
-                                                color: Colors.grey,
-                                                size: 24),
-                                          ),
-                                        ),
+                                child: ProductImageViewer(
+                                  imageUrl: item['producto'].imagenUrl,
+                                  width: 60,
+                                  height: 60,
+                                  borderRadius: 8.0,
                                 ),
                               )
                             : Container(
@@ -430,6 +420,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                               icon: const Icon(Icons.remove_circle_outline,
                                   color: Colors.red),
                               onPressed: () {
+                                if (!mounted) return;
                                 setState(() {
                                   setDialogState(() {
                                     if (item['cantidad'] > 1) {
@@ -445,6 +436,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                               icon: const Icon(Icons.delete_outline,
                                   color: Colors.red),
                               onPressed: () {
+                                if (!mounted) return;
                                 setState(() {
                                   setDialogState(() => _carrito.remove(item));
                                 });
@@ -531,6 +523,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                       onChanged: (value) {
                         // Si el valor está vacío, limpiar todo
                         if (value.isEmpty) {
+                          if (!mounted) return;
                           setState(() {
                             _montoRecibido = 0.0;
                             _montoRecibidoController.text = '';
@@ -628,6 +621,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
   }
 
   void _seleccionarCliente(void Function(void Function()) setDialogState) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) {
@@ -650,6 +644,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                       title: Text(cliente.nombre),
                       subtitle: Text(cliente.ruc ?? cliente.telefono ?? ''),
                       onTap: () {
+                        if (!mounted) return;
                         setState(() =>
                             setDialogState(() => _selectedCliente = cliente));
                         Navigator.pop(context);
@@ -673,6 +668,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
 
   // Método para reiniciar el formulario después de una venta exitosa
   void _resetearFormulario() {
+    if (!mounted) return;
     setState(() {
       _carrito.clear();
       _selectedCliente = null;
@@ -746,30 +742,26 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
       databaseService.notifyDataChanged();
 
       // Cerrar el diálogo antes de actualizar la UI
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      if (!mounted) return;
+      Navigator.pop(context);
 
       // Actualizar la UI
       _resetearFormulario();
 
       // Notificar a la pestaña principal para que actualice el historial
-      if (mounted) {
-        widget.onVentaExitosa();
-      }
+      if (!mounted) return;
+      widget.onVentaExitosa();
 
       // Mostrar mensaje de éxito
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Venta registrada con éxito')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Venta registrada con éxito')),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al registrar la venta: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al registrar la venta: $e')),
+      );
     }
   }
 
@@ -780,6 +772,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
     );
     if (result != null) {
       _searchController.text = result;
+      if (!mounted) return;
       _filtrarProductos(result);
       HapticFeedback.vibrate();
     }
@@ -828,11 +821,13 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                 .getCategorias(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const SizedBox();
-              final categorias = snapshot.data!;
+              final categorias = snapshot.data!
+                  .where((c) => c.nombre.toLowerCase() != 'general')
+                  .toList();
               return DropdownButton<String>(
                 value: _selectedCategory,
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('Todas')),
+                  const DropdownMenuItem(value: 'Todas', child: Text('Todas')),
                   ...categorias.map((c) =>
                       DropdownMenuItem(value: c.nombre, child: Text(c.nombre))),
                 ],
@@ -880,50 +875,12 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: producto.imagenUrl != null &&
-                                      producto.imagenUrl!.isNotEmpty
-                                  ? (producto.imagenUrl!.startsWith('http')
-                                      ? CachedNetworkImage(
-                                          imageUrl: producto.imagenUrl!,
-                                          width: 70,
-                                          height: 70,
-                                          fit: BoxFit.cover,
-                                          placeholder: (context, url) =>
-                                              Container(
-                                            color: Colors.grey[200],
-                                            child: const Center(
-                                              child: CircularProgressIndicator(
-                                                  strokeWidth: 2.0),
-                                            ),
-                                          ),
-                                          errorWidget: (context, url, error) =>
-                                              Container(
-                                            color: Colors.grey[200],
-                                            child: const Icon(
-                                                Icons.broken_image,
-                                                color: Colors.grey,
-                                                size: 28),
-                                          ),
-                                        )
-                                      : Image.asset(
-                                          'assets/${producto.imagenUrl}',
-                                          width: 70,
-                                          height: 70,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Container(
-                                            color: Colors.grey[200],
-                                            child: const Icon(
-                                                Icons.image_not_supported,
-                                                color: Colors.grey,
-                                                size: 28),
-                                          ),
-                                        ))
-                                  : const Center(
-                                      child: Icon(Icons.inventory_2_outlined,
-                                          color: Colors.grey, size: 32),
-                                    ),
+                              child: ProductImageViewer(
+                                imageUrl: producto.imagenUrl,
+                                width: 70,
+                                height: 70,
+                                borderRadius: 8.0,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -941,6 +898,35 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
+                                if (producto.descripcion.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2.0),
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.color,
+                                        ),
+                                        children: [
+                                          const TextSpan(
+                                            text: 'Descripción: ',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w500),
+                                          ),
+                                          TextSpan(
+                                            text: producto.descripcion,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.normal),
+                                          ),
+                                        ],
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '${NumberFormat.currency(symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol).format(producto.precioVenta)} - Stock: ${producto.stock}',
@@ -949,14 +935,81 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                     color: Colors.grey[600],
                                   ),
                                 ),
+                                if (producto.categoria.isNotEmpty)
+                                  Text('Categoría: ${producto.categoria}'),
+                                if (producto.codigoBarras.isNotEmpty)
+                                  Text('Código: ${producto.codigoBarras}'),
                               ],
                             ),
                           ),
-                          // Botón de agregar al carrito
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline,
-                                color: Colors.blue, size: 30),
-                            onPressed: () => _agregarAlCarrito(producto),
+                          // Controles de cantidad del carrito
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Botón para quitar del carrito
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle_outline,
+                                      color: Colors.red, size: 32),
+                                  onPressed: () {
+                                    if (!mounted) return;
+                                    final existingItem = _findCartItem(producto);
+                                    if (existingItem != null) {
+                                      if (existingItem['cantidad'] > 1) {
+                                        if (mounted) {
+                                          setState(() {
+                                            existingItem['cantidad'] -= 1;
+                                          });
+                                        }
+                                      } else {
+                                        if (mounted) {
+                                          setState(() {
+                                            _carrito.removeWhere((item) => 
+                                              item['producto']?.id == producto.id);
+                                          });
+                                        }
+                                      }
+                                    }
+                                  },
+                                  padding: const EdgeInsets.all(8),
+                                  constraints: const BoxConstraints(),
+                                ),
+                                // Cantidad actual en el carrito
+                                Container(
+                                  width: 36,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    (_findCartItem(producto)?['cantidad'] ?? 0).toString(),
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                // Botón para agregar al carrito
+                                Builder(
+                                  builder: (context) {
+                                    final cartItem = _findCartItem(producto);
+                                    final cantidadEnCarrito = cartItem?['cantidad'] ?? 0;
+                                    final sinStock = cantidadEnCarrito >= producto.stock;
+                                    
+                                    return IconButton(
+                                      icon: Icon(
+                                        Icons.add_circle_outline,
+                                        color: sinStock ? Colors.grey : Colors.blue,
+                                        size: 32,
+                                      ),
+                                      onPressed: sinStock
+                                          ? null
+                                          : () => _agregarAlCarrito(producto),
+                                      padding: const EdgeInsets.all(8),
+                                      constraints: const BoxConstraints(),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

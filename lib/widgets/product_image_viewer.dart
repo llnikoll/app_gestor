@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart'; // Import for kDebugMode
+
+import '../utils/image_helper.dart';
 
 class ProductImageViewer extends StatelessWidget {
   final String? imageUrl;
@@ -42,49 +43,7 @@ class ProductImageViewer extends StatelessWidget {
 
   // Método para obtener la ruta completa de una imagen local
   Future<String> _getImagePath(String imageName) async {
-    try {
-      // Primero intentamos con el almacenamiento externo (Android/iOS específicos)
-      // Esta ruta es específica para Android y puede variar.
-      // Para iOS, getApplicationDocumentsDirectory() es más común.
-      // Se asume que 'product_images' es una subcarpeta dentro de 'files'
-      // o el directorio de documentos de la aplicación.
-      final Directory? externalDir = await getExternalStorageDirectory();
-      if (externalDir != null) {
-        final externalPath = '${externalDir.path}/product_images/$imageName';
-        final externalFile = File(externalPath);
-        if (await externalFile.exists()) {
-          if (kDebugMode) {
-            debugPrint('Imagen encontrada en almacenamiento externo: $externalPath');
-          }
-          return externalPath;
-        }
-      }
-
-      // Si no está en almacenamiento externo o no es Android, buscamos en el directorio de documentos de la app
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final localPath = '${appDir.path}/product_images/$imageName';
-      if (kDebugMode) {
-        debugPrint('Buscando imagen en almacenamiento local: $localPath');
-      }
-
-      final localFile = File(localPath);
-      if (await localFile.exists()) {
-        if (kDebugMode) {
-          debugPrint('Imagen encontrada en almacenamiento local: $localPath');
-        }
-        return localPath;
-      }
-
-      if (kDebugMode) {
-        debugPrint('No se encontró la imagen en ninguna ubicación: $imageName');
-      }
-      return ''; // Retorna una cadena vacía si no se encuentra
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error al obtener ruta de imagen para $imageName: $e');
-      }
-      return '';
-    }
+    return ImageHelper.getImagePath(imageName);
   }
 
   @override

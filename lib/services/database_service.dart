@@ -317,11 +317,10 @@ class DatabaseService extends ChangeNotifier {
       'CREATE INDEX idx_gastos_producto_id ON $tableGastos(producto_id)',
     );
 
-    // Insert default category
-    await db.insert(tableCategorias, {
-      'nombre': 'General',
-      'fecha_creacion': DateTime.now().toIso8601String(),
-    });
+    // await db.insert(tableCategorias, {
+    //   'nombre': 'General',
+    //   'fecha_creacion': DateTime.now().toIso8601String(),
+    // });
   }
 
   // Handle database upgrades
@@ -934,6 +933,22 @@ class DatabaseService extends ChangeNotifier {
   // Método auxiliar para obtener el ID de la categoría por nombre
   Future<int> _getCategoriaId(String nombreCategoria) async {
     final db = await database;
+
+    // Si la categoría es 'General', buscar la primera categoría existente
+    if (nombreCategoria.toLowerCase() == 'general') {
+      final existingCategories = await db.query(tableCategorias, limit: 1);
+      if (existingCategories.isNotEmpty) {
+        return existingCategories.first['id'] as int;
+      } else {
+        // Si no hay categorías, crear una categoría por defecto 'Sin Categoría'
+        final id = await db.insert(tableCategorias, {
+          'nombre': 'Sin Categoría',
+          'fecha_creacion': DateTime.now().toIso8601String(),
+        });
+        return id;
+      }
+    }
+
     final result = await db.query(
       tableCategorias,
       where: 'nombre = ?',
@@ -945,7 +960,7 @@ class DatabaseService extends ChangeNotifier {
       return result.first['id'] as int;
     }
 
-    // Si no existe la categoría, crearla
+    // Si no existe la categoría (y no es 'General'), crearla
     final id = await db.insert(tableCategorias, {
       'nombre': nombreCategoria,
       'fecha_creacion': DateTime.now().toIso8601String(),
@@ -1317,13 +1332,37 @@ class DatabaseService extends ChangeNotifier {
   // Search products by name or barcode
   Future<List<Producto>> buscarProductos(String query) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      tableProductos,
-      where: 'nombre LIKE ? OR codigo_barras LIKE ?',
-      whereArgs: ['%$query%', '%$query%'],
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+      '''
+      SELECT p.*, c.nombre as categoria_nombre 
+      FROM $tableProductos p
+      LEFT JOIN $tableCategorias c ON p.categoria_id = c.id
+      WHERE p.nombre LIKE ? OR p.codigo_barras LIKE ?
+    ''',
+      ['%$query%', '%$query%'],
     );
 
-    return List.generate(maps.length, (i) => Producto.fromMap(maps[i]));
+    return List.generate(maps.length, (i) {
+      final map = maps[i];
+      return Producto(
+        id: map['id'],
+        codigoBarras: map['codigo_barras'] ?? '',
+        nombre: map['nombre'] ?? '',
+        descripcion: map['descripcion'] ?? '',
+        categoria: map['categoria_nombre'] ?? 'General',
+        precioCompra: (map['precio_compra'] as num?)?.toDouble() ?? 0.0,
+        precioVenta: (map['precio_venta'] as num?)?.toDouble() ?? 0.0,
+        stock: map['stock'] ?? 0,
+        fechaCreacion: map['fecha_creacion'] != null
+            ? DateTime.parse(map['fecha_creacion'])
+            : DateTime.now(),
+        fechaActualizacion: map['fecha_actualizacion'] != null
+            ? DateTime.parse(map['fecha_actualizacion'])
+            : null,
+        imagenUrl: map['imagen_url'],
+        activo: map['activo'] == 1,
+      );
+    });
   }
 
   // ========== ENTRADAS DE INVENTARIO ==========
