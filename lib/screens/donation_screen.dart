@@ -29,10 +29,10 @@ Código SWIFT/BIC: [Consultar con el banco para transferencias internacionales]
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(
-                Icons.volunteer_activism, // Un icono más representativo
-                size: 80,
-                color: theme.primaryColor,
+              Image.asset(
+                'assets/images/logo.png', // Ruta a tu logo
+                height: 100, // Ajusta el tamaño según sea necesario
+                width: 100,
               ),
               const SizedBox(height: 24),
               Text(
