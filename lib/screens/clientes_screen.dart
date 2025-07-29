@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:app_gestor_ventas/models/cliente_model.dart';
-import 'package:app_gestor_ventas/screens/cliente_form_screen.dart';
-import 'package:app_gestor_ventas/services/database_service.dart';
-import 'package:app_gestor_ventas/services/product_notifier_service.dart';
+import 'package:gestor_pocket/models/cliente_model.dart';
+import 'package:gestor_pocket/screens/cliente_form_screen.dart';
+import 'package:gestor_pocket/services/database_service.dart';
+import 'package:gestor_pocket/services/product_notifier_service.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});

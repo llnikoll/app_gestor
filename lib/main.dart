@@ -117,7 +117,7 @@ class MyApp extends StatelessWidget {
     final themeNotifier = context.watch<ThemeNotifier>();
 
     return MaterialApp(
-      title: 'Gestor de Ventas',
+      title: 'GestorPocket',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.app_gestor_ventas"
+    namespace = "com.example.gestor_pocket"
     compileSdk = 35
     ndkVersion = "27.0.12077973"
     
@@ -38,7 +38,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.app_gestor_ventas"
+        applicationId = "com.example.gestor_pocket"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

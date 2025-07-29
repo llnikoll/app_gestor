@@ -1,4 +1,4 @@
-name: app_gestor_ventas
+name: gestor_pocket
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -22,10 +22,10 @@ environment:
   sdk: ^3.4.0
 
 msix_config:
-  display_name: App Gestor Ventas
-  publisher_display_name: GestorPoket
-  publisher: CN=GestorPoket
-  identity_name: GestorPoket.AppGestorVentas
+  display_name: GestorPocket
+  publisher_display_name: GestorPocket
+  publisher: CN=GestorPocket
+  identity_name: GestorPocket.AppGestorPocket
   logo_path: assets\images\logo.png
   msix_version: 1.0.0.1
 

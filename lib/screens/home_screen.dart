@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:provider/provider.dart';
-import 'package:app_gestor_ventas/services/logo_service.dart';
+import 'package:gestor_pocket/services/logo_service.dart';
 import 'package:flutter/material.dart';
 import '../models/navigation_item.dart';
 import 'dashboard_screen.dart';
