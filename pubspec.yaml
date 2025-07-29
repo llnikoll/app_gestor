@@ -156,10 +156,20 @@ flutter:
 # Configuración para el ícono de la aplicación
 flutter_launcher_icons:
   android: true
-  ios: false  # Desactivado temporalmente por problemas de generación
+  ios:
+    generate: true
+    remove_alpha_ios: true
   image_path: "assets/images/logo.png"
-  min_sdk_android: 21 # android min sdk min:16, default 21
+  min_sdk_android: 21
   web:
-    generate: false  # Desactivado temporalmente
+    generate: false # Mantener desactivado si no es una app web
   windows:
-    generate: false  # Desactivado temporalmente
+    generate: true
+    image_path: "assets/images/logo.png"
+    icon_size: 48 # Puedes ajustar el tamaño si es necesario
+  macos:
+    generate: true
+    image_path: "assets/images/logo.png"
+  linux:
+    generate: true
+    image_path: "assets/images/logo.png"
