@@ -907,113 +907,57 @@ class _ReportsScreenState extends State<ReportsScreen>
     return ValueListenableBuilder<int>(
       valueListenable: _dataUpdated,
       builder: (context, value, _) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(left: 16.0, top: 16.0, bottom: 8.0),
-              child: Text(
-                'Resumen Financiero',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+        return Card(
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Resumen Financiero',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: _financialData.map((data) {
+                    IconData icon;
+                    switch (data.concepto) {
+                      case 'Ventas':
+                        icon = Icons.attach_money;
+                        break;
+                      case 'Gastos':
+                        icon = Icons.money_off;
+                        break;
+                      case 'Ganancias':
+                        icon = Icons.bar_chart;
+                        break;
+                      default:
+                        icon = Icons.analytics_rounded;
+                    }
+                    return _buildResumenItem(
+                      data.concepto,
+                      _formatearMoneda(data.monto),
+                      icon,
+                      data.color,
+                    );
+                  }).toList(),
+                ),
+              ],
             ),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 1,
-              childAspectRatio: 2.5,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              padding: const EdgeInsets.all(16.0),
-              children: _financialData
-                  .map((data) => _buildSummaryCard(data))
-                  .toList(),
-            ),
-          ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildSummaryCard(FinancialData data) {
-    IconData icon;
-    switch (data.concepto) {
-      case 'Ventas':
-        icon = Icons.attach_money_rounded;
-        break;
-      case 'Gastos':
-        icon = Icons.money_off_rounded;
-        break;
-      case 'Ganancias':
-        icon = Icons.trending_up_rounded;
-        break;
-      default:
-        icon = Icons.analytics_rounded;
-    }
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16.0),
-        onTap: () {},
-        child: Container(
-          constraints: const BoxConstraints(
-            minHeight: 140,
-            maxWidth: double.infinity,
-          ),
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10.0),
-                      decoration: BoxDecoration(
-                        color: data.color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      child: Icon(icon, color: data.color, size: 24),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    _formatearMoneda(data.monto),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  data.concepto,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildGastosTab() {
     return SingleChildScrollView(

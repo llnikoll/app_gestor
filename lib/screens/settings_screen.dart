@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../main.dart';
 import '../services/settings_service.dart';
 import '../widgets/company_logo_picker.dart';
+import './donation_screen.dart';
 
 class ChangeAdminPasswordDialog extends StatefulWidget {
   const ChangeAdminPasswordDialog({super.key});
@@ -528,6 +529,19 @@ class SettingsScreenState extends State<SettingsScreen> {
                   showDialog(
                     context: context,
                     builder: (context) => const ChangeAdminPasswordDialog(),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              _buildSectionTitle('SOPORTE'),
+              _buildSettingItem(
+                icon: Icons.volunteer_activism,
+                title: 'Apoyar al Desarrollador',
+                subtitle: 'Ayúdanos a mantener la aplicación',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const DonationScreen()),
                   );
                 },
               ),

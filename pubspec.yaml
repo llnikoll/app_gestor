@@ -21,6 +21,14 @@ version: 1.0.0+1
 environment:
   sdk: ^3.4.0
 
+msix_config:
+  display_name: App Gestor Ventas
+  publisher_display_name: GestorPoket
+  publisher: CN=GestorPoket
+  identity_name: GestorPoket.AppGestorVentas
+  logo_path: assets\images\logo.png
+  msix_version: 1.0.0.1
+
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
@@ -95,6 +103,7 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   intl_utils: ^2.8.10
   flutter_launcher_icons: ^0.13.1
+  msix: ^3.16.9
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

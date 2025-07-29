@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/producto_model.dart';
 import '../models/categoria_model.dart';
 import '../models/venta_model.dart';
@@ -175,21 +177,33 @@ class DatabaseService extends ChangeNotifier {
 
   // Initialize database
   Future<Database> _initDatabase() async {
-    final databasesPath = await getDatabasesPath();
-    final path = join(databasesPath, _databaseName);
+    try {
+      // Obtener el directorio de documentos de la aplicación
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final path = join(appDocDir.path, _databaseName);
+      
+      // Crear directorio si no existe
+      if (!await Directory(dirname(path)).exists()) {
+        await Directory(dirname(path)).create(recursive: true);
+      }
 
-    return await openDatabase(
-      path,
-      version: _databaseVersion,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-      onDowngrade: onDatabaseDowngradeDelete,
-      // Asegurarse de que se use la fábrica correcta
-      onConfigure: (db) async {
-        // Habilita las claves foráneas
-        await db.execute('PRAGMA foreign_keys = ON');
-      },
-    );
+      debugPrint('Ruta de la base de datos: $path');
+
+      return await openDatabase(
+        path,
+        version: _databaseVersion,
+        onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
+        onDowngrade: onDatabaseDowngradeDelete,
+        onConfigure: (db) async {
+          // Habilita las claves foráneas
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+      );
+    } catch (e) {
+      debugPrint('Error al inicializar la base de datos: $e');
+      rethrow;
+    }
   }
 
   // Create tables

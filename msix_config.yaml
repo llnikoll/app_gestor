@@ -1,0 +1,32 @@
+# Configuración de MSIX
+# Este archivo contiene la configuración para generar el paquete MSIX
+
+# Nombre de la aplicación que se mostrará en el menú de inicio
+display_name: App Gestor Ventas
+
+# Nombre del publicador
+publisher_display_name: GestorPoket
+publisher: GestorPoket
+
+# Identificador único de la aplicación
+identity_name: GestorPoket.AppGestorVentas
+
+# Versión del paquete (debe coincidir con la versión en pubspec.yaml)
+msix_version: 1.0.0.1
+
+# Deshabilitar la firma del paquete MSIX
+sign_msix: false
+
+# Ruta al logo de la aplicación
+logo_path: C:\Users\jakao\Proyectos\app_gestor-1\assets\images\logo.png
+
+# Configuración de capacidades (permisos)
+capabilities:
+  - internetClient
+  - privateNetworkClientServer
+
+# Configuración de extensiones (opcional)
+extensions:
+  - Category: windows.appExecutionAlias
+    Executable: app_gestor_ventas.exe
+    EntryPoint: Windows.FullTrustApplication
