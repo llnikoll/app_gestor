@@ -141,7 +141,7 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                       ),
                       validator: (value) {
@@ -165,7 +165,7 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                       ),
                       keyboardType: TextInputType.phone,
@@ -184,7 +184,7 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                       ),
                       keyboardType: TextInputType.emailAddress,
@@ -219,7 +219,7 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                       ),
                       keyboardType: TextInputType.number,
@@ -238,7 +238,7 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                       ),
                       maxLines: 2,
@@ -257,7 +257,7 @@ class CustomerFormScreenState extends State<CustomerFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                       ),
                       maxLines: 3,

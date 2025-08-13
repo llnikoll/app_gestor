@@ -401,7 +401,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 ),
                 filled: true,
                 fillColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[800]!.withValues(alpha: 0.7)
+                    ? Colors.grey[800]!.withOpacity(0.7)
                     : Colors.grey[100],
                 hintStyle: TextStyle(
                   color: Theme.of(context).hintColor,

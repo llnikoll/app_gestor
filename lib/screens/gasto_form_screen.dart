@@ -195,7 +195,7 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                       ),
                       validator: (value) {
@@ -217,7 +217,7 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                         hintText: '0',
                       ),
@@ -282,7 +282,7 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                       ),
                       items: _categorias
@@ -310,7 +310,7 @@ class _GastoFormScreenState extends State<GastoFormScreen> {
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]!.withValues(alpha: 0.7)
+                                ? Colors.grey[800]!.withOpacity(0.7)
                                 : Colors.grey[100],
                         alignLabelWithHint: true,
                       ),

@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:path/path.dart' as p;
 import '../main.dart';
+import '../services/backup_service.dart';
+import '../services/database_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/company_logo_picker.dart';
 import './donation_screen.dart';
@@ -44,7 +49,6 @@ class _ChangeAdminPasswordDialogState extends State<ChangeAdminPasswordDialog> {
     try {
       final settings = Provider.of<SettingsService>(context, listen: false);
 
-      // Verificar la contraseña actual
       final isCurrentValid =
           await settings.verifyAdminPassword(_currentPasswordController.text);
       if (!isCurrentValid) {
@@ -55,12 +59,10 @@ class _ChangeAdminPasswordDialogState extends State<ChangeAdminPasswordDialog> {
         return;
       }
 
-      // Actualizar la contraseña
       await settings.setAdminPassword(_newPasswordController.text);
 
       if (!mounted) return;
 
-      // Mostrar mensaje de éxito y cerrar
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Contraseña actualizada correctamente')),
       );
@@ -214,11 +216,127 @@ class SettingsScreen extends StatefulWidget {
 
 class SettingsScreenState extends State<SettingsScreen> {
   late final SettingsService _settings;
+  final _backupService = BackupService();
+  bool _isBackingUp = false;
+  bool _isRestoring = false;
 
   @override
   void initState() {
     super.initState();
     _settings = SettingsService();
+  }
+
+  Future<void> _createBackup() async {
+    if (!mounted) return;
+    setState(() => _isBackingUp = true);
+    try {
+      final path = await _backupService.createBackup();
+      if (mounted) {
+        if (path != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'Copia de seguridad guardada en: ${p.basename(path)}')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Operación cancelada por el usuario')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al crear la copia: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isBackingUp = false);
+      }
+    }
+  }
+
+  Future<void> _restoreBackup() async {
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¡ADVERTENCIA MUY IMPORTANTE!'),
+        content: const Text(
+            'Restaurar una copia de seguridad reemplazará TODOS sus datos actuales (productos, ventas, configuraciones, etc.) de forma permanente.\n\nEsta acción no se puede deshacer. ¿Está seguro de que desea continuar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('CANCELAR'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('SÍ, RESTAURAR'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+
+    if (result == null || result.files.single.path == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Operación de restauración cancelada.')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isRestoring = true);
+
+    try {
+      await DatabaseService().close();
+
+      final success = await _backupService.restoreFromFile(result.files.single.path!);
+
+      if (mounted) {
+        if (success) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text('Restauración Completa'),
+              content: const Text(
+                  'Los datos se han restaurado correctamente. La aplicación debe reiniciarse para aplicar los cambios.\n\nLa aplicación se cerrará ahora. Por favor, vuelva a abrirla.'),
+              actions: [
+                TextButton(
+                  onPressed: () => exit(0),
+                  child: const Text('ACEPTAR Y CERRAR'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('La restauración ha fallado.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error grave durante la restauración: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRestoring = false);
+      }
+    }
   }
 
   void _showLanguageDialog() {
@@ -280,15 +398,12 @@ class SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _changeLocale(Locale locale) async {
-    // Guardar solo el código de idioma sin el país
     await _settings.setLanguage(locale.languageCode);
     if (!mounted) return;
 
-    // Establecer el locale completo (con código de país si existe)
     await context.setLocale(locale);
     if (!mounted) return;
 
-    // Actualizar la UI
     setState(() {});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -366,40 +481,55 @@ class SettingsScreenState extends State<SettingsScreen> {
     bool isLoading = false,
   }) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+                const SizedBox(width: 16),
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+          ));
     }
     return Card(
       margin: const EdgeInsets.symmetric(
-          horizontal: 16, vertical: 8), // Increased vertical margin
-      elevation: 4, // Increased elevation
+          horizontal: 16, vertical: 8),
+      elevation: 4,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16), // More rounded corners
+        borderRadius: BorderRadius.circular(16),
       ),
       color: Theme.of(context).cardColor,
       child: InkWell(
-        // Added InkWell for ripple effect
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-              horizontal: 20, vertical: 16), // Increased padding
+              horizontal: 20, vertical: 16),
           child: Row(
             children: [
               Container(
-                width: 48, // Larger icon container
-                height: 48, // Larger icon container
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: Theme.of(context)
                       .primaryColor
-                      .withValues(alpha: 0.15), // More opaque background
+                      .withOpacity(0.15),
                   borderRadius:
-                      BorderRadius.circular(12), // More rounded icon background
+                      BorderRadius.circular(12),
                 ),
                 child: Icon(icon,
                     color: Theme.of(context).primaryColor,
-                    size: 28), // Larger icon
+                    size: 28),
               ),
-              const SizedBox(width: 16), // Increased spacing
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,8 +537,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold, // Bolder title
-                            fontSize: 16, // Slightly larger font size
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                             color: Theme.of(context).textTheme.bodyLarge?.color,
                           ),
                     ),
@@ -421,8 +551,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                               .textTheme
                               .bodyMedium
                               ?.copyWith(
-                                fontSize: 14, // Slightly larger font size
-                                color: Colors.grey[700], // Slightly darker grey
+                                fontSize: 14,
+                                color: Colors.grey[700],
                               ),
                         ),
                       ),
@@ -439,15 +569,14 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 32, 20, 12), // Increased padding
+      padding: const EdgeInsets.fromLTRB(20, 32, 20, 12),
       child: Text(
         title,
         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              // Larger font size
               color: Theme.of(context).primaryColor,
               fontWeight: FontWeight.bold,
-              fontSize: 18, // Increased font size
-              letterSpacing: 0.8, // Increased letter spacing
+              fontSize: 18,
+              letterSpacing: 0.8,
             ),
       ),
     );
@@ -465,14 +594,15 @@ class SettingsScreenState extends State<SettingsScreen> {
             children: [
               _buildSectionTitle('APARIENCIA'),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
                     Text(
                       'Logo de la Empresa',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     const SizedBox(height: 16),
                     const CompanyLogoPicker(size: 120),
@@ -480,8 +610,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                     Text(
                       'Toca para cambiar el logo',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                            color: Colors.grey[600],
+                          ),
                     ),
                   ],
                 ),
@@ -521,6 +651,21 @@ class SettingsScreenState extends State<SettingsScreen> {
                   );
                 },
               ),
+              _buildSectionTitle('DATOS'),
+              _buildSettingItem(
+                icon: Icons.backup_outlined,
+                title: 'Crear copia de seguridad',
+                subtitle: 'Guarda tus datos en un archivo .zip',
+                isLoading: _isBackingUp,
+                onTap: _isBackingUp ? null : _createBackup,
+              ),
+              _buildSettingItem(
+                icon: Icons.restore_page_outlined,
+                title: 'Restaurar desde copia de seguridad',
+                subtitle: 'Sobrescribe los datos actuales',
+                isLoading: _isRestoring,
+                onTap: _isRestoring ? null : _restoreBackup,
+              ),
               _buildSectionTitle('SEGURIDAD'),
               _buildSettingItem(
                 icon: Icons.lock_outline,
@@ -541,7 +686,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const DonationScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const DonationScreen()),
                   );
                 },
               ),

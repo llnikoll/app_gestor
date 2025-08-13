@@ -308,7 +308,7 @@ class _GastosScreenState extends State<GastosScreen> {
                       color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10.0),
                       border: Border.all(
-                        color: Colors.green.withValues(alpha: 0.3),
+                        color: Colors.green.withOpacity(0.3),
                       ),
                     ),
                     child: Text(

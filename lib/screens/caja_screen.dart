@@ -66,19 +66,83 @@ class NuevaVentaTab extends StatefulWidget {
 class NuevaVentaTabState extends State<NuevaVentaTab> {
   final TextEditingController _searchController = TextEditingController();
   late final TextEditingController _montoRecibidoController;
+  final TextEditingController _referenciaPagoController = TextEditingController();
+  final NumberFormat formatter = NumberFormat.currency(
+    locale: 'es_PY',
+    symbol: '₲ ',
+    decimalDigits: 0,
+  );
   String? _selectedCategory = 'Todas';
+  String _metodoPago = 'Efectivo';
+  double _montoRecibido = 0.0;
   List<Producto> _productos = [];
   final List<Map<String, dynamic>> _carrito = [];
   Cliente? _selectedCliente;
-  String _metodoPago = 'Efectivo';
-  String? _referenciaPago;
-  double _montoRecibido = 0.0;
 
   @override
   void initState() {
     super.initState();
     _montoRecibidoController = TextEditingController();
     _loadProductos();
+  }
+
+  bool _puedeProcesarVenta() {
+    // Verificar que se haya seleccionado un cliente
+    if (_selectedCliente == null) return false;
+    
+    // Verificar que el carrito no esté vacío
+    if (_carrito.isEmpty) return false;
+    
+    // Calcular el total de la venta
+    final totalVenta = _carrito.fold<double>(
+      0,
+      (sum, item) => sum + 
+          (item['producto'] != null
+              ? item['producto'].precioVenta * item['cantidad']
+              : item['monto']),
+    );
+    
+    // Validaciones según el método de pago
+    if (_metodoPago != 'Efectivo') {
+      // Para pagos no en efectivo, se requiere referencia de pago
+      return _referenciaPagoController.text.isNotEmpty;
+    } else {
+      // Para pagos en efectivo, verificar monto recibido
+      if (_montoRecibidoController.text.isEmpty) return false;
+      
+      final montoIngresado = double.tryParse(
+        _montoRecibidoController.text.replaceAll(RegExp(r'[^\d,]'), '')
+            .replaceAll(',', '.')
+      );
+      
+      if (montoIngresado == null) return false;
+      
+      return montoIngresado >= totalVenta;
+    }
+  }
+
+  void _procesarVenta() {
+    // Implementar la lógica para procesar la venta
+    final total = _carrito.fold<double>(
+      0,
+      (sum, item) => sum + 
+          (item['producto'] != null
+              ? item['producto'].precioVenta * item['cantidad']
+              : item['monto']),
+    );
+
+    // Mostrar mensaje de éxito
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Venta procesada por ${formatter.format(total)}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    // Limpiar el formulario después de la venta
+    _resetearFormulario();
   }
 
   @override
@@ -327,16 +391,54 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
     );
   }
 
+  // Método auxiliar para construir líneas de resumen de pago
+  Widget _buildResumenLinea(
+    BuildContext context, 
+    String label, 
+    String value, {
+    bool isBold = false,
+    Color? textColor,
+    double fontSize = 16,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: fontSize - 2,
+              color: Colors.grey[600],
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: fontSize,
+              color: textColor ?? Theme.of(context).textTheme.titleLarge?.color,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _mostrarCarrito() {
     if (_carrito.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('El carrito está vacío')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El carrito está vacío'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
     // Obtener la configuración de moneda actual
-    final settingsService =
-        Provider.of<SettingsService>(context, listen: false);
+    final settingsService = Provider.of<SettingsService>(context, listen: false);
     final currencySymbol = settingsService.currentCurrency.symbol;
     final formatter = NumberFormat.currency(
       symbol: currencySymbol,
@@ -346,8 +448,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
 
     // Resetear el controlador al abrir el diálogo
     _montoRecibidoController.text = _montoRecibido > 0
-        ? _montoRecibido
-            .toStringAsFixed(settingsService.currentCurrency.decimalDigits)
+        ? _montoRecibido.toStringAsFixed(settingsService.currentCurrency.decimalDigits)
         : '';
 
     showDialog(
@@ -356,311 +457,662 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
         builder: (context, setDialogState) {
           final total = _carrito.fold<double>(
             0,
-            (sum, item) =>
-                sum +
-                (item['producto'] != null
-                    ? item['producto'].precioVenta * item['cantidad']
-                    : item['monto']),
+            (sum, item) => sum + (item['producto'] != null
+                ? item['producto'].precioVenta * item['cantidad']
+                : item['monto']),
           );
-          return AlertDialog(
-            title: const Text('Carrito'),
-            content: SingleChildScrollView(
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (var item in _carrito)
-                    Card(
-                      margin: const EdgeInsets.symmetric(
-                          vertical: 4.0, horizontal: 0),
-                      child: ListTile(
-                        leading: item['producto']?.imagenUrl != null &&
-                                item['producto'].imagenUrl.toString().isNotEmpty
-                            ? Container(
-                                width: 60,
-                                height: 60,
-                                padding: const EdgeInsets.all(4.0),
-                                child: ProductImageViewer(
-                                  imageUrl: item['producto'].imagenUrl,
-                                  width: 60,
-                                  height: 60,
-                                  borderRadius: 8.0,
-                                ),
-                              )
-                            : Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                                child: const Center(
-                                  child: Icon(Icons.inventory_2_outlined,
-                                      color: Colors.grey, size: 28),
-                                ),
-                              ),
-                        title: Text(
-                          item['producto']?.nombre ?? item['descripcion'],
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Cantidad: ${item['cantidad']}'),
-                            Text(
-                              'Subtotal: ${formatter.format(item['producto'] != null ? item['producto'].precioVenta * item['cantidad'] : item['monto'])}',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline,
-                                  color: Colors.red),
-                              onPressed: () {
-                                if (!mounted) return;
-                                setState(() {
-                                  setDialogState(() {
-                                    if (item['cantidad'] > 1) {
-                                      item['cantidad'] -= 1;
-                                    } else {
-                                      _carrito.remove(item);
-                                    }
-                                  });
-                                });
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  color: Colors.red),
-                              onPressed: () {
-                                if (!mounted) return;
-                                setState(() {
-                                  setDialogState(() => _carrito.remove(item));
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
+                  // Encabezado
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                     ),
-                  ListTile(
-                    title: const Text('Cliente'),
-                    subtitle: Text(_selectedCliente?.nombre ?? 'Ninguno'),
-                    onTap: () => _seleccionarCliente(setDialogState),
-                  ),
-                  DropdownButton<String>(
-                    value: _metodoPago,
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'Efectivo', child: Text('Efectivo')),
-                      DropdownMenuItem(
-                          value: 'Tarjeta de Crédito',
-                          child: Text('Tarjeta de Crédito')),
-                      DropdownMenuItem(
-                          value: 'Tarjeta de Débito',
-                          child: Text('Tarjeta de Débito')),
-                      DropdownMenuItem(
-                          value: 'Transferencia', child: Text('Transferencia')),
-                    ],
-                    onChanged: (value) =>
-                        setDialogState(() => _metodoPago = value!),
-                  ),
-                  if (_metodoPago != 'Efectivo')
-                    TextField(
-                      decoration: const InputDecoration(
-                          labelText: 'Número de Transacción'),
-                      onChanged: (value) => _referenciaPago = value,
-                    ),
-                  const Divider(),
-                  ListTile(
-                    title: const Text('Total:',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 18)),
-                    trailing: Text(
-                      formatter.format(total),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
-                  ),
-                  if (_metodoPago == 'Efectivo') ...[
-                    if (_montoRecibido > 0) ...[
-                      ListTile(
-                        title: Text(
-                          _montoRecibido >= total ? 'Vuelto:' : 'Falta:',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.shopping_cart, color: Colors.white, size: 28),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Carrito de Compras',
                           style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: _montoRecibido >= total
-                                ? Colors.green
-                                : Colors.red,
-                            fontSize: 16,
                           ),
                         ),
-                        trailing: Text(
-                          formatter.format((_montoRecibido - total).abs()),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _montoRecibido >= total
-                                ? Colors.green
-                                : Colors.red,
-                            fontSize: 16,
-                          ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white, size: 24),
+                          onPressed: () => Navigator.pop(context),
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Monto Recibido',
-                        border: const OutlineInputBorder(),
-                        prefixText: '$currencySymbol ',
-                      ),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      controller: _montoRecibidoController,
-                      onChanged: (value) {
-                        // Si el valor está vacío, limpiar todo
-                        if (value.isEmpty) {
-                          if (!mounted) return;
-                          setState(() {
-                            _montoRecibido = 0.0;
-                            _montoRecibidoController.text = '';
-                          });
-                          setDialogState(() {});
-                          return;
-                        }
-
-                        // Obtener solo números y comas
-                        String cleanValue =
-                            value.replaceAll(RegExp(r'[^\d,]'), '');
-
-                        // Validar que no haya más de una coma
-                        final parts = cleanValue.split(',');
-                        if (parts.length > 2) {
-                          // Si hay más de una coma, mantener solo la primera
-                          cleanValue = '${parts[0]},${parts[1]}';
-                        }
-
-                        // Limitar a 2 decimales después de la coma
-                        if (parts.length == 2 && parts[1].length > 2) {
-                          cleanValue =
-                              '${parts[0]},${parts[1].substring(0, 2)}';
-                        }
-
-                        // Formatear el número con puntos de miles
-                        String formattedValue = formatearNumero(cleanValue);
-
-                        // Actualizar el controlador
-                        _montoRecibidoController.value = TextEditingValue(
-                          text: formattedValue,
-                          selection: TextSelection.collapsed(
-                              offset: formattedValue.length),
-                        );
-
-                        // Actualizar el valor numérico
-                        if (cleanValue.isNotEmpty) {
-                          _montoRecibido = double.tryParse(cleanValue
-                                  .replaceAll('.', '')
-                                  .replaceAll(',', '.')) ??
-                              0.0;
-                        } else {
-                          _montoRecibido = 0.0;
-                        }
-
-                        // Forzar la actualización del diálogo
-                        setDialogState(() {});
-                      },
-                      inputFormatters: [
-                        // Permitir solo números y comas
-                        FilteringTextInputFormatter.allow(RegExp(r'[\d,]')),
-                        // Validar el formato
-                        TextInputFormatter.withFunction((oldValue, newValue) {
-                          // Permitir siempre el borrado
-                          if (newValue.text.length < oldValue.text.length) {
-                            return newValue;
-                          }
-
-                          final text = newValue.text;
-
-                          // No permitir comenzar con coma
-                          if (text.startsWith(',')) return oldValue;
-
-                          // No permitir múltiples comas
-                          if ((text.split(',').length - 1) > 1) return oldValue;
-
-                          // Limitar a 2 decimales después de la coma
-                          final parts = text.split(',');
-                          if (parts.length == 2 && parts[1].length > 2) {
-                            return oldValue;
-                          }
-
-                          return newValue;
-                        }),
                       ],
                     ),
+                  ),
+                  
+                  // Contenido desplazable
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Lista de productos
+                          ..._carrito.map((item) {
+                            final subtotal = item['producto'] != null
+                                ? item['producto'].precioVenta * item['cantidad']
+                                : item['monto'];
+                            final nombre = item['producto']?.nombre ?? item['descripcion'];
+                            
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              elevation: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Imagen del producto
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: item['producto']?.imagenUrl != null &&
+                                              item['producto'].imagenUrl.toString().isNotEmpty
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: ProductImageViewer(
+                                                imageUrl: item['producto'].imagenUrl,
+                                                width: 80,
+                                                height: 80,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            )
+                                          : Center(
+                                              child: Icon(
+                                                Icons.inventory_2_outlined,
+                                                color: Colors.grey[400],
+                                                size: 36,
+                                              ),
+                                            ),
+                                    ),
+                                    
+                                    const SizedBox(width: 12),
+                                    
+                                    // Detalles del producto
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            nombre,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 16,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${formatter.format(item['producto']?.precioVenta ?? item['monto'])} c/u',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          
+                                          // Contador de cantidad
+                                          Row(
+                                            children: [
+                                              // Botón para disminuir cantidad
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey[200],
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: IconButton(
+                                                  icon: const Icon(Icons.remove, size: 18),
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: const BoxConstraints(),
+                                                  onPressed: () {
+                                                    if (!mounted) return;
+                                                    setState(() {
+                                                      setDialogState(() {
+                                                        if (item['cantidad'] > 1) {
+                                                          item['cantidad'] -= 1;
+                                                        } else {
+                                                          _carrito.remove(item);
+                                                        }
+                                                      });
+                                                    });
+                                                  },
+                                                ),
+                                              ),
+                                              
+                                              // Cantidad actual
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                                child: Text(
+                                                  '${item['cantidad']}',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                              
+                                              // Botón para aumentar cantidad
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: IconButton(
+                                                  icon: Icon(Icons.add, size: 18, color: Theme.of(context).primaryColor),
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: const BoxConstraints(),
+                                                  onPressed: () {
+                                                    if (!mounted) return;
+                                                    setState(() {
+                                                      setDialogState(() {
+                                                        item['cantidad'] += 1;
+                                                      });
+                                                    });
+                                                  },
+                                                ),
+                                              ),
+                                              
+                                              const Spacer(),
+                                              
+                                              // Subtotal
+                                              Text(
+                                                formatter.format(subtotal),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              
+                                              const SizedBox(width: 8),
+                                              
+                                              // Botón para eliminar
+                                              IconButton(
+                                                icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                                                onPressed: () {
+                                                  if (!mounted) return;
+                                                  setState(() {
+                                                    setDialogState(() => _carrito.remove(item));
+                                                  });
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Sección de Cliente
+                          Card(
+                            margin: EdgeInsets.zero,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey[200]!),
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                _seleccionarCliente(setDialogState);
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.person_outline, color: Theme.of(context).primaryColor, size: 28),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Cliente',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _selectedCliente?.nombre ?? 'Seleccionar cliente',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          if (_selectedCliente?.ruc != null && _selectedCliente!.ruc!.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'RUC: ${_selectedCliente!.ruc}',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right, color: Colors.grey),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          // Sección de Método de Pago
+                          Card(
+                            margin: EdgeInsets.zero,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey[200]!),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Método de pago',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey[300]!),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: _metodoPago,
+                                        isExpanded: true,
+                                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 'Efectivo',
+                                            child: Text('Efectivo'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'Tarjeta de Crédito',
+                                            child: Text('Tarjeta de Crédito'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'Tarjeta de Débito',
+                                            child: Text('Tarjeta de Débito'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'Transferencia',
+                                            child: Text('Transferencia'),
+                                          ),
+                                        ],
+                                        onChanged: (value) => setDialogState(() => _metodoPago = value!),
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                  if (_metodoPago != 'Efectivo') ...[
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      decoration: InputDecoration(
+                                        labelText: 'Número de Transacción',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: Colors.grey[300]!),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: Colors.grey[300]!),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                      ),
+                                      style: const TextStyle(fontSize: 15),
+                                      onChanged: (value) => _referenciaPagoController.text = value,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          // Sección de Resumen y Pago
+                          Card(
+                            margin: EdgeInsets.zero,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey[200]!),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  // Subtotal
+                                  _buildResumenLinea(
+                                    context,
+                                    'Subtotal',
+                                    formatter.format(total),
+                                  ),
+                                  
+                                  // Descuento (opcional, puedes implementarlo si es necesario)
+                                  // _buildResumenLinea(
+                                  //   context,
+                                  //   'Descuento',
+                                  //   '-${formatter.format(0)}',
+                                  //   isBold: false,
+                                  //   textColor: Colors.green,
+                                  // ),
+                                  
+                                  const Divider(height: 24, thickness: 1),
+                                  
+                                  // Total
+                                  _buildResumenLinea(
+                                    context,
+                                    'Total a Pagar',
+                                    formatter.format(total),
+                                    isBold: true,
+                                    fontSize: 18,
+                                  ),
+                                  
+                                  // Sección de pago en efectivo
+                                  if (_metodoPago == 'Efectivo') ...[
+                                    const SizedBox(height: 16),
+                                    TextFormField(
+                                      controller: _montoRecibidoController,
+                                      decoration: InputDecoration(
+                                        labelText: 'Monto Recibido',
+                                        prefixText: '$currencySymbol ',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: Colors.grey[300]!),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: Colors.grey[300]!),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                      ),
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      onChanged: (value) {
+                                        // Si el valor está vacío, limpiar todo
+                                        if (value.isEmpty) {
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _montoRecibido = 0.0;
+                                            _montoRecibidoController.text = '';
+                                          });
+                                          setDialogState(() {});
+                                          return;
+                                        }
+
+                                        // Obtener solo números y comas
+                                        String cleanValue = value.replaceAll(RegExp(r'[^\d,]'), '');
+
+                                        // Validar que no haya más de una coma
+                                        final parts = cleanValue.split(',');
+                                        if (parts.length > 2) {
+                                          // Si hay más de una coma, mantener solo la primera
+                                          cleanValue = '${parts[0]},${parts[1]}';
+                                        }
+
+                                        // Limitar a 2 decimales después de la coma
+                                        if (parts.length == 2 && parts[1].length > 2) {
+                                          cleanValue = '${parts[0]},${parts[1].substring(0, 2)}';
+                                        }
+
+                                        // Formatear el número con puntos de miles
+                                        String formattedValue = formatearNumero(cleanValue);
+
+                                        // Actualizar el controlador
+                                        _montoRecibidoController.value = TextEditingValue(
+                                          text: formattedValue,
+                                          selection: TextSelection.collapsed(offset: formattedValue.length),
+                                        );
+
+                                        // Actualizar el valor numérico
+                                        if (cleanValue.isNotEmpty) {
+                                          _montoRecibido = double.tryParse(cleanValue
+                                                  .replaceAll('.', '')
+                                                  .replaceAll(',', '.')) ??
+                                              0.0;
+                                        } else {
+                                          _montoRecibido = 0.0;
+                                        }
+
+                                        // Forzar la actualización del diálogo
+                                        setDialogState(() {});
+                                      },
+                                      inputFormatters: [
+                                        // Permitir solo números y comas
+                                        FilteringTextInputFormatter.allow(RegExp(r'[\d,]')),
+                                        // Validar el formato
+                                        TextInputFormatter.withFunction((oldValue, newValue) {
+                                          // Permitir siempre el borrado
+                                          if (newValue.text.length < oldValue.text.length) {
+                                            return newValue;
+                                          }
+
+                                          final text = newValue.text;
+
+                                          // No permitir comenzar con coma
+                                          if (text.startsWith(',')) return oldValue;
+
+                                          // No permitir múltiples comas
+                                          if ((text.split(',').length - 1) > 1) return oldValue;
+
+                                          // Limitar a 2 decimales después de la coma
+                                          final parts = text.split(',');
+                                          if (parts.length == 2 && parts[1].length > 2) {
+                                            return oldValue;
+                                          }
+
+                                          return newValue;
+                                        }),
+                                      ],
+                                    ),
+                                    
+                                    // Mostrar vuelto o faltante
+                                    if (_montoRecibido > 0) ...[
+                                      const SizedBox(height: 12),
+                                      _buildResumenLinea(
+                                        context,
+                                        _montoRecibido >= total ? 'Vuelto' : 'Falta',
+                                        formatter.format((_montoRecibido - total).abs()),
+                                        isBold: true,
+                                        textColor: _montoRecibido >= total ? Colors.green : Colors.red,
+                                        fontSize: 16,
+                                      ),
+                                    ],
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+  
+              ),
+              // Botones de acción
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar', style: TextStyle(fontSize: 15)),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _puedeProcesarVenta()
+                          ? () {
+                              _procesarVenta();
+                              Navigator.pop(context);
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Procesar Venta',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ],
-                ],
+                ),
               ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () => _confirmarVenta(total),
-                child: const Text('Confirmar'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+          ),
+        );
+      },
+    ));
   }
 
-  void _seleccionarCliente(void Function(void Function()) setDialogState) {
-    if (!mounted) return;
-    showDialog(
+  Future<void> _seleccionarCliente(Function(void Function()) setDialogState) async {
+    final searchController = TextEditingController();
+    List<Cliente> clientesFiltrados = [];
+    
+    await showDialog<Cliente>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Seleccionar Cliente'),
-          content: FutureBuilder<List<Cliente>>(
-            future: Provider.of<DatabaseService>(context, listen: false)
-                .getClientes(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const CircularProgressIndicator();
-              final clientes = snapshot.data!;
-              return SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: clientes.length,
-                  itemBuilder: (context, index) {
-                    final cliente = clientes[index];
-                    return ListTile(
-                      title: Text(cliente.nombre),
-                      subtitle: Text(cliente.ruc ?? cliente.telefono ?? ''),
-                      onTap: () {
-                        if (!mounted) return;
-                        setState(() =>
-                            setDialogState(() => _selectedCliente = cliente));
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: const Text('Seleccionar Cliente'),
+              content: FutureBuilder<List<Cliente>>(
+                future: Provider.of<DatabaseService>(context, listen: false).getClientes(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                  
+                  final clientes = snapshot.data!;
+                  
+                  // Filtrar clientes basado en la búsqueda
+                  if (searchController.text.isEmpty) {
+                    clientesFiltrados = clientes;
+                  } else {
+                    final searchTerm = searchController.text.toLowerCase();
+                    clientesFiltrados = clientes.where((cliente) {
+                      return cliente.nombre.toLowerCase().contains(searchTerm) ||
+                          (cliente.ruc?.toLowerCase().contains(searchTerm) ?? false) ||
+                          (cliente.telefono?.toLowerCase().contains(searchTerm) ?? false);
+                    }).toList();
+                  }
+                  
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Barra de búsqueda
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: TextField(
+                          controller: searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Buscar por nombre, RUC o teléfono',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12.0),
+                          ),
+                          onChanged: (_) {
+                            setState(() {}); // Actualiza la UI al cambiar el texto
+                          },
+                        ),
+                      ),
+                      // Lista de clientes
+                      SizedBox(
+                        width: double.maxFinite,
+                        height: MediaQuery.of(context).size.height * 0.4,
+                        child: clientesFiltrados.isEmpty
+                            ? const Center(child: Text('No se encontraron clientes'))
+                            : ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: clientesFiltrados.length,
+                                itemBuilder: (context, index) {
+                                  final cliente = clientesFiltrados[index];
+                                  return Card(
+                                    margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 0),
+                                    child: ListTile(
+                                      title: Text(
+                                        cliente.nombre,
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          if (cliente.ruc != null && cliente.ruc!.isNotEmpty)
+                                            Text('RUC: ${cliente.ruc}'),
+                                          if (cliente.telefono != null && cliente.telefono!.isNotEmpty)
+                                            Text('Tel: ${cliente.telefono}'),
+                                        ],
+                                      ),
+                                      onTap: () {
+                                        if (!mounted) return;
+                                        setDialogState(() => _selectedCliente = cliente);
+                                        Navigator.of(context).pop(cliente);
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar'),
                 ),
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );
@@ -673,96 +1125,10 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
       _carrito.clear();
       _selectedCliente = null;
       _metodoPago = 'Efectivo';
-      _referenciaPago = null;
       _montoRecibido = 0.0;
+      _montoRecibidoController.clear();
+      _referenciaPagoController.clear();
     });
-  }
-
-  Future<void> _confirmarVenta(double total) async {
-    // Validación inicial
-    if (_metodoPago == 'Efectivo' && _montoRecibido < total) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Monto recibido insuficiente')),
-      );
-      return;
-    }
-
-    // Obtener servicios necesarios
-    final databaseService =
-        Provider.of<DatabaseService>(context, listen: false);
-
-    // Crear objeto de venta
-    final venta = Venta(
-      clienteId: _selectedCliente?.id,
-      clienteNombre: _selectedCliente?.nombre,
-      total: total,
-      metodoPago: _metodoPago,
-      referenciaPago: _metodoPago != 'Efectivo' ? _referenciaPago : null,
-      items: _carrito.map((item) {
-        final producto = item['producto'] as Producto?;
-        final cantidad = item['cantidad'] as int;
-        final monto = item['monto'] as double?;
-        final descripcion = item['descripcion'] as String?;
-        final notas = item['notas'] as String?;
-        final esVentaCasual = producto == null && descripcion != null;
-
-        // Para ventas casuales, usar la descripción como nombre del producto
-        final nombreProducto = esVentaCasual
-            ? (descripcion.isNotEmpty ? descripcion : 'Venta Casual')
-            : producto?.nombre;
-
-        // Para ventas casuales, usar el monto como precio unitario
-        final precioUnitario =
-            esVentaCasual ? (monto ?? 0.0) : (producto?.precioVenta ?? 0.0);
-
-        // Para ventas casuales, el subtotal es el monto * cantidad
-        final subtotal = esVentaCasual
-            ? (monto ?? 0.0) * cantidad
-            : (producto?.precioVenta ?? 0.0) * cantidad;
-
-        return {
-          'producto_id': producto?.id,
-          'cantidad': cantidad,
-          'precio_unitario': precioUnitario,
-          'subtotal': subtotal,
-          'nombre_producto': nombreProducto,
-          'descripcion': descripcion ?? 'Venta casual',
-          'notas': notas ?? descripcion ?? 'Venta casual',
-        };
-      }).toList(),
-    );
-
-    try {
-      // Insertar la venta en la base de datos
-      await databaseService.insertVenta(venta);
-      if (!mounted) return;
-
-      // Notificar el cambio
-      databaseService.notifyDataChanged();
-
-      // Cerrar el diálogo antes de actualizar la UI
-      if (!mounted) return;
-      Navigator.pop(context);
-
-      // Actualizar la UI
-      _resetearFormulario();
-
-      // Notificar a la pestaña principal para que actualice el historial
-      if (!mounted) return;
-      widget.onVentaExitosa();
-
-      // Mostrar mensaje de éxito
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Venta registrada con éxito')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al registrar la venta: $e')),
-      );
-    }
   }
 
   void _escanearCodigoBarras() async {

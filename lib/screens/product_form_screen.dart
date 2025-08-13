@@ -491,7 +491,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
             const SizedBox(width: 12),
             Container(
               decoration: BoxDecoration(
-                color: Colors.deepPurple.withValues(alpha: 0.1),
+                color: Colors.deepPurple.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: IconButton(
@@ -598,7 +598,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       Container(
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.2),
+                          color: Colors.red.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: IconButton(
@@ -610,7 +610,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                     Container(
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: IconButton(
@@ -630,7 +630,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                     color: Colors.transparent,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
+                        color: Colors.black.withOpacity(0.1),
                         blurRadius: 20,
                         spreadRadius: 5,
                         offset: const Offset(0, 5),
@@ -664,7 +664,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: Colors.black.withOpacity(0.1),
                       blurRadius: 10,
                       offset: const Offset(0, -2),
                     ),
@@ -685,7 +685,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       elevation: 2,
-                      shadowColor: Colors.deepPurple.withValues(alpha: 0.3),
+                      shadowColor: Colors.deepPurple.withOpacity(0.3),
                     ),
                     icon: _isLoading
                         ? const SizedBox(
@@ -973,7 +973,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                 borderRadius: 12.0,
                 filled: true,
                 fillColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[800]!.withValues(alpha: 0.7)
+                    ? Colors.grey[800]!.withOpacity(0.7)
                     : Colors.grey[100],
               ),
               const SizedBox(height: 16),
@@ -1028,7 +1028,7 @@ class ProductFormScreenState extends State<ProductFormScreen> {
                       borderRadius: 12.0,
                       filled: true,
                       fillColor: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[800]!.withValues(alpha: 0.7)
+                          ? Colors.grey[800]!.withOpacity(0.7)
                           : Colors.grey[100],
                     ),
                   ),

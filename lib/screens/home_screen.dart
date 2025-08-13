@@ -11,6 +11,7 @@ import 'reports_screen.dart';
 import 'gastos_screen.dart';
 import 'settings_screen.dart';
 
+
 class SafeConstraints extends StatelessWidget {
   final Widget child;
   final double? maxWidth;
@@ -129,14 +130,15 @@ class _HomeScreenContent extends StatelessWidget {
                             ? FileImage(File(logoService.logoPath!))
                             : null,
                         child: logoService.logoPath == null
-                            ? const Icon(Icons.store, size: 40, color: Colors.blue)
+                            ? const Icon(Icons.store,
+                                size: 40, color: Colors.blue)
                             : null,
                       );
                     },
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Mi Negocio',
+                    'Gestor Pocket',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -147,7 +149,7 @@ class _HomeScreenContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'admin@minegocio.com',
+                    '',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.white70,
                           fontSize: 12,
@@ -170,7 +172,7 @@ class _HomeScreenContent extends StatelessWidget {
                   color: selectedIndex == item.index
                       ? Theme.of(context)
                           .primaryColor
-                          .withValues(alpha: 0.15) // More opaque background
+                          .withOpacity(0.15) // More opaque background
                       : Colors.transparent,
                 ),
                 child: ListTile(

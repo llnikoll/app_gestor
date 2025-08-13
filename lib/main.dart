@@ -37,7 +37,6 @@ void main() async {
   }
 
   await SettingsService.init(); // Asegura que _prefs se inicialice
-
   final settings = SettingsService(); // Obtiene la instancia del singleton
 
   // El tema se inicializará directamente en el ChangeNotifierProvider

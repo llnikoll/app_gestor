@@ -1175,7 +1175,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                 horizontal: 20, vertical: 10), // Increased padding
             leading: CircleAvatar(
               backgroundColor:
-                  Colors.red.withValues(alpha: 0.15), // More opaque background
+                  Colors.red.withOpacity(0.15), // More opaque background
               child: const Icon(Icons.money_off,
                   color: Colors.red, size: 28), // Larger icon
             ),
@@ -1452,7 +1452,7 @@ class _ReportsScreenState extends State<ReportsScreen>
             leading: CircleAvatar(
               backgroundColor: Theme.of(
                 context,
-              ).primaryColor.withValues(alpha: 0.15), // More opaque background
+              ).primaryColor.withOpacity(0.15), // More opaque background
               child: Text(
                 '${index + 1}',
                 style: TextStyle(

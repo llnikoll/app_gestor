@@ -195,7 +195,7 @@ class InventoryEntriesScreenState extends State<InventoryEntriesScreen> {
                               leading: CircleAvatar(
                                 backgroundColor: Theme.of(context)
                                     .primaryColor
-                                    .withValues(alpha: 0.1),
+                                    .withOpacity(0.1),
                                 child: Icon(Icons.input,
                                     color: Theme.of(context).primaryColor),
                               ),
