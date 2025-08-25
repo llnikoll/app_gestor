@@ -17,19 +17,12 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.jakao.gestorpocket"
-    compileSdk = 35
+    compileSdk = 35 // Mantenemos compileSdk en 35
     ndkVersion = "27.0.12077973"
-    
-    defaultConfig {
-        minSdk = 21
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
-    }
-    
+
     // Configuración para el NDK
     // No es necesario especificar ABI, ya que Flutter lo maneja automáticamente
-    
+
     // Configuración para SQLite
     packagingOptions {
         jniLibs {
@@ -47,14 +40,17 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.devsolutions.gestor_pocket"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = 35
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        applicationId = "com.devsolutions.gestor_pocket"  // Asegúrate de que este ID sea único
+        minSdk = 21  // Mínimo requerido por Flutter
+        targetSdk = 34  // Usamos 34 que es la última versión estable
+        versionCode = 3  // Actualizado para la nueva versión
+        versionName = "1.0.1" // Actualizado para la nueva versión
+        multiDexEnabled = true
+        
+        // Configuración para in-app purchases
+        manifestPlaceholders += mapOf(
+            "billingClientVersion" to "6.1.0"  // Versión de la biblioteca de facturación de Google Play
+        )
     }
 
     signingConfigs {

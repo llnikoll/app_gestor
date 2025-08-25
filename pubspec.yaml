@@ -19,7 +19,8 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.4.0
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: ">=3.16.0"
 
 msix_config:
   display_name: GestorPocket
@@ -40,12 +41,15 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   
-  # Autenticación local
-  
   # UI para formularios
   flutter_svg: ^2.0.10+1
   loading_animation_widget: ^1.2.0+4
   flutter_animate: ^4.2.0
+  
+  # Compras en la aplicación
+  in_app_purchase: ^3.1.11
+  in_app_purchase_android: ^0.4.0+2
+  in_app_purchase_storekit: ^0.3.6+1
   
   # Validación de formularios
   form_field_validator: ^1.1.0
@@ -91,7 +95,6 @@ dependencies:
   intl: ^0.20.2  # Required by flutter_localizations
   flutter_localizations:
     sdk: flutter
-  in_app_purchase: ^3.1.11
 
 dev_dependencies:
   flutter_test:

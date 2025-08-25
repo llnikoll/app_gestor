@@ -1,4 +1,4 @@
-package com.devsolutions.gestor_pocket
+package com.jakao.gestorpocket
 
 import io.flutter.embedding.android.FlutterActivity
 

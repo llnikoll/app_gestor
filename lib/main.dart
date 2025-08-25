@@ -9,16 +9,30 @@ import 'services/settings_service.dart';
 import 'services/product_notifier_service.dart';
 import 'services/database_service.dart';
 import 'screens/mode_selection_screen.dart';
+import 'screens/subscription_screen.dart';
+import 'services/purchase_service.dart';
 
 class LoadingApp extends StatelessWidget {
   const LoadingApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
+    return MaterialApp(
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      themeMode: Provider.of<ThemeNotifier>(context).isDarkMode
+          ? ThemeMode.dark
+          : ThemeMode.light,
+      home: const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text('Cargando aplicación...'),
+            ],
+          ),
         ),
       ),
     );
@@ -71,6 +85,8 @@ void main() async {
         Provider(create: (_) => ProductNotifierService()),
         ChangeNotifierProvider(create: (_) => DatabaseService()),
         ChangeNotifierProvider(create: (_) => LogoService()),
+        // Initialize purchase service
+        ChangeNotifierProvider(create: (_) => PurchaseService()),
       ],
       child: EasyLocalization(
         supportedLocales: const [
@@ -81,7 +97,7 @@ void main() async {
         path: 'assets/translations',
         fallbackLocale: const Locale('es'),
         startLocale: Locale(appLanguage),
-        child: const MyApp(),
+        child: const AppWrapper(),
       ),
     ),
   );
@@ -137,5 +153,79 @@ class MyApp extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class AppWrapper extends StatefulWidget {
+  const AppWrapper({super.key});
+
+  @override
+  AppWrapperState createState() => AppWrapperState();
+}
+
+class AppWrapperState extends State<AppWrapper> {
+  bool _isLoading = true;
+  bool _hasPremiumAccess = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPremiumStatus();
+    
+    // Listen for purchase updates
+    final purchaseService = Provider.of<PurchaseService>(context, listen: false);
+    purchaseService.addListener(_onPurchaseUpdate);
+  }
+  
+  @override
+  void dispose() {
+    // Remove the listener when the widget is disposed
+    final purchaseService = Provider.of<PurchaseService>(context, listen: false);
+    purchaseService.removeListener(_onPurchaseUpdate);
+    super.dispose();
+  }
+  
+  void _onPurchaseUpdate() {
+    // When purchase state changes, recheck premium status
+    _checkPremiumStatus();
+  }
+
+  Future<void> _checkPremiumStatus() async {
+    // Check if user has premium access
+    final purchaseService = Provider.of<PurchaseService>(context, listen: false);
+    await purchaseService.init();
+    final hasAccess = await purchaseService.hasPremiumAccess();
+    
+    if (mounted) {
+      setState(() {
+        _hasPremiumAccess = hasAccess;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    // If user doesn't have premium access, show subscription screen
+    if (!_hasPremiumAccess) {
+      return const MaterialApp(
+        home: Scaffold(
+          body: SubscriptionScreen(),
+        ),
+      );
+    }
+
+    // If user has premium access, show the main app
+    return const MyApp();
   }
 }
