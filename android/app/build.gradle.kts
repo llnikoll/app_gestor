@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.jakao.gestorpocket"
-    compileSdk = 35 // Mantenemos compileSdk en 35
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     // Configuración para el NDK
@@ -40,10 +40,10 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.devsolutions.gestor_pocket"  // Asegúrate de que este ID sea único
-        minSdk = 21  // Mínimo requerido por Flutter
-        targetSdk = 34  // Usamos 34 que es la última versión estable
-        versionCode = 3  // Actualizado para la nueva versión
+        applicationId = "com.devsolutions.gestor_pocket"
+        minSdk = flutter.minSdkVersion
+        targetSdk = 36
+        versionCode = 4  // Actualizado a la versión 4
         versionName = "1.0.1" // Actualizado para la nueva versión
         multiDexEnabled = true
         
