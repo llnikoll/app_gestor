@@ -587,8 +587,12 @@ class SettingsScreenState extends State<SettingsScreen> {
     return Consumer<ThemeNotifier>(
       builder: (context, themeNotifier, _) {
         return Scaffold(
-          appBar: AppBar(
-            title: Text('settings'.tr()),
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(0.0), // Altura cero para la AppBar
+            child: AppBar(
+              elevation: 0, // Sin sombra
+              toolbarHeight: 0, // Altura cero
+            ),
           ),
           body: ListView(
             children: [

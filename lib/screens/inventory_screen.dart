@@ -134,7 +134,8 @@ class InventoryScreenState extends State<InventoryScreen>
     if (!mounted) return;
     setState(() {
       _selectedCategory = category;
-      if (category == 'Todas las categorías' || category.toLowerCase() == 'generales') {
+      if (category == 'Todas las categorías' ||
+          category.toLowerCase() == 'generales') {
         _filteredProducts = List.from(_productos);
       } else {
         _filteredProducts = _productos
@@ -217,6 +218,89 @@ class InventoryScreenState extends State<InventoryScreen>
     );
   }
 
+  void _showProductDetails(BuildContext context, Producto producto) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(producto.nombre),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (producto.imagenUrl?.isNotEmpty == true)
+                Center(
+                  child: ProductImageViewer(
+                    imageUrl: producto.imagenUrl!,
+                    width: 200,
+                    height: 200,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              const SizedBox(height: 16),
+              if (producto.descripcion.isNotEmpty) ...[
+                const Text(
+                  'Descripción:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  producto.descripcion,
+                  style: const TextStyle(fontSize: 15),
+                ),
+                const Divider(height: 24),
+              ],
+              _buildDetailRow('Precio', context.formattedCurrency(producto.precioVenta)),
+              const SizedBox(height: 8),
+              if (producto.categoria.isNotEmpty)
+                _buildDetailRow('Categoría', producto.categoria),
+              if (producto.codigoBarras.isNotEmpty)
+                _buildDetailRow('Código', producto.codigoBarras),
+              _buildDetailRow('Stock', '${producto.stock} unidades', 
+                  color: producto.stock > 0 ? Colors.green : Colors.red),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: RichText(
+        text: TextSpan(
+          style: TextStyle(
+            fontSize: 15,
+            color: Colors.grey[800],
+          ),
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            TextSpan(
+              text: value,
+              style: TextStyle(
+                color: color,
+                fontWeight: color != null ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // CurrencyFormatter ya está configurado globalmente
@@ -269,150 +353,73 @@ class InventoryScreenState extends State<InventoryScreen>
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12.0),
                                     ),
-                                    child: ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 8),
-                                      leading: ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                          maxWidth: 60,
-                                          maxHeight: 60,
-                                        ),
-                                        child: ProductImageViewer(
-                                          imageUrl: producto.imagenUrl,
-                                          width: 60,
-                                          height: 60,
-                                          borderRadius: 8.0,
-                                        ),
-                                      ),
-                                      title: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            producto.nombre,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          if (producto.descripcion.isNotEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                  top: 2.0),
-                                              child: RichText(
-                                                text: TextSpan(
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: Theme.of(context)
-                                                        .textTheme
-                                                        .bodySmall
-                                                        ?.color,
-                                                  ),
-                                                  children: [
-                                                    const TextSpan(
-                                                      text: 'Descripción: ',
-                                                      style: TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.w500),
-                                                    ),
-                                                    TextSpan(
-                                                      text:
-                                                          producto.descripcion,
-                                                      style: const TextStyle(
-                                                          fontWeight: FontWeight
-                                                              .normal),
-                                                    ),
-                                                  ],
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'Precio: ${context.formattedCurrency(producto.precioVenta)}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          if (producto.categoria.isNotEmpty)
-                                            Text(
-                                                'Categoría: ${producto.categoria}'),
-                                          const SizedBox(height: 2),
-                                          Row(
-                                            children: [
-                                              _buildInfoChip(
-                                                'Stock: ${producto.stock}',
-                                                producto.stock > 0
-                                                    ? Colors.green
-                                                    : Colors.red,
-                                                fontSize: 12,
-                                              ),
-                                              if (producto
-                                                  .codigoBarras.isNotEmpty)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          left: 8.0),
-                                                  child: _buildInfoChip(
-                                                    'Código: ${producto.codigoBarras}',
-                                                    Colors.blueGrey,
-                                                    fontSize: 10,
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                                    child: InkWell(
                                       onTap: () async {
-                                        final result = await showDialog<bool>(
-                                          context: context,
-                                          builder: (BuildContext context) {
-                                            return Dialog(
-                                              child: SizedBox(
-                                                width: 600,
-                                                height: MediaQuery.of(context)
-                                                        .size
-                                                        .height *
-                                                    0.9,
-                                                child: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Expanded(
-                                                      child:
-                                                          SingleChildScrollView(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .all(16.0),
-                                                        child: IntrinsicWidth(
-                                                          child:
-                                                              ProductFormScreen(
-                                                            product: producto,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                        final result =
+                                            await Navigator.push<bool>(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                ProductFormScreen(
+                                              product: producto,
+                                            ),
+                                            fullscreenDialog: true,
+                                          ),
                                         );
 
                                         if (result == true) {
                                           _loadProducts();
                                         }
                                       },
+                                      onLongPress: () => _showProductDetails(
+                                          context, producto),
+                                      child: ListTile(
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 6),
+                                        leading: ConstrainedBox(
+                                          constraints: const BoxConstraints(
+                                            maxWidth: 50,
+                                            maxHeight: 50,
+                                          ),
+                                          child: ProductImageViewer(
+                                            imageUrl: producto.imagenUrl,
+                                            width: 50,
+                                            height: 50,
+                                            borderRadius: 8.0,
+                                          ),
+                                        ),
+                                        title: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              producto.nombre,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              context.formattedCurrency(producto.precioVenta),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                color: Theme.of(context).primaryColor,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        trailing: _buildInfoChip(
+                                          '${producto.stock} u.',
+                                          producto.stock > 0
+                                              ? Colors.green
+                                              : Colors.red,
+                                          fontSize: 11,
+                                        ),
+                                      ),
                                     ),
                                   );
                                 },

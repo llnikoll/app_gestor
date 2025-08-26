@@ -62,7 +62,7 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   // Servicio de configuración
   late final SettingsService _settingsService;
 
@@ -133,17 +133,35 @@ class _ReportsScreenState extends State<ReportsScreen>
   double _gananciasTotales = 0.0;
 
   // Datos para el ranking de productos
-  List<Map<String, dynamic>> _productosMasVendidos = [];
+  final List<Map<String, dynamic>> _productosMasVendidos = [];
 
   // Datos para el resumen del día
   double _ventasHoy = 0.0;
   int _ventasCountHoy = 0;
 
+  // Chart controller for ventas
+  ChartSeriesController? _ventasChartController;
+
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   void initState() {
     super.initState();
     _settingsService = SettingsService();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      // Prevent animations when switching tabs to avoid disposed object issues
+      animationDuration: Duration.zero,
+    );
+
+    // Ensure the tab controller is kept alive
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
 
     // Configurar el listener para actualizar los datos cuando haya cambios en las transacciones
     _onTransactionUpdated = () {
@@ -156,16 +174,12 @@ class _ReportsScreenState extends State<ReportsScreen>
     };
 
     // Agregar el listener al notifier
-    _transactionNotifier.transactionsNotifier.addListener(_onTransactionUpdated);
+    _transactionNotifier.transactionsNotifier
+        .addListener(_onTransactionUpdated);
     debugPrint('Listener de transacciones registrado en ReportsScreen');
 
     // Cargar los datos iniciales solo cuando la pestaña esté activa
-    _tabController.addListener(() {
-      if (!mounted) return;
-      if (_tabController.index == 0 && !_tabController.indexIsChanging) { // Pestaña de Resumen (índice 0)
-        _cargarTodo();
-      }
-    });
+    _tabController.addListener(_handleTabChange);
 
     // Cargar los datos iniciales al inicio si la pestaña de resumen es la primera
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -175,24 +189,31 @@ class _ReportsScreenState extends State<ReportsScreen>
     });
   }
 
+  void _handleTabChange() {
+    if (!mounted || _tabController.indexIsChanging) return;
 
+    // Only load data if we're switching to the first tab (index 0)
+    if (_tabController.index == 0) {
+      _cargarTodo();
+    }
+  }
 
   Future<void> _cargarTodo() async {
     if (!mounted) return;
-    
+
     try {
       await _cargarDatos();
       if (!mounted) return;
-      
+
       await _cargarVentas();
       if (!mounted) return;
-      
+
       await _cargarGastos();
       if (!mounted) return;
-      
+
       await _cargarClientes();
       if (!mounted) return;
-      
+
       await _cargarProductos();
     } catch (e) {
       debugPrint('Error en _cargarTodo: $e');
@@ -217,23 +238,29 @@ class _ReportsScreenState extends State<ReportsScreen>
 
       debugPrint('Iniciando carga de datos...');
 
-      // Cargar en secuencia para evitar problemas de concurrencia
       final stopwatch = Stopwatch()..start();
 
-      await _cargarVentas();
-      debugPrint('Ventas cargadas en ${stopwatch.elapsedMilliseconds}ms');
-      stopwatch.reset();
+      // Cargar en paralelo para reducir tiempos de espera
+      final futures = [
+        _cargarVentas().then((_) {
+          debugPrint('Ventas cargadas en ${stopwatch.elapsedMilliseconds}ms');
+          stopwatch.reset();
+        }),
+        _cargarGastos().then((_) {
+          debugPrint('Gastos cargados en ${stopwatch.elapsedMilliseconds}ms');
+          stopwatch.reset();
+        }),
+        _cargarProductos().then((_) {
+          debugPrint(
+              'Productos cargados en ${stopwatch.elapsedMilliseconds}ms');
+          stopwatch.reset();
+        }),
+        _cargarClientes().then((_) {
+          debugPrint('Clientes cargados en ${stopwatch.elapsedMilliseconds}ms');
+        }),
+      ];
 
-      await _cargarGastos();
-      debugPrint('Gastos cargados en ${stopwatch.elapsedMilliseconds}ms');
-      stopwatch.reset();
-
-      await _cargarProductos();
-      debugPrint('Productos cargados en ${stopwatch.elapsedMilliseconds}ms');
-      stopwatch.reset();
-
-      await _cargarClientes();
-      debugPrint('Clientes cargados en ${stopwatch.elapsedMilliseconds}ms');
+      await Future.wait(futures);
 
       debugPrint('Carga de datos completada exitosamente');
 
@@ -268,8 +295,6 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 
-
-
   Future<void> _cargarVentas() async {
     if (!mounted) return;
 
@@ -285,94 +310,48 @@ class _ReportsScreenState extends State<ReportsScreen>
 
       debugPrint('Ventas encontradas: ${ventas.length}');
 
-      final ventasPorDia = <DateTime, double>{};
+      final ventasPorDia = <String, double>{};
       double totalVentas = 0;
-      double ventasDiaSeleccionado = 0.0;
-      int ventasCountDiaSeleccionado = 0;
-      final productosMap = <String, Map<String, dynamic>>{};
+      double ventasHoy = 0;
+      int ventasCountHoy = 0;
 
       for (var venta in ventas) {
         try {
-          final fecha = DateTime(
-            venta.fecha.year,
-            venta.fecha.month,
-            venta.fecha.day,
-          );
-
-          if (venta.total.isNaN || venta.total.isInfinite) {
-            debugPrint(
-              'Advertencia: Venta ${venta.id} tiene un total inválido: ${venta.total}',
-            );
-            continue;
-          }
-
+          final fecha = DateFormat('dd/MM/yyyy').format(venta.fecha);
           ventasPorDia[fecha] = (ventasPorDia[fecha] ?? 0) + venta.total;
           totalVentas += venta.total;
-
+          
+          // Calcular ventas del día seleccionado
           if (venta.fecha.year == _selectedDateRange.end.year &&
               venta.fecha.month == _selectedDateRange.end.month &&
               venta.fecha.day == _selectedDateRange.end.day) {
-            ventasDiaSeleccionado += venta.total;
-            ventasCountDiaSeleccionado++;
+            ventasHoy += venta.total;
+            ventasCountHoy++;
           }
-
-          final detalles = await _dbService.getDetallesVenta(venta.id!);
-          for (var detalle in detalles) {
-            final productoId = detalle['producto_id'].toString();
-            if (productoId != 'null') {
-              if (!productosMap.containsKey(productoId)) {
-                productosMap[productoId] = {
-                  'id': detalle['producto_id'],
-                  'nombre':
-                      detalle['nombre_producto'] ?? 'Producto desconocido',
-                  'cantidad': 0,
-                  'total': 0.0,
-                };
-              }
-              productosMap[productoId]!['cantidad'] +=
-                  detalle['cantidad'] as int;
-              productosMap[productoId]!['total'] +=
-                  (detalle['subtotal'] as num).toDouble();
-            }
-          }
-
-          debugPrint(
-            'Venta: ${venta.id} - Fecha: ${venta.fecha} - Total: ${venta.total}',
-          );
         } catch (e) {
-          debugPrint('Error procesando venta ${venta.id}: $e');
+          debugPrint('Error procesando venta: $e');
           continue;
         }
       }
 
-      final productosList = productosMap.values.toList();
-      productosList.sort(
-        (a, b) => (b['cantidad'] as int).compareTo(a['cantidad'] as int),
-      );
-      final topProductos = productosList.take(10).toList();
-
-      final fechasOrdenadas = ventasPorDia.keys.toList()..sort();
-      final ventasData = fechasOrdenadas
-          .map(
-            (fecha) => SalesData(
-              DateFormat('dd/MM').format(fecha),
-              ventasPorDia[fecha]!,
-            ),
-          )
-          .toList();
-
-      debugPrint('Total de ventas calculado: $totalVentas');
+      final ventasData = ventasPorDia.entries
+          .map((e) => SalesData(e.key, e.value))
+          .toList()
+        ..sort((a, b) => a.periodo.compareTo(b.periodo));
 
       if (!mounted) return;
+      
       setState(() {
-        _ventasData.clear();
-        _ventasData.addAll(ventasData);
-        _productosMasVendidos = topProductos;
-        _ventasHoy = ventasDiaSeleccionado;
-        _ventasCountHoy = ventasCountDiaSeleccionado;
+        _ventasTotales = totalVentas;
+        _ventasHoy = ventasHoy;
+        _ventasCountHoy = ventasCountHoy;
       });
+      
+      _updateVentasData(ventasData);
+      _updateFinancialData(totalVentas, _gastosTotales);
 
-      _updateFinancialData(totalVentas, -1);
+      debugPrint('Total de ventas procesadas: ${ventasData.length}');
+      debugPrint('Ventas hoy: $ventasCountHoy, Total: $ventasHoy');
     } catch (e, stackTrace) {
       debugPrint('Error cargando ventas: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -391,6 +370,50 @@ class _ReportsScreenState extends State<ReportsScreen>
         ),
       );
       rethrow;
+    }
+  }
+
+  // Update ventas data using controller
+  void _updateVentasData(List<SalesData> newData) {
+    if (!mounted) return;
+
+    try {
+      // Update the data first
+      _ventasData.clear();
+      _ventasData.addAll(newData);
+
+      // Only update via controller if it's safe to do so
+      if (mounted && _ventasChartController != null) {
+        // Use a post-frame callback to ensure the widget is still in the tree
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          
+          try {
+            final oldData = List<SalesData>.from(_ventasData);
+            final addedIndices = <int>[];
+            final updatedIndices = <int>[];
+
+            for (int i = 0; i < newData.length; i++) {
+              if (i >= oldData.length) {
+                addedIndices.add(i);
+              } else if (newData[i].periodo != oldData[i].periodo ||
+                  newData[i].ventas != oldData[i].ventas) {
+                updatedIndices.add(i);
+              }
+            }
+
+            _ventasChartController?.updateDataSource(
+              addedDataIndexes: addedIndices,
+              updatedDataIndexes: updatedIndices,
+              removedDataIndexes: const <int>[],
+            );
+          } catch (e) {
+            debugPrint('Error updating chart data: $e');
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error in _updateVentasData: $e');
     }
   }
 
@@ -493,6 +516,7 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 
+
   void _updateFinancialData(double totalVentas, double totalGastos) {
     if (!mounted) return;
 
@@ -559,7 +583,7 @@ class _ReportsScreenState extends State<ReportsScreen>
 
       debugPrint('Productos encontrados: ${productos.length}');
 
-      final productosData = <ProductoData>[];
+      _productosMasVendidos.clear();
 
       for (var entry in productos.entries) {
         try {
@@ -574,7 +598,12 @@ class _ReportsScreenState extends State<ReportsScreen>
             continue;
           }
 
-          productosData.add(ProductoData(nombreProducto, cantidad, total));
+          _productosMasVendidos.add({
+            'nombre': nombreProducto,
+            'cantidad': cantidad,
+            'total': total,
+          });
+          
           debugPrint(
             'Producto: $nombreProducto - Cantidad: $cantidad - Total: $total',
           );
@@ -587,10 +616,14 @@ class _ReportsScreenState extends State<ReportsScreen>
       if (!mounted) return;
       setState(() {
         _productosData.clear();
-        _productosData.addAll(productosData);
+        _productosData.addAll(productos.entries.map((entry) => ProductoData(
+          entry.key,
+          entry.value['cantidad'] ?? 0,
+          (entry.value['total'] ?? 0).toDouble(),
+        )));
       });
 
-      debugPrint('Total de productos procesados: ${productosData.length}');
+      debugPrint('Total de productos procesados: ${_productosMasVendidos.length}');
     } catch (e, stackTrace) {
       debugPrint('Error cargando productos: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -682,6 +715,7 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return ValueListenableBuilder<int>(
       valueListenable: _dataUpdated,
       builder: (context, value, _) {
@@ -767,7 +801,7 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-    Future<void> _seleccionarFechaInicio() async {
+  Future<void> _seleccionarFechaInicio() async {
     final fecha = await showDatePicker(
       context: context,
       initialDate: _selectedDateRange.start,
@@ -797,7 +831,8 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
 
     if (fecha != null) {
-      final newEndDate = DateTime(fecha.year, fecha.month, fecha.day, 23, 59, 59, 999);
+      final newEndDate =
+          DateTime(fecha.year, fecha.month, fecha.day, 23, 59, 59, 999);
       if (!mounted) return;
       setState(() {
         _selectedDateRange = DateTimeRange(
@@ -958,7 +993,6 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-
   Widget _buildGastosTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -1039,7 +1073,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                     'Promedio',
                     _gastosCountDiaSeleccionado > 0
                         ? _formatearMoneda(
-                            _gastosDiaSeleccionado / _gastosCountDiaSeleccionado,
+                            _gastosDiaSeleccionado /
+                                _gastosCountDiaSeleccionado,
                           )
                         : _formatearMoneda(0),
                     Icons.bar_chart,
@@ -1056,11 +1091,11 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildGastosChart() {
     return Card(
-      elevation: 6, // Increased elevation
+      elevation: 6,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0)), // More rounded corners
+          borderRadius: BorderRadius.circular(16.0)),
       child: Padding(
-        padding: const EdgeInsets.all(20.0), // Increased padding
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1071,9 +1106,9 @@ class _ReportsScreenState extends State<ReportsScreen>
                     color: Theme.of(context).primaryColor,
                   ),
             ),
-            const SizedBox(height: 20), // Increased spacing
+            const SizedBox(height: 20),
             SizedBox(
-              height: 280, // Increased height
+              height: 280,
               child: _gastosData.isEmpty
                   ? Center(
                       child: Text(
@@ -1376,10 +1411,14 @@ class _ReportsScreenState extends State<ReportsScreen>
                       tooltipBehavior: TooltipBehavior(enable: true),
                       series: <CartesianSeries>[
                         LineSeries<SalesData, String>(
+                          onRendererCreated: (ChartSeriesController controller) {
+                            _ventasChartController = controller;
+                          },
                           dataSource: _ventasData,
-                          xValueMapper: (SalesData sales, _) => sales.periodo,
-                          yValueMapper: (SalesData sales, _) => sales.ventas,
+                          xValueMapper: (SalesData venta, _) => venta.periodo,
+                          yValueMapper: (SalesData venta, _) => venta.ventas,
                           name: 'Ventas',
+                          color: Theme.of(context).primaryColor,
                           markerSettings: const MarkerSettings(
                             isVisible: true,
                             shape: DataMarkerType.circle,
@@ -1396,7 +1435,6 @@ class _ReportsScreenState extends State<ReportsScreen>
                                 .bodySmall
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                          color: Theme.of(context).primaryColor,
                           width: 3, // Thicker line
                         ),
                       ],
@@ -1411,12 +1449,12 @@ class _ReportsScreenState extends State<ReportsScreen>
   Widget _buildProductosRanking() {
     if (_productosMasVendidos.isEmpty) {
       return Card(
-        elevation: 6, // Increased elevation
+        elevation: 6,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0), // More rounded corners
+          borderRadius: BorderRadius.circular(16.0),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(20.0), // Increased padding
+          padding: const EdgeInsets.all(20.0),
           child: Center(
             child: Text(
               'No hay datos de productos vendidos para este período.',
@@ -1432,54 +1470,60 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
 
     return Card(
-      elevation: 6, // Increased elevation
+      elevation: 6,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0)), // More rounded corners
+        borderRadius: BorderRadius.circular(16.0),
+      ),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _productosMasVendidos.length,
         separatorBuilder: (context, index) => Divider(
-            height: 1,
-            indent: 20,
-            endIndent: 20,
-            color: Colors.grey[300]), // Lighter divider
+          height: 1,
+          indent: 20,
+          endIndent: 20,
+          color: Colors.grey[300],
+        ),
         itemBuilder: (context, index) {
           final producto = _productosMasVendidos[index];
+          final nombre = producto['nombre'] as String? ?? 'Producto desconocido';
+          final cantidad = (producto['cantidad'] as int?) ?? 0;
+          final total = (producto['total'] as num?)?.toDouble() ?? 0.0;
+          
           return ListTile(
             contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20, vertical: 10), // Increased padding
+              horizontal: 20,
+              vertical: 10,
+            ),
             leading: CircleAvatar(
-              backgroundColor: Theme.of(
-                context,
-              ).primaryColor.withOpacity(0.15), // More opaque background
+              backgroundColor: Theme.of(context).primaryColor.withOpacity(0.15),
               child: Text(
                 '${index + 1}',
                 style: TextStyle(
                   color: Theme.of(context).primaryColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 18, // Larger font size
+                  fontSize: 18,
                 ),
               ),
             ),
             title: Text(
-              producto['nombre'] ?? 'Producto desconocido',
+              nombre,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold), // Larger and bolder title
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             subtitle: Text(
-              '${producto['cantidad']} unidades',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.grey[700]), // Adjusted text style
+              '$cantidad ${cantidad == 1 ? 'unidad' : 'unidades'}' ,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[700],
+                  ),
             ),
             trailing: Text(
-              _formatearMoneda((producto['total'] as num).toDouble()),
+              _formatearMoneda(total),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.onSurface,
-                  ), // Larger and bolder trailing text
+                  ),
             ),
           );
         },
@@ -1489,28 +1533,25 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   @override
   void dispose() {
-    debugPrint('Dispose de ReportsScreen - Removiendo listeners');
-    
-    // Remove transaction listener
+    // Remove the transaction listener if it was added
     try {
       _transactionNotifier.transactionsNotifier.removeListener(_onTransactionUpdated);
-      debugPrint('Listener de transacciones removido correctamente');
     } catch (e) {
-      debugPrint('Error al remover listener de transacciones: $e');
+      debugPrint('Error removing transaction listener: $e');
     }
     
-    // Dispose controllers safely
-    try {
-      _tabController.dispose();
-    } catch (e) {
-      debugPrint('Error al hacer dispose del TabController: $e');
-    }
+    // Clear data lists
+    _clientesData.clear();
+    _productosData.clear();
+    _gastosDiaSeleccionadoLista.clear();
+    _productosMasVendidos.clear();
+    _ventasData.clear();
+    _gastosData.clear();
     
-    try {
-      _dataUpdated.dispose();
-    } catch (e) {
-      debugPrint('Error al hacer dispose del ValueNotifier: $e');
-    }
+    // Dispose controllers and notifiers
+    _tabController.dispose();
+    // No need to dispose _ventasChartController as it doesn't have a dispose method
+    _dataUpdated.dispose();
     
     super.dispose();
   }

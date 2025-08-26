@@ -26,7 +26,9 @@ class CajaScreenState extends State<CajaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Caja'),
+        title: const Text('Ventas'),
+        toolbarHeight: 40, // Altura reducida
+        elevation: 0, // Sin sombra
       ),
       body: IndexedStack(
         index: _selectedIndex,
@@ -121,28 +123,90 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
     }
   }
 
-  void _procesarVenta() {
-    // Implementar la lógica para procesar la venta
-    final total = _carrito.fold<double>(
-      0,
-      (sum, item) => sum + 
-          (item['producto'] != null
-              ? item['producto'].precioVenta * item['cantidad']
-              : item['monto']),
-    );
-
-    // Mostrar mensaje de éxito
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Venta procesada por ${formatter.format(total)}'),
-          duration: const Duration(seconds: 2),
-        ),
+  Future<void> _procesarVenta() async {
+    if (!mounted) return;
+    
+    try {
+      // Calcular el total de la venta
+      final total = _carrito.fold<double>(
+        0,
+        (sum, item) => sum + 
+            (item['producto'] != null
+                ? item['producto'].precioVenta * item['cantidad']
+                : item['monto']),
       );
-    }
 
-    // Limpiar el formulario después de la venta
-    _resetearFormulario();
+      // Crear la venta
+      final venta = Venta(
+        clienteId: _selectedCliente?.id,
+        clienteNombre: _selectedCliente?.nombre,
+        total: total,
+        metodoPago: _metodoPago,
+        referenciaPago: _metodoPago != 'Efectivo' ? _referenciaPagoController.text : null,
+        items: [],
+      );
+
+      // Agregar los ítems al carrito
+      for (var item in _carrito) {
+        if (item['producto'] != null) {
+          // Es un producto
+          venta.agregarItem({
+            'producto_id': item['producto'].id,
+            'cantidad': item['cantidad'],
+            'precio_unitario': item['producto'].precioVenta,
+            'subtotal': item['producto'].precioVenta * item['cantidad'],
+            'descripcion': item['producto'].nombre,
+          });
+        } else {
+          // Es una venta casual
+          venta.agregarItem({
+            'producto_id': null,
+            'cantidad': 1,
+            'precio_unitario': item['monto'],
+            'subtotal': item['monto'],
+            'descripcion': item['descripcion'],
+          });
+        }
+      }
+
+      // Obtener la instancia del DatabaseService
+      final databaseService = Provider.of<DatabaseService>(context, listen: false);
+      
+      // Guardar la venta en la base de datos
+      final ventaId = await databaseService.insertVenta(venta);
+      
+      if (mounted) {
+        // Mostrar mensaje de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Venta #$ventaId procesada por ${formatter.format(total)}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        
+        // Notificar a los listeners que hay datos nuevos
+        databaseService.notifyDataChanged();
+        
+        // Limpiar el formulario después de la venta
+        _resetearFormulario();
+        
+        // Notificar al padre que la venta fue exitosa
+        widget.onVentaExitosa();
+      }
+    } catch (e) {
+      if (mounted) {
+        // Mostrar mensaje de error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al procesar la venta: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      // Re-lanzar el error para que pueda ser manejado por el llamador si es necesario
+      rethrow;
+    }
   }
 
   @override
@@ -173,8 +237,107 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
               .where((p) => p.categoria == _selectedCategory)
               .toList();
         }
+        // Ordenar productos por nombre
+        _productos.sort((a, b) => a.nombre.compareTo(b.nombre));
       });
     });
+  }
+
+  void _mostrarDetallesProducto(BuildContext context, Producto producto) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(producto.nombre),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (producto.imagenUrl?.isNotEmpty == true)
+                Center(
+                  child: ProductImageViewer(
+                    imageUrl: producto.imagenUrl!,
+                    width: 200,
+                    height: 200,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              const SizedBox(height: 16),
+              if (producto.descripcion.isNotEmpty) ...[
+                const Text(
+                  'Descripción:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  producto.descripcion,
+                  style: const TextStyle(fontSize: 15),
+                ),
+                const Divider(height: 24),
+              ],
+              _buildDetailRow('Precio', formatter.format(producto.precioVenta)),
+              const SizedBox(height: 8),
+              if (producto.categoria.isNotEmpty)
+                _buildDetailRow('Categoría', producto.categoria),
+              if (producto.codigoBarras.isNotEmpty)
+                _buildDetailRow('Código', producto.codigoBarras),
+              _buildDetailRow(
+                'Stock', 
+                '${producto.stock} ${producto.stock == 1 ? 'unidad' : 'unidades'}',
+                color: producto.stock > 0 ? Colors.green : Colors.red,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+          if (producto.stock > 0)
+            ElevatedButton(
+              onPressed: () {
+                _agregarAlCarrito(producto);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${producto.nombre} agregado al carrito'),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
+              child: const Text('Agregar al carrito'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // Helper method to safely find an item in the cart
@@ -506,23 +669,20 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                         children: [
                           // Lista de productos
                           ..._carrito.map((item) {
-                            final subtotal = item['producto'] != null
-                                ? item['producto'].precioVenta * item['cantidad']
-                                : item['monto'];
                             final nombre = item['producto']?.nombre ?? item['descripcion'];
                             
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
                               elevation: 2,
                               child: Padding(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(8.0),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     // Imagen del producto
                                     Container(
-                                      width: 80,
-                                      height: 80,
+                                      width: 70,
+                                      height: 70,
                                       decoration: BoxDecoration(
                                         color: Colors.grey[100],
                                         borderRadius: BorderRadius.circular(8),
@@ -533,8 +693,8 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                               borderRadius: BorderRadius.circular(8),
                                               child: ProductImageViewer(
                                                 imageUrl: item['producto'].imagenUrl,
-                                                width: 80,
-                                                height: 80,
+                                                width: 70,
+                                                height: 70,
                                                 fit: BoxFit.cover,
                                               ),
                                             )
@@ -542,12 +702,12 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                               child: Icon(
                                                 Icons.inventory_2_outlined,
                                                 color: Colors.grey[400],
-                                                size: 36,
+                                                size: 32,
                                               ),
                                             ),
                                     ),
                                     
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: 8),
                                     
                                     // Detalles del producto
                                     Expanded(
@@ -558,7 +718,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                             nombre,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w600,
-                                              fontSize: 16,
+                                              fontSize: 15,
                                             ),
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
@@ -567,14 +727,16 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                           Text(
                                             '${formatter.format(item['producto']?.precioVenta ?? item['monto'])} c/u',
                                             style: TextStyle(
-                                              color: Colors.grey[600],
+                                              color: Theme.of(context).primaryColor,
+                                              fontWeight: FontWeight.w600,
                                               fontSize: 14,
                                             ),
                                           ),
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 6),
                                           
-                                          // Contador de cantidad
+                                          // Contador de cantidad y botones
                                           Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               // Botón para disminuir cantidad
                                               Container(
@@ -583,9 +745,14 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                                   borderRadius: BorderRadius.circular(4),
                                                 ),
                                                 child: IconButton(
-                                                  icon: const Icon(Icons.remove, size: 18),
+                                                  icon: const Icon(Icons.remove, size: 16),
                                                   padding: EdgeInsets.zero,
-                                                  constraints: const BoxConstraints(),
+                                                  constraints: const BoxConstraints(
+                                                    minWidth: 28,
+                                                    minHeight: 28,
+                                                    maxWidth: 28,
+                                                    maxHeight: 28,
+                                                  ),
                                                   onPressed: () {
                                                     if (!mounted) return;
                                                     setState(() {
@@ -602,13 +769,14 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                               ),
                                               
                                               // Cantidad actual
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                              SizedBox(
+                                                width: 30,
                                                 child: Text(
                                                   '${item['cantidad']}',
+                                                  textAlign: TextAlign.center,
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
+                                                    fontSize: 14,
                                                   ),
                                                 ),
                                               ),
@@ -620,11 +788,30 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                                   borderRadius: BorderRadius.circular(4),
                                                 ),
                                                 child: IconButton(
-                                                  icon: Icon(Icons.add, size: 18, color: Theme.of(context).primaryColor),
+                                                  icon: Icon(Icons.add, size: 16, color: Theme.of(context).primaryColor),
                                                   padding: EdgeInsets.zero,
-                                                  constraints: const BoxConstraints(),
+                                                  constraints: const BoxConstraints(
+                                                    minWidth: 28,
+                                                    minHeight: 28,
+                                                    maxWidth: 28,
+                                                    maxHeight: 28,
+                                                  ),
                                                   onPressed: () {
                                                     if (!mounted) return;
+                                                    
+                                                    final producto = item['producto'];
+                                                    if (producto != null && producto is Producto) {
+                                                      if (item['cantidad'] >= producto.stock) {
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text('No hay suficiente stock disponible. Stock actual: ${producto.stock}'),
+                                                            duration: const Duration(seconds: 2),
+                                                          ),
+                                                        );
+                                                        return;
+                                                      }
+                                                    }
+                                                    
                                                     setState(() {
                                                       setDialogState(() {
                                                         item['cantidad'] += 1;
@@ -634,22 +821,16 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                                 ),
                                               ),
                                               
-                                              const Spacer(),
-                                              
-                                              // Subtotal
-                                              Text(
-                                                formatter.format(subtotal),
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                              
-                                              const SizedBox(width: 8),
-                                              
                                               // Botón para eliminar
                                               IconButton(
-                                                icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(
+                                                  minWidth: 28,
+                                                  minHeight: 28,
+                                                  maxWidth: 28,
+                                                  maxHeight: 28,
+                                                ),
                                                 onPressed: () {
                                                   if (!mounted) return;
                                                   setState(() {
@@ -779,14 +960,32 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                             child: Text('Transferencia'),
                                           ),
                                         ],
-                                        onChanged: (value) => setDialogState(() => _metodoPago = value!),
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            setDialogState(() {
+                                              _metodoPago = value;
+                                              // Clear the reference when changing payment method
+                                              if (value != 'Efectivo') {
+                                                _referenciaPagoController.clear();
+                                              } else {
+                                                _montoRecibidoController.clear();
+                                                _montoRecibido = 0.0;
+                                              }
+                                            });
+                                          }
+                                        },
                                       ),
                                     ),
                                   ),
                                   
-                                  if (_metodoPago != 'Efectivo') ...[
-                                    const SizedBox(height: 12),
+                                  if (_metodoPago != 'Efectivo')
                                     TextFormField(
+                                      controller: _referenciaPagoController,
+                                      onChanged: (value) {
+                                        // Update the dialog state when the reference changes
+                                        setState(() {});
+                                        setDialogState(() {});
+                                      },
                                       decoration: InputDecoration(
                                         labelText: 'Número de Transacción',
                                         border: OutlineInputBorder(
@@ -797,12 +996,9 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                           borderRadius: BorderRadius.circular(8),
                                           borderSide: BorderSide(color: Colors.grey[300]!),
                                         ),
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                                       ),
                                       style: const TextStyle(fontSize: 15),
-                                      onChanged: (value) => _referenciaPagoController.text = value,
                                     ),
-                                  ],
                                 ],
                               ),
                             ),
@@ -986,6 +1182,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                               Navigator.pop(context);
                             }
                           : null,
+                      // Add a tooltip to explain why the button is disabled
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -1182,31 +1379,63 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
             ),
             onChanged: _filtrarProductos,
           ),
-          FutureBuilder<List<Categoria>>(
-            future: Provider.of<DatabaseService>(context, listen: false)
-                .getCategorias(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const SizedBox();
-              final categorias = snapshot.data!
-                  .where((c) => c.nombre.toLowerCase() != 'general')
-                  .toList();
-              return DropdownButton<String>(
-                value: _selectedCategory,
-                items: [
-                  const DropdownMenuItem(value: 'Todas', child: Text('Todas')),
-                  ...categorias.map((c) =>
-                      DropdownMenuItem(value: c.nombre, child: Text(c.nombre))),
-                ],
-                onChanged: (value) {
-                  setState(() => _selectedCategory = value);
-                  _loadProductos();
-                },
-              );
-            },
-          ),
-          ElevatedButton(
-            onPressed: _agregarVentaCasual,
-            child: const Text('Venta Casual'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                const Text(
+                  'Categoría: ',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FutureBuilder<List<Categoria>>(
+                  future: Provider.of<DatabaseService>(context, listen: false)
+                      .getCategorias(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox();
+                    final categorias = snapshot.data!
+                        .where((c) => c.nombre.toLowerCase() != 'general')
+                        .toList();
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[800]
+                            : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButton<String>(
+                        value: _selectedCategory,
+                        underline: const SizedBox(),
+                        icon: const Icon(Icons.arrow_drop_down),
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 16,
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: 'Todas',
+                            child: Text('Todas'),
+                          ),
+                          ...categorias.map((c) => DropdownMenuItem(
+                                value: c.nombre,
+                                child: Text(c.nombre),
+                              )),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _selectedCategory = value);
+                          _loadProductos();
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
           Expanded(
             child: ListView.builder(
@@ -1226,6 +1455,7 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                   ),
                   child: InkWell(
                     onTap: () => _agregarAlCarrito(producto),
+                    onLongPress: () => _mostrarDetallesProducto(context, producto),
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),
@@ -1261,50 +1491,21 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
-                                  maxLines: 2,
+                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                if (producto.descripcion.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 2.0),
-                                    child: RichText(
-                                      text: TextSpan(
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.color,
-                                        ),
-                                        children: [
-                                          const TextSpan(
-                                            text: 'Descripción: ',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w500),
-                                          ),
-                                          TextSpan(
-                                            text: producto.descripcion,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.normal),
-                                          ),
-                                        ],
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${NumberFormat.currency(symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol).format(producto.precioVenta)} - Stock: ${producto.stock}',
+                                  NumberFormat.currency(
+                                    symbol: Provider.of<SettingsService>(context, listen: false).currentCurrency.symbol,
+                                    decimalDigits: 0,
+                                  ).format(producto.precioVenta),
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
+                                    fontSize: 16,
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                if (producto.categoria.isNotEmpty)
-                                  Text('Categoría: ${producto.categoria}'),
-                                if (producto.codigoBarras.isNotEmpty)
-                                  Text('Código: ${producto.codigoBarras}'),
                               ],
                             ),
                           ),
@@ -1385,26 +1586,47 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
               },
             ),
           ),
-          FloatingActionButton(
-            onPressed: _mostrarCarrito,
-            child: Stack(
-              alignment: Alignment.center,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.shopping_cart),
-                if (_carrito.isNotEmpty)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: CircleAvatar(
-                      radius: 10,
-                      backgroundColor: Colors.red,
-                      child: Text(
-                        _carrito.length.toString(),
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 12),
-                      ),
+                // Botón de Venta Casual
+                ElevatedButton.icon(
+                  onPressed: _agregarVentaCasual,
+                  icon: const Icon(Icons.add_shopping_cart, size: 20),
+                  label: const Text('Venta Casual'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
                     ),
                   ),
+                ),
+                
+                // Botón del carrito con contador
+                FloatingActionButton(
+                  onPressed: _mostrarCarrito,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(Icons.shopping_cart),
+                      if (_carrito.isNotEmpty)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: CircleAvatar(
+                            radius: 10,
+                            backgroundColor: Colors.red,
+                            child: Text(
+                              _carrito.length.toString(),
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -1761,8 +1983,9 @@ class HistorialTabState extends State<HistorialTab> {
                           ],
                           onChanged: (value) {
                             if (value != null) {
-                              setState(() => _metodoPagoFiltro = value);
-                              _loadVentas();
+                              setState(() {
+                                _metodoPagoFiltro = value;
+                              });
                             }
                           },
                         ),

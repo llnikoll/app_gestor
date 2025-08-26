@@ -35,16 +35,34 @@ class SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
-  Future<void> _purchaseFullVersion() async {
+  Future<void> _purchasePremium() async {
+    if (!mounted) return;
     setState(() => _isPurchasing = true);
     
     try {
-      await _purchaseService.purchaseFullVersion();
-      // La validación de la compra se manejará en el listener
+      final success = await _purchaseService.purchasePremium();
+      if (!mounted) return;
+      
+      if (!success) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo iniciar el proceso de compra')),
+          );
+        }
+        return;
+      }
+      
+      // Actualizar el estado después de la compra
+      final hasPremium = await _purchaseService.hasPremiumAccess();
+      if (!mounted) return;
+      
+      setState(() {
+        _hasPremium = hasPremium;
+      });
     } catch (e) {
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al procesar la compra')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     } finally {
@@ -55,11 +73,48 @@ class SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _restorePurchases() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
-    await _purchaseService.restorePurchases();
-    // Esperar un momento para que se procese la restauración
-    await Future.delayed(const Duration(seconds: 2));
-    await _initPurchaseService();
+    
+    try {
+      final restored = await _purchaseService.restorePurchases();
+      if (!mounted) return;
+      
+      final hasPremium = await _purchaseService.hasPremiumAccess();
+      if (!mounted) return;
+      
+      setState(() {
+        _hasPremium = hasPremium;
+      });
+      
+      if (context.mounted) {
+        if (restored) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                hasPremium 
+                  ? 'Compra restaurada exitosamente' 
+                  : 'No se encontraron compras para restaurar',
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error al restaurar compras')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -201,7 +256,7 @@ class SubscriptionScreenState extends State<SubscriptionScreen> {
 
   Widget _buildPurchaseButton() {
     return ElevatedButton(
-      onPressed: _isPurchasing ? null : _purchaseFullVersion,
+      onPressed: _isPurchasing ? null : _purchasePremium,
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 15),
         shape: RoundedRectangleBorder(

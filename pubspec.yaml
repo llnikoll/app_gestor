@@ -74,7 +74,7 @@ dependencies:
   printing: ^5.11.0
   
   # Gráficos
-  syncfusion_flutter_charts: ^29.2.9
+  syncfusion_flutter_charts: ^30.2.6
   
   # Lanzador de URLs
   url_launcher: ^6.2.5
@@ -89,6 +89,7 @@ dependencies:
   
   # Información del paquete
   package_info_plus: ^4.2.0
+  logging: ^1.2.0
   
   # Internacionalización
   easy_localization: ^3.0.3

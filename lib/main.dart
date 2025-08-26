@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 import 'services/logo_service.dart';
@@ -11,6 +13,19 @@ import 'services/database_service.dart';
 import 'screens/mode_selection_screen.dart';
 import 'screens/subscription_screen.dart';
 import 'services/purchase_service.dart';
+
+void _setupLogging() {
+  Logger.root.level = kDebugMode ? Level.ALL : Level.INFO;
+  Logger.root.onRecord.listen((record) {
+    debugPrint('${record.level.name}: ${record.time}: ${record.message}');
+    if (record.error != null) {
+      debugPrint('Error: ${record.error}');
+    }
+    if (record.stackTrace != null) {
+      debugPrint('Stack trace: ${record.stackTrace}');
+    }
+  });
+}
 
 class LoadingApp extends StatelessWidget {
   const LoadingApp({super.key});
@@ -41,6 +56,9 @@ class LoadingApp extends StatelessWidget {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _setupLogging();
+  final logger = Logger('main');
+  logger.info('Iniciando aplicación...');
 
   // Initialize FFI for non-web platforms
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
@@ -166,41 +184,68 @@ class AppWrapper extends StatefulWidget {
 class AppWrapperState extends State<AppWrapper> {
   bool _isLoading = true;
   bool _hasPremiumAccess = false;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _checkPremiumStatus();
-    
-    // Listen for purchase updates
+    _initializeApp();
+  }
+  
+  Future<void> _initializeApp() async {
     final purchaseService = Provider.of<PurchaseService>(context, listen: false);
-    purchaseService.addListener(_onPurchaseUpdate);
+    
+    // Inicializar el servicio de compras una sola vez
+    if (!_isInitialized) {
+      await purchaseService.init();
+      _isInitialized = true;
+      
+      // Configurar el listener después de la inicialización
+      purchaseService.addListener(_onPurchaseUpdate);
+    }
+    
+    // Verificar el estado de la suscripción
+    await _checkPremiumStatus();
   }
   
   @override
   void dispose() {
-    // Remove the listener when the widget is disposed
-    final purchaseService = Provider.of<PurchaseService>(context, listen: false);
-    purchaseService.removeListener(_onPurchaseUpdate);
+    // Remover el listener cuando el widget se destruya
+    if (_isInitialized) {
+      final purchaseService = Provider.of<PurchaseService>(context, listen: false);
+      purchaseService.removeListener(_onPurchaseUpdate);
+    }
     super.dispose();
   }
   
   void _onPurchaseUpdate() {
-    // When purchase state changes, recheck premium status
-    _checkPremiumStatus();
+    // Cuando el estado de compra cambia, verificar de nuevo el estado premium
+    if (mounted) {
+      _checkPremiumStatus();
+    }
   }
 
   Future<void> _checkPremiumStatus() async {
-    // Check if user has premium access
-    final purchaseService = Provider.of<PurchaseService>(context, listen: false);
-    await purchaseService.init();
-    final hasAccess = await purchaseService.hasPremiumAccess();
+    if (!mounted) return;
     
-    if (mounted) {
-      setState(() {
-        _hasPremiumAccess = hasAccess;
-        _isLoading = false;
-      });
+    try {
+      final purchaseService = Provider.of<PurchaseService>(context, listen: false);
+      final hasAccess = await purchaseService.hasPremiumAccess();
+      
+      if (mounted) {
+        setState(() {
+          _hasPremiumAccess = hasAccess;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasPremiumAccess = false; // Por defecto, sin acceso premium si hay error
+        });
+      }
+      debugPrint('Error al verificar estado premium: $e');
     }
   }
 
