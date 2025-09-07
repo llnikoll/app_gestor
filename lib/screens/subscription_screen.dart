@@ -25,7 +25,7 @@ class SubscriptionScreenState extends State<SubscriptionScreen> {
     await _purchaseService.init();
     final hasPremium = await _purchaseService.hasPremiumAccess();
     final trialDaysLeft = await _purchaseService.getTrialDaysLeft();
-    
+
     if (mounted) {
       setState(() {
         _hasPremium = hasPremium;
@@ -38,24 +38,25 @@ class SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _purchasePremium() async {
     if (!mounted) return;
     setState(() => _isPurchasing = true);
-    
+
     try {
       final success = await _purchaseService.purchasePremium();
       if (!mounted) return;
-      
+
       if (!success) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo iniciar el proceso de compra')),
+            const SnackBar(
+                content: Text('No se pudo iniciar el proceso de compra')),
           );
         }
         return;
       }
-      
+
       // Actualizar el estado después de la compra
       final hasPremium = await _purchaseService.hasPremiumAccess();
       if (!mounted) return;
-      
+
       setState(() {
         _hasPremium = hasPremium;
       });
@@ -75,26 +76,26 @@ class SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _restorePurchases() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    
+
     try {
       final restored = await _purchaseService.restorePurchases();
       if (!mounted) return;
-      
+
       final hasPremium = await _purchaseService.hasPremiumAccess();
       if (!mounted) return;
-      
+
       setState(() {
         _hasPremium = hasPremium;
       });
-      
+
       if (context.mounted) {
         if (restored) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                hasPremium 
-                  ? 'Compra restaurada exitosamente' 
-                  : 'No se encontraron compras para restaurar',
+                hasPremium
+                    ? 'Compra restaurada exitosamente'
+                    : 'No se encontraron compras para restaurar',
               ),
             ),
           );
@@ -166,7 +167,7 @@ class SubscriptionScreenState extends State<SubscriptionScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 20),
-          const Icon(Icons.rocket_launch, size: 80, color: Colors.blue),
+          Image.asset('assets/images/logo.png', height: 80),
           const SizedBox(height: 20),
           const Text(
             'Desbloquea todas las funciones',

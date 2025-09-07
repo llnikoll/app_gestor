@@ -4,6 +4,7 @@ import '../widgets/product_image_viewer.dart';
 import 'inventory_entries_screen.dart';
 import 'product_form_screen.dart';
 import '../models/producto_model.dart';
+import '../models/categoria_model.dart';
 import '../services/database_service.dart';
 import '../services/product_notifier_service.dart';
 import '../utils/currency_formatter.dart';
@@ -146,6 +147,118 @@ class InventoryScreenState extends State<InventoryScreen>
   }
 
   // Widget para construir el selector de categorías
+  Future<void> _editCategory(String currentCategory) async {
+    if (!mounted) return;
+
+    final controller = TextEditingController(text: currentCategory);
+    final db = DatabaseService();
+    final categorias = await db.getCategorias();
+    if (!mounted) return;
+
+    final categoria = categorias.firstWhere((c) => c.nombre == currentCategory);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar Categoría'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Nombre de la categoría',
+            hintText: 'Ingrese el nuevo nombre',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty && result != currentCategory) {
+      try {
+        final updatedCategoria = Categoria(
+          id: categoria.id,
+          nombre: result,
+          fechaCreacion: categoria.fechaCreacion,
+        );
+        await db.updateCategoria(updatedCategoria);
+        await _loadCategories();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Categoría actualizada con éxito')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al actualizar la categoría: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deleteCategory(String categoryName) async {
+    if (!mounted) return;
+
+    final db = DatabaseService();
+    final categorias = await db.getCategorias();
+    if (!mounted) return;
+
+    final categoria = categorias.firstWhere((c) => c.nombre == categoryName);
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Categoría'),
+        content: Text(
+          '¿Está seguro que desea eliminar la categoría "$categoryName"?\n\n'
+          'Nota: No se puede eliminar una categoría que tenga productos asociados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await db.deleteCategoria(categoria.id!);
+        await _loadCategories();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Categoría eliminada con éxito')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString())),
+          );
+        }
+      }
+    }
+  }
+
   Widget _buildCategoryFilter() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -176,15 +289,56 @@ class InventoryScreenState extends State<InventoryScreen>
           ),
         ),
         items: _categories.map((String category) {
+          if (category == 'Todas las categorías') {
+            return DropdownMenuItem<String>(
+              value: category,
+              child: Text(category),
+            );
+          }
           return DropdownMenuItem<String>(
             value: category,
-            child: Text(category),
+            child: Row(
+              children: [
+                Expanded(child: Text(category)),
+                if (category != 'Todas las categorías') ...[
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: () {
+                      // Cerrar el dropdown
+                      Navigator.of(context).pop();
+                      // Editar categoría
+                      _editCategory(category);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 20),
+                    onPressed: () {
+                      // Cerrar el dropdown
+                      Navigator.of(context).pop();
+                      // Eliminar categoría
+                      _deleteCategory(category);
+                    },
+                  ),
+                ],
+              ],
+            ),
           );
         }).toList(),
         onChanged: (String? newValue) {
           if (newValue != null) {
             _applyFilter(newValue);
           }
+        },
+        selectedItemBuilder: (BuildContext context) {
+          return _categories.map<Widget>((String category) {
+            return Container(
+              constraints: const BoxConstraints(maxWidth: double.infinity),
+              child: Text(
+                category,
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList();
         },
       ),
     );
@@ -253,13 +407,14 @@ class InventoryScreenState extends State<InventoryScreen>
                 ),
                 const Divider(height: 24),
               ],
-              _buildDetailRow('Precio', context.formattedCurrency(producto.precioVenta)),
+              _buildDetailRow(
+                  'Precio', context.formattedCurrency(producto.precioVenta)),
               const SizedBox(height: 8),
               if (producto.categoria.isNotEmpty)
                 _buildDetailRow('Categoría', producto.categoria),
               if (producto.codigoBarras.isNotEmpty)
                 _buildDetailRow('Código', producto.codigoBarras),
-              _buildDetailRow('Stock', '${producto.stock} unidades', 
+              _buildDetailRow('Stock', '${producto.stock} unidades',
                   color: producto.stock > 0 ? Colors.green : Colors.red),
             ],
           ),
@@ -390,7 +545,8 @@ class InventoryScreenState extends State<InventoryScreen>
                                           ),
                                         ),
                                         title: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               producto.nombre,
@@ -403,10 +559,12 @@ class InventoryScreenState extends State<InventoryScreen>
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
-                                              context.formattedCurrency(producto.precioVenta),
+                                              context.formattedCurrency(
+                                                  producto.precioVenta),
                                               style: TextStyle(
                                                 fontWeight: FontWeight.w600,
-                                                color: Theme.of(context).primaryColor,
+                                                color: Theme.of(context)
+                                                    .primaryColor,
                                                 fontSize: 14,
                                               ),
                                             ),

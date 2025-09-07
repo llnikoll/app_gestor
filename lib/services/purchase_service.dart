@@ -30,7 +30,8 @@ class PurchaseService extends ChangeNotifier {
   InAppPurchase? _inAppPurchase;
   bool _isAvailable = false;
   List<ProductDetails> _products = [];
-  bool _isLoadingProducts = false; // Nueva variable para controlar carga en progreso
+  bool _isLoadingProducts =
+      false; // Nueva variable para controlar carga en progreso
 
   // Getters
   bool get isAvailable => _isAvailable;
@@ -77,7 +78,7 @@ class PurchaseService extends ChangeNotifier {
   // Cargar productos disponibles
   Future<void> _loadProducts() async {
     if (_inAppPurchase == null || _isLoadingProducts) return;
-    
+
     _isLoadingProducts = true;
     final Set<String> kIds = {_premiumProductId}; // Usar el ID de compra única
     try {
@@ -121,8 +122,9 @@ class PurchaseService extends ChangeNotifier {
     final String? trialStartDateStr = prefs.getString(_trialKey);
     if (trialStartDateStr != null) {
       final DateTime trialStartDate = DateTime.parse(trialStartDateStr);
-      final DateTime trialEndDate = trialStartDate.add(const Duration(days: 7));
-      
+      final DateTime trialEndDate =
+          trialStartDate.add(const Duration(days: 15));
+
       if (DateTime.now().isBefore(trialEndDate)) {
         // Período de prueba activo
         _hasPremiumAccess = true;
@@ -142,7 +144,7 @@ class PurchaseService extends ChangeNotifier {
       return false;
     }
 
-    // 4. Si es la primera vez, iniciar prueba de 7 días
+    // 4. Si es la primera vez, iniciar prueba de 15 días
     await prefs.setString(_trialKey, DateTime.now().toIso8601String());
     _hasPremiumAccess = true;
     return true;
@@ -333,7 +335,7 @@ class PurchaseService extends ChangeNotifier {
       } else {
         _logger.warning('No se pudo iniciar el flujo de compra');
       }
-      
+
       return success;
     } catch (e) {
       _logger.severe('Error al intentar comprar la versión premium', e);
@@ -369,17 +371,17 @@ class PurchaseService extends ChangeNotifier {
   Future<int> getTrialDaysLeft() async {
     final prefs = await SharedPreferences.getInstance();
     final String? trialStartDateStr = prefs.getString(_trialKey);
-    
+
     if (trialStartDateStr == null) {
       // Si no hay fecha de inicio, es la primera vez
-      return 7;
+      return 15;
     }
-    
+
     final DateTime trialStartDate = DateTime.parse(trialStartDateStr);
-    final DateTime trialEndDate = trialStartDate.add(const Duration(days: 7));
+    final DateTime trialEndDate = trialStartDate.add(const Duration(days: 15));
     final Duration difference = trialEndDate.difference(DateTime.now());
-    
-    final int daysLeft = difference.inDays.clamp(0, 7);
+
+    final int daysLeft = difference.inDays.clamp(0, 15);
     return daysLeft;
   }
 }
