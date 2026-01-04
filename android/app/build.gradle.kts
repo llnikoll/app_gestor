@@ -39,28 +39,27 @@ android {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
+
     defaultConfig {
         applicationId = "com.devsolutions.gestor_pocket"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 4  // Actualizado a la versión 4
-        versionName = "1.0.1" // Actualizado para la nueva versión
+        versionCode = 5  // Actualizado a la versión 5
+        versionName = "1.0.2" // Actualizado para la nueva versión
         multiDexEnabled = true
-        
-        // Configuración para in-app purchases
-        manifestPlaceholders += mapOf(
-            "billingClientVersion" to "6.1.0"  // Versión de la biblioteca de facturación de Google Play
-        )
     }
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+            if (keystoreProperties["keyAlias"] != null) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
+
 
     buildTypes {
         release {

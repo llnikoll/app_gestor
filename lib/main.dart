@@ -11,8 +11,6 @@ import 'services/settings_service.dart';
 import 'services/product_notifier_service.dart';
 import 'services/database_service.dart';
 import 'screens/mode_selection_screen.dart';
-import 'screens/subscription_screen.dart';
-import 'services/purchase_service.dart';
 
 void _setupLogging() {
   Logger.root.level = kDebugMode ? Level.ALL : Level.INFO;
@@ -103,15 +101,9 @@ void main() async {
         Provider(create: (_) => ProductNotifierService()),
         ChangeNotifierProvider(create: (_) => DatabaseService()),
         ChangeNotifierProvider(create: (_) => LogoService()),
-        // Initialize purchase service
-        ChangeNotifierProvider(create: (_) => PurchaseService()),
       ],
       child: EasyLocalization(
-        supportedLocales: const [
-          Locale('es'),
-          Locale('en'),
-          Locale('pt'),
-        ],
+        supportedLocales: const [Locale('es'), Locale('en'), Locale('pt')],
         path: 'assets/translations',
         fallbackLocale: const Locale('es'),
         startLocale: Locale(appLanguage),
@@ -128,8 +120,8 @@ class ThemeNotifier with ChangeNotifier {
   ThemeNotifier({
     required bool isDarkMode,
     required SettingsService settingsService,
-  })  : _isDarkMode = isDarkMode,
-        _settingsService = settingsService;
+  }) : _isDarkMode = isDarkMode,
+       _settingsService = settingsService;
 
   bool get isDarkMode => _isDarkMode;
   ThemeMode get themeMode => _isDarkMode ? ThemeMode.dark : ThemeMode.light;
@@ -182,95 +174,9 @@ class AppWrapper extends StatefulWidget {
 }
 
 class AppWrapperState extends State<AppWrapper> {
-  bool _isLoading = true;
-  bool _hasPremiumAccess = false;
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeApp();
-  }
-  
-  Future<void> _initializeApp() async {
-    final purchaseService = Provider.of<PurchaseService>(context, listen: false);
-    
-    // Inicializar el servicio de compras una sola vez
-    if (!_isInitialized) {
-      await purchaseService.init();
-      _isInitialized = true;
-      
-      // Configurar el listener después de la inicialización
-      purchaseService.addListener(_onPurchaseUpdate);
-    }
-    
-    // Verificar el estado de la suscripción
-    await _checkPremiumStatus();
-  }
-  
-  @override
-  void dispose() {
-    // Remover el listener cuando el widget se destruya
-    if (_isInitialized) {
-      final purchaseService = Provider.of<PurchaseService>(context, listen: false);
-      purchaseService.removeListener(_onPurchaseUpdate);
-    }
-    super.dispose();
-  }
-  
-  void _onPurchaseUpdate() {
-    // Cuando el estado de compra cambia, verificar de nuevo el estado premium
-    if (mounted) {
-      _checkPremiumStatus();
-    }
-  }
-
-  Future<void> _checkPremiumStatus() async {
-    if (!mounted) return;
-    
-    try {
-      final purchaseService = Provider.of<PurchaseService>(context, listen: false);
-      final hasAccess = await purchaseService.hasPremiumAccess();
-      
-      if (mounted) {
-        setState(() {
-          _hasPremiumAccess = hasAccess;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _hasPremiumAccess = false; // Por defecto, sin acceso premium si hay error
-        });
-      }
-      debugPrint('Error al verificar estado premium: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      );
-    }
-
-    // If user doesn't have premium access, show subscription screen
-    if (!_hasPremiumAccess) {
-      return const MaterialApp(
-        home: Scaffold(
-          body: SubscriptionScreen(),
-        ),
-      );
-    }
-
-    // If user has premium access, show the main app
+    // Directly show the main app without restrictions
     return const MyApp();
   }
 }

@@ -1253,13 +1253,16 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                                                 final text = newValue.text;
 
                                                 // No permitir comenzar con coma
-                                                if (text.startsWith(','))
+                                                if (text.startsWith(',')) {
                                                   return oldValue;
+                                                }
 
                                                 // No permitir múltiples comas
                                                 if ((text.split(',').length -
                                                         1) >
-                                                    1) return oldValue;
+                                                    1) {
+                                                  return oldValue;
+                                                }
 
                                                 // Limitar a 2 decimales después de la coma
                                                 final parts = text.split(',');
@@ -1365,8 +1368,9 @@ class NuevaVentaTabState extends State<NuevaVentaTab> {
                 future: Provider.of<DatabaseService>(context, listen: false)
                     .getClientes(),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData)
+                  if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
+                  }
 
                   final clientes = snapshot.data!;
 
